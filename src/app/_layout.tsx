@@ -8,19 +8,63 @@ import { Inter_500Medium } from "@expo-google-fonts/inter/500Medium";
 import { Inter_600SemiBold } from "@expo-google-fonts/inter/600SemiBold";
 import { PlayfairDisplay_700Bold } from "@expo-google-fonts/playfair-display/700Bold";
 import { PlayfairDisplay_800ExtraBold } from "@expo-google-fonts/playfair-display/800ExtraBold";
-import { useFonts } from "expo-font";
 import { QueryClientProvider } from "@tanstack/react-query";
+import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
+import { useAppDestination } from "@/features/auth/hooks/use-app-destination";
+import { useAuthListener } from "@/features/auth/hooks/use-auth-listener";
 import { queryClient } from "@/services/query-client";
 import { useThemeStore } from "@/stores/theme-store";
 import { ThemeProvider } from "@/theme/theme-provider";
 
 SplashScreen.preventAutoHideAsync();
+
+/**
+ * The session gate. Guards live here and nowhere else, so there is exactly one
+ * place the redirect can be wrong.
+ *
+ * Guards are a UX convenience — the server re-verifies the JWT and suspension
+ * on every call regardless (§4).
+ */
+function RootNavigator() {
+  useAuthListener();
+  const { ready, destination } = useAppDestination();
+
+  useEffect(() => {
+    if (ready) SplashScreen.hideAsync();
+  }, [ready]);
+
+  // Keep the native splash up until the destination is known. Rendering the
+  // stack first would flash the wrong screen for a frame on every cold start.
+  if (!ready) return null;
+
+  const signedOut = destination === "/login";
+  const suspended = destination === "/suspended";
+
+  return (
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Protected guard={signedOut}>
+        <Stack.Screen name="(auth)" />
+      </Stack.Protected>
+
+      <Stack.Protected guard={suspended}>
+        <Stack.Screen name="suspended" />
+      </Stack.Protected>
+
+      {/* Onboarding and (tabs) land in Phases 02–03; until then an
+          authenticated member lands on the Phase 00 foundation check. */}
+      <Stack.Protected guard={!signedOut && !suspended}>
+        <Stack.Screen name="index" />
+        <Stack.Screen name="foundation/navigation-check" />
+      </Stack.Protected>
+    </Stack>
+  );
+}
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
@@ -32,23 +76,16 @@ export default function RootLayout() {
   });
   const themeHydrated = useThemeStore((s) => s.hydrated);
 
-  // Hold the native splash until fonts and the stored theme preference have
-  // resolved. A light-to-dark flash on launch is the one thing that makes a
-  // premium app feel cheap. A font error must not hang the splash forever.
-  const ready = (fontsLoaded || Boolean(fontError)) && themeHydrated;
-
-  useEffect(() => {
-    if (ready) SplashScreen.hideAsync();
-  }, [ready]);
-
-  if (!ready) return null;
+  // A font error must not hang the splash forever.
+  const shellReady = (fontsLoaded || Boolean(fontError)) && themeHydrated;
+  if (!shellReady) return null;
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
           <ThemeProvider>
-            <Stack screenOptions={{ headerShown: false }} />
+            <RootNavigator />
           </ThemeProvider>
         </QueryClientProvider>
       </SafeAreaProvider>

@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Divider } from "@/components/ui/Divider";
 import { Icon } from "@/components/ui/Icon";
+import { useSignOut } from "@/features/auth/hooks/use-auth-actions";
+import { useAuthStore } from "@/stores/auth-store";
 import { useThemeStore, type ThemePreference } from "@/stores/theme-store";
 import { useAppliedTheme } from "@/theme/theme";
 
@@ -20,6 +22,8 @@ const PREFERENCES: ThemePreference[] = ["light", "dark", "system"];
 export default function FoundationCheck() {
   const { preference, resolved } = useAppliedTheme();
   const setPreference = useThemeStore((s) => s.setPreference);
+  const email = useAuthStore((s) => s.session?.user.email ?? null);
+  const signOut = useSignOut();
 
   return (
     <Screen scroll>
@@ -96,6 +100,19 @@ export default function FoundationCheck() {
             <Button label="Loading" loading />
             <Button label="Disabled" disabled />
           </View>
+        </Card>
+
+        <Card>
+          <Text className="font-display text-h3 text-ink mb-md">Session</Text>
+          <Text className="font-body text-sm text-body mb-md">
+            {email ?? "no session"}
+          </Text>
+          <Button
+            label="Sign out"
+            variant="secondary"
+            loading={signOut.isPending}
+            onPress={() => signOut.mutate()}
+          />
         </Card>
 
         <Link href="/foundation/navigation-check" asChild>

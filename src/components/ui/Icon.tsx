@@ -1,17 +1,25 @@
 import {
   AlertCircle,
   ArrowLeft,
+  ArrowRight,
   Camera,
   Check,
   ChevronDown,
   ChevronRight,
+  Eye,
+  EyeOff,
+  HelpCircle,
   Images,
   LayoutGrid,
+  LogOut,
+  Mail,
   MessageCircle,
+  MessageSquare,
   Moon,
   Palette,
   RefreshCw,
   Settings,
+  ShieldCheck,
   Sun,
   X,
 } from "lucide-react-native";
@@ -34,6 +42,7 @@ export const icons = {
   concierge: MessageCircle,
   settings: Settings,
   back: ArrowLeft,
+  forward: ArrowRight,
   close: X,
   check: Check,
   chevronDown: ChevronDown,
@@ -42,6 +51,14 @@ export const icons = {
   alert: AlertCircle,
   light: Sun,
   dark: Moon,
+  // Auth
+  eye: Eye,
+  eyeOff: EyeOff,
+  secure: ShieldCheck,
+  help: HelpCircle,
+  feedback: MessageSquare,
+  mail: Mail,
+  signOut: LogOut,
 } as const;
 
 export type IconName = keyof typeof icons;
