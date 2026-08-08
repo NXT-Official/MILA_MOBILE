@@ -318,6 +318,10 @@ Mila reads as **premium, editorial, minimal, fashion-focused, calm.** Never a da
 
 - **Reference assets centrally**, never by an ad-hoc relative path scattered through screens.
 - **Fonts are bundled with `expo-font`** — never fetched at runtime.
+- **Import a font by its weight subpath, never from the package barrel.**
+  `@expo-google-fonts/inter/400Regular`, not `@expo-google-fonts/inter`. The barrel `require`s every
+  weight and Metro cannot tree-shake it: the barrel import bundled 31 TTFs (~5 MB) for the five faces
+  Mila uses. Re-check the exported asset count after adding any weight.
 - Keep naming descriptive and consistent (`empty_history.png`, not `img2.png`).
 - Optimise before committing: images are compressed and sized for mobile; a raw export does not go
   into the repo.

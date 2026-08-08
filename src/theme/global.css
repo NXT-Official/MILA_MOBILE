@@ -1,0 +1,49 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * The only file in the project where a raw colour value appears.
+ * Every token is theme-aware here, which is why no feature code carries a
+ * `dark:` prefix. Values mirror src/theme/tokens.ts exactly — the pairing is
+ * asserted by __tests__/theme-tokens-test.ts.
+ */
+@layer base {
+  :root {
+    --color-canvas: 245 240 232; /* #f5f0e8 — Paper Cream */
+    --color-surface: 250 248 245; /* #faf8f5 — Porcelain */
+    --color-surface-alt: 242 238 233; /* #f2eee9 */
+    --color-ink: 43 35 32; /* #2b2320 */
+    --color-body: 107 98 89; /* #6b6259 — Pencil */
+    --color-muted: 107 98 89; /* #6b6259 — same by design */
+    --color-accent: 201 169 110; /* #c9a96e — Champagne Gold */
+    --color-accent-soft: 245 236 217; /* #f5ecd9 */
+    --color-rose: 210 164 160; /* #d2a4a0 */
+    --color-border: 232 213 176; /* #e8d5b0 */
+    --color-success: 53 121 75; /* #35794b */
+    --color-warning: 197 108 33; /* #c56c21 */
+    --color-destructive: 204 40 39; /* #cc2827 */
+    --color-on-ink: 250 248 245;
+    --color-on-destructive: 250 248 245;
+    --color-on-warning: 29 20 13;
+  }
+
+  .dark:root {
+    --color-canvas: 17 12 9; /* #110c09 */
+    --color-surface: 27 22 18; /* #1b1612 */
+    --color-surface-alt: 41 35 30; /* #29231e */
+    --color-ink: 235 231 226; /* #ebe7e2 */
+    --color-body: 177 169 161; /* #b1a9a1 */
+    --color-muted: 165 157 149; /* #a59d95 */
+    --color-accent: 198 173 139; /* #c6ad8b */
+    --color-accent-soft: 59 49 33; /* #3b3121 */
+    --color-rose: 184 140 135; /* #b88c87 */
+    --color-border: 242 238 234; /* used at /12 opacity */
+    --color-success: 87 162 109; /* #57a26d */
+    --color-warning: 223 143 72; /* #df8f48 */
+    --color-destructive: 226 73 66; /* #e24942 */
+    --color-on-ink: 26 21 17;
+    --color-on-destructive: 250 248 245;
+    --color-on-warning: 26 21 17;
+  }
+}
