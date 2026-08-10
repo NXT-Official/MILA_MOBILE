@@ -17,7 +17,8 @@ import {
 import { isStyleProfileComplete, toStyleProfileRow } from "@/lib/style-profile/completion";
 import { normalizeBeautyPreferences } from "@/lib/beauty-preferences";
 import { normalizeStoredProfile } from "@/lib/style-profile/studio-dossier";
-import type { Json, StudioColorProfile } from "@/types/models";
+import { useOnboardingStore } from "@/stores/onboarding-store";
+import type { Json } from "@/types/models";
 
 import { useAutoSaveProfile } from "./hooks/use-auto-save-profile";
 import { useOnboardingMachine } from "./hooks/use-onboarding-machine";
@@ -77,11 +78,20 @@ export function OnboardingScreen({ rawStep }: { rawStep: string | undefined }) {
   // resolves — "welcome" writes nothing.
   const autoSave = useAutoSaveProfile(step ?? "welcome");
 
-  const [candidate, setCandidate] = useState<StudioColorProfile | null>(null);
+  // The chosen season lives in the store, not in useState: advancing a step
+  // mounts a new screen, so component state does not survive the trip from
+  // color-path to color-result.
+  const candidate = useOnboardingStore((s) => s.candidate);
+  const setCandidate = useOnboardingStore((s) => s.setCandidate);
+  const clearCandidate = useOnboardingStore((s) => s.clearCandidate);
+  // AsyncStorage rehydrates asynchronously. Rendering before it lands would
+  // flash "No colour result yet" on a cold start into color-result.
+  const draftHydrated = useOnboardingStore((s) => s.hydrated);
+
   const [completing, setCompleting] = useState(false);
   const [completionError, setCompletionError] = useState<string | null>(null);
 
-  if (loading) {
+  if (loading || !draftHydrated) {
     return (
       <View className="flex-1 items-center justify-center bg-canvas">
         <ActivityIndicator size="large" />
@@ -148,7 +158,7 @@ export function OnboardingScreen({ rawStep }: { rawStep: string | undefined }) {
           goNext("color-path");
         }}
         onContinueExisting={() => {
-          setCandidate(null);
+          clearCandidate();
           goNext("color-path");
         }}
       />
@@ -162,11 +172,13 @@ export function OnboardingScreen({ rawStep }: { rawStep: string | undefined }) {
         existingDossier={dossier}
         onBack={() => goBack("color-result")}
         onChooseAnother={() => {
-          setCandidate(null);
+          clearCandidate();
           goTo("color-path", { replace: true });
         }}
         onConfirmed={() => {
-          setCandidate(null);
+          // Confirmed means it is now in `profiles.color_profile`; keeping the
+          // draft too would give a later visit two sources for one answer.
+          clearCandidate();
           goNext("color-result");
         }}
         save={(payload) => autoSave.save(payload)}

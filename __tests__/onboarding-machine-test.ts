@@ -16,6 +16,7 @@ import {
   resolveStep,
   undertoneForSeason,
 } from "@/features/onboarding/machine";
+import { PERSISTED_KEYS, useOnboardingStore } from "@/stores/onboarding-store";
 import type { DashboardProfile } from "@/types/models";
 
 /**
@@ -239,5 +240,44 @@ describe("undertoneForSeason", () => {
     for (const season of SEASONS) {
       expect(UNDERTONES as readonly string[]).toContain(undertoneForSeason(season));
     }
+  });
+});
+
+describe("the colour candidate survives a step change", () => {
+  /**
+   * Each onboarding step is its own route, so advancing UNMOUNTS the screen.
+   * The season chosen on `color-path` therefore cannot live in component state
+   * — it did, and every season landed on "No colour result yet" because the
+   * new screen mounted with nothing. The web only gets away with `useState`
+   * because it swaps a `?step=` search param on one mounted component.
+   */
+  const season = {
+    season: "Autumn",
+    subSeason: "Autumn True",
+    primarySwatches: [{ hex: "#8b5a2b", name: "Chestnut" }],
+  };
+
+  beforeEach(() => {
+    useOnboardingStore.setState({ pending: null, candidate: null, hydrated: true });
+  });
+
+  it("keeps the candidate across a simulated unmount/remount", () => {
+    useOnboardingStore.getState().setCandidate(season as never);
+    // Nothing about a remount touches the store, which is the whole point.
+    expect(useOnboardingStore.getState().candidate).toEqual(season);
+  });
+
+  it("drops the candidate once it has been confirmed to the server", () => {
+    useOnboardingStore.getState().setCandidate(season as never);
+    useOnboardingStore.getState().clearCandidate();
+    // Two sources for one answer is how a later visit shows a stale palette.
+    expect(useOnboardingStore.getState().candidate).toBeNull();
+  });
+
+  it("persists the candidate, so quitting between the two steps costs nothing", () => {
+    // partialize decides what reaches AsyncStorage; omitting `candidate` would
+    // make a cold start into color-result show the empty state again.
+    expect(PERSISTED_KEYS).toContain("candidate");
+    expect(PERSISTED_KEYS).toContain("pending");
   });
 });
