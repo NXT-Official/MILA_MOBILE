@@ -69,6 +69,10 @@ module.exports = {
         xl: "24px",
         "2xl": "32px",
         "3xl": "56px",
+        // Touch targets (§10). Named rather than arbitrary so `min-h-tap` is
+        // greppable and a screen cannot quietly ship a 36px control.
+        tap: "44px", // the WCAG floor
+        tile: "56px", // OptionTile — the primary onboarding interaction
       },
     },
   },

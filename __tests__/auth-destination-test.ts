@@ -1,6 +1,7 @@
 import { resolveDestination } from "@/lib/auth-destination";
-import { isStyleProfileComplete } from "@/lib/style-profile/completion";
-import type { Profile } from "@/types/models";
+
+// `isStyleProfileComplete()` — the third input to this decision — is covered in
+// __tests__/profile-completion-test.ts against the copied implementation.
 
 /**
  * This function runs on every cold start. A wrong answer either locks a member
@@ -57,54 +58,5 @@ describe("resolveDestination", () => {
     expect(seen).toEqual(
       new Set(["/login", "/suspended", "/onboarding/welcome", "/"]),
     );
-  });
-});
-
-describe("isStyleProfileComplete", () => {
-  const complete: Profile = {
-    id: "u1",
-    full_name: "Ana",
-    username: "ana",
-    suspended: false,
-    skin_undertone: "warm",
-    color_season: "autumn",
-    body_type: "hourglass",
-    face_shape: "oval",
-    hair_type: "wavy",
-    color_profile: { season: "true-autumn" },
-  };
-
-  it("accepts a fully populated profile", () => {
-    expect(isStyleProfileComplete(complete)).toBe(true);
-  });
-
-  it("rejects null and undefined", () => {
-    expect(isStyleProfileComplete(null)).toBe(false);
-    expect(isStyleProfileComplete(undefined)).toBe(false);
-  });
-
-  it.each([
-    "skin_undertone",
-    "color_season",
-    "body_type",
-    "face_shape",
-    "hair_type",
-  ] as const)("requires %s", (field) => {
-    expect(isStyleProfileComplete({ ...complete, [field]: null })).toBe(false);
-  });
-
-  it("requires a non-empty color_profile", () => {
-    expect(isStyleProfileComplete({ ...complete, color_profile: null })).toBe(false);
-    expect(isStyleProfileComplete({ ...complete, color_profile: {} })).toBe(false);
-  });
-
-  it("accepts primarySwatches in place of season", () => {
-    expect(
-      isStyleProfileComplete({ ...complete, color_profile: { primarySwatches: ["#aaa"] } }),
-    ).toBe(true);
-  });
-
-  it("rejects a color_profile with neither key", () => {
-    expect(isStyleProfileComplete({ ...complete, color_profile: { note: "x" } })).toBe(false);
   });
 });

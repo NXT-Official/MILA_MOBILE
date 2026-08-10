@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { colors, radii, spacing } from "@/theme/tokens";
+import { colors, radii, spacing, touchTargets } from "@/theme/tokens";
 
 /**
  * tokens.ts and global.css are two hand-maintained copies of one palette. Two
@@ -87,6 +87,19 @@ describe("design tokens", () => {
     for (const [key, value] of Object.entries(spacing)) {
       expect(twSpacing[key]).toBe(`${value}px`);
     }
+  });
+
+  it("keeps the touch targets in step with tailwind.config.js", () => {
+    // A `min-h-tap` that generates nothing is a 44px rule that silently is not
+    // enforced — exactly the failure this pairing exists to catch.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const tw = require("../tailwind.config.js");
+    const twSpacing = tw.theme.extend.spacing as Record<string, string>;
+    for (const [key, value] of Object.entries(touchTargets)) {
+      expect(twSpacing[key]).toBe(`${value}px`);
+    }
+    expect(touchTargets.tap).toBeGreaterThanOrEqual(44);
+    expect(touchTargets.tile).toBeGreaterThanOrEqual(56);
   });
 
   it("keeps the radius scale in step with tailwind.config.js", () => {

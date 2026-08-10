@@ -41,6 +41,28 @@ const ABOVE_PURE = {
   message: "lib/, constants/, and utils/ are pure. They import nothing from a layer above.",
 };
 
+/**
+ * Appendix A's copy manifest. These files are copied from the web project and
+ * must stay byte-identical to it — a re-copy has to land clean. Style rules are
+ * therefore off here; correctness rules are not, because a real error in the
+ * colour engine matters just as much on this side.
+ */
+const VERBATIM_COPIES = [
+  "src/constants/style-profile/**/*.ts",
+  "src/lib/color-analysis/**/*.ts",
+  "src/lib/style-profile/**/*.ts",
+  "src/lib/style-profile.ts",
+  "src/lib/profile-color.ts",
+  "src/lib/beauty-preferences.ts",
+  "src/lib/auth-input.ts",
+  "src/constants/steps.ts",
+  "src/constants/climate.ts",
+  "src/constants/wardrobe.ts",
+  "src/constants/query-keys.ts",
+  "src/constants/password.ts",
+  "src/services/supabase/types.ts",
+];
+
 module.exports = defineConfig([
   expoConfig,
   { ignores: ["dist/*", ".expo/*", "node_modules/*"] },
@@ -132,5 +154,11 @@ module.exports = defineConfig([
         { paths: ICON_PATHS, patterns: [PLATFORM_FILE_PATTERN, ABOVE_PURE] },
       ],
     },
+  },
+
+  // ── Verbatim copies: style rules off, everything else on ───────────────────
+  {
+    files: VERBATIM_COPIES,
+    rules: { "@typescript-eslint/array-type": "off" },
   },
 ]);

@@ -6,6 +6,8 @@ import {
   Check,
   ChevronDown,
   ChevronRight,
+  CloudCheck,
+  CloudOff,
   Eye,
   EyeOff,
   HelpCircle,
@@ -13,13 +15,16 @@ import {
   LayoutGrid,
   LogOut,
   Mail,
+  MapPin,
   MessageCircle,
   MessageSquare,
   Moon,
   Palette,
   RefreshCw,
+  Ruler,
   Settings,
   ShieldCheck,
+  Sparkles,
   Sun,
   X,
 } from "lucide-react-native";
@@ -59,6 +64,12 @@ export const icons = {
   feedback: MessageSquare,
   mail: Mail,
   signOut: LogOut,
+  // Onboarding
+  sparkle: Sparkles,
+  silhouette: Ruler,
+  location: MapPin,
+  saved: CloudCheck,
+  unsaved: CloudOff,
 } as const;
 
 export type IconName = keyof typeof icons;

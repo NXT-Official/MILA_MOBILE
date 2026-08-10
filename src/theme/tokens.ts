@@ -59,6 +59,16 @@ export const spacing = {
   "3xl": 56,
 } as const;
 
+/**
+ * Minimum touch targets (§10). `tap` is the WCAG 2.2 floor; `tile` is the
+ * onboarding OptionTile, deliberately above it because a mis-tap there writes
+ * the wrong silhouette to a member's profile.
+ */
+export const touchTargets = {
+  tap: 44,
+  tile: 56,
+} as const;
+
 /** The five-step hierarchy maps to control size, never to taste. */
 export const radii = {
   control: 12, // buttons, inputs, chips

@@ -45,6 +45,7 @@ function RootNavigator() {
 
   const signedOut = destination === "/login";
   const suspended = destination === "/suspended";
+  const onboarding = destination === "/onboarding/welcome";
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
@@ -56,9 +57,15 @@ function RootNavigator() {
         <Stack.Screen name="suspended" />
       </Stack.Protected>
 
-      {/* Onboarding and (tabs) land in Phases 02–03; until then an
-          authenticated member lands on the Phase 00 foundation check. */}
-      <Stack.Protected guard={!signedOut && !suspended}>
+      {/* The step machine, not this guard, decides WHICH step — the group's
+          initial route is the resume point, resolved inside the screen. */}
+      <Stack.Protected guard={onboarding}>
+        <Stack.Screen name="onboarding" />
+      </Stack.Protected>
+
+      {/* (tabs) lands in Phase 03; until then a member with a complete profile
+          lands on the Phase 00 foundation check. */}
+      <Stack.Protected guard={!signedOut && !suspended && !onboarding}>
         <Stack.Screen name="index" />
         <Stack.Screen name="foundation/navigation-check" />
       </Stack.Protected>

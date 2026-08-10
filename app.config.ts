@@ -83,6 +83,17 @@ const config: ExpoConfig = {
     ],
     "expo-secure-store",
     "expo-font",
+    [
+      // Foreground only. Background location is never requested: Mila reads a
+      // position once, to suggest the nearest weather hub, and then forgets it.
+      "expo-location",
+      {
+        locationWhenInUsePermission:
+          "Mila uses your location once to pick the nearest weather hub, so your look suits the day.",
+        isAndroidBackgroundLocationEnabled: false,
+        isIosBackgroundLocationEnabled: false,
+      },
+    ],
   ],
 
   experiments: {

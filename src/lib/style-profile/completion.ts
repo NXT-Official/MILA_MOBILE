@@ -1,30 +1,45 @@
-import type { Profile } from "@/types/models";
+import { UNDERTONES, SEASONS, BODIES, FACE_SHAPES, HAIR_TYPES } from "@/constants/style-profile";
 
-/**
- * HAND-WRITTEN to the architecture doc §7. The web project's
- * `src/lib/style-profile/completion.ts` is the real source and must be copied
- * over this file (Appendix A) — this is the onboarding gate, and two
- * implementations mean a member can be "complete" on one client and not the
- * other.
- *
- * All six are required: skin_undertone, color_season, body_type, face_shape,
- * hair_type, and a non-empty color_profile containing `season` or
- * `primarySwatches`.
- */
-export function isStyleProfileComplete(profile: Profile | null | undefined): boolean {
+export interface StyleProfileRow {
+  skin_undertone: string | null;
+  color_season: string | null;
+  body_type: string | null;
+  face_shape: string | null;
+  hair_type: string | null;
+  color_profile: unknown;
+}
+
+export function toStyleProfileRow(
+  profile:
+    | (Omit<StyleProfileRow, "color_season"> & { color_season_base: string | null })
+    | null
+    | undefined,
+): StyleProfileRow | null {
+  if (!profile) return null;
+  return {
+    skin_undertone: profile.skin_undertone,
+    color_season: profile.color_season_base,
+    body_type: profile.body_type,
+    face_shape: profile.face_shape,
+    hair_type: profile.hair_type,
+    color_profile: profile.color_profile,
+  };
+}
+
+export function isNonEmptyColorProfile(value: unknown): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const obj = value as Record<string, unknown>;
+  return "season" in obj || "primarySwatches" in obj;
+}
+
+export function isStyleProfileComplete(profile: StyleProfileRow | null | undefined): boolean {
   if (!profile) return false;
-
-  const required = [
-    profile.skin_undertone,
-    profile.color_season,
-    profile.body_type,
-    profile.face_shape,
-    profile.hair_type,
-  ];
-  if (required.some((value) => !value)) return false;
-
-  const colorProfile = profile.color_profile;
-  if (!colorProfile || typeof colorProfile !== "object") return false;
-
-  return "season" in colorProfile || "primarySwatches" in colorProfile;
+  return (
+    (UNDERTONES as readonly string[]).includes(profile.skin_undertone ?? "") &&
+    (SEASONS as readonly string[]).includes(profile.color_season ?? "") &&
+    (BODIES as readonly string[]).includes(profile.body_type ?? "") &&
+    (FACE_SHAPES as readonly string[]).includes(profile.face_shape ?? "") &&
+    (HAIR_TYPES as readonly string[]).includes(profile.hair_type ?? "") &&
+    isNonEmptyColorProfile(profile.color_profile)
+  );
 }

@@ -1,0 +1,67 @@
+/**
+ * COPIED VERBATIM from the web (Appendix A). The only edit is the
+ * `StudioColorProfile` import: on web the type is inferred from the Zod schema
+ * inside `analyzePersonalColor.functions.ts`, a **server** module that must
+ * never be ported (Appendix A, "web modules that need no mobile equivalent").
+ * Mobile declares the same shape as a plain type in `types/models.ts`.
+ */
+import { type StudioColorProfile } from "@/types/models";
+import {
+  Season,
+  MOOD_COLLECT_DEFAULT,
+  type DetailedColorProfile as StudioDossier,
+} from "@/constants/style-profile";
+import {
+  matrixForSubSeason,
+  seasonTone,
+  seasonBrightness,
+  seasonSaturation,
+} from "@/lib/style-profile";
+
+export function studioToDossier(p: StudioColorProfile, prev?: StudioDossier): StudioDossier {
+  const season = p.season as Season;
+  return {
+    season,
+    subSeason: p.subSeason,
+    toneType: p.toneType ?? seasonTone(season),
+    brightness: p.brightness ?? prev?.brightness ?? seasonBrightness(season),
+    saturation: p.saturation ?? prev?.saturation ?? seasonSaturation(season),
+    contrastScale: p.contrastScale ?? "Medium Contrast",
+    faceShape: p.faceShape ?? "Oval Frame",
+    bodyType: p.bodyType ?? prev?.bodyType ?? MOOD_COLLECT_DEFAULT.bodyType,
+    primarySwatches: p.primarySwatches,
+    secondarySwatches: p.secondarySwatches,
+    accentSwatches: prev?.accentSwatches ?? MOOD_COLLECT_DEFAULT.accentSwatches,
+    avoidColors: p.avoidColors,
+    beautyMap: {
+      hair: p.beautyMap?.hair ?? MOOD_COLLECT_DEFAULT.beautyMap.hair,
+      lip: p.beautyMap?.lip ?? MOOD_COLLECT_DEFAULT.beautyMap.lip,
+      base: p.beautyMap?.base ?? MOOD_COLLECT_DEFAULT.beautyMap.base,
+    },
+    fabrication: p.fabrication,
+    accessories: p.accessories,
+    denimRegistry: p.denimRegistry,
+    stylistNote: p.stylistNote,
+    fullPalette: p.fullPalette ?? matrixForSubSeason(season, p.subSeason),
+    calibrationSource:
+      p.detectedLighting === "Manual Studio Calibration" ? "Studio Calibrated" : "AI Vision",
+    confidenceScore: typeof p.confidenceScore === "number" ? p.confidenceScore : undefined,
+    confidenceLabel: p.confidenceLabel,
+  };
+}
+
+export function normalizeStoredProfile(raw: unknown): StudioDossier | null {
+  if (!raw || typeof raw !== "object") return null;
+  const profile = raw as Partial<StudioColorProfile> & Partial<StudioDossier>;
+  if (
+    Array.isArray(profile.primarySwatches) &&
+    Array.isArray(profile.fabrication) &&
+    profile.stylistNote
+  ) {
+    return studioToDossier(profile as StudioColorProfile);
+  }
+  if (Array.isArray(profile.primarySwatches) && profile.beautyMap) {
+    return profile as StudioDossier;
+  }
+  return null;
+}
