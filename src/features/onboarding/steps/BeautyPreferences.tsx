@@ -43,16 +43,21 @@ export function BeautyPreferences({
       step="beauty-preferences"
       onBack={onBack}
       onContinue={handleContinue}
-      continueLabel={selected.length === 0 ? "Continue without preferences" : "Continue"}
+      // "Continue without preferences" wrapped to two lines and was clipped by
+      // the button's fixed height on a 360dp screen. The helper text below
+      // already says what continuing empty means.
+      continueLabel="Continue"
       continueLoading={saving}
       onSkip={onSkip}
       saveState={saveState}
       onRetrySave={onRetrySave}
     >
       <View className="gap-lg">
+        {/* StepShell already renders the step's own description from
+            `ONBOARDING_STEPS`; repeating it here stacked two near-identical
+            paragraphs. Only the part it does not say belongs in this file. */}
         <Text className="font-body text-base text-body">
-          Select the finishes you want Mila to prioritise in makeup and beauty suggestions. This
-          step is optional — leave everything unselected for no preference.
+          Optional — leave everything unselected for no preference.
         </Text>
 
         <View className="flex-row flex-wrap gap-sm">

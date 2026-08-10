@@ -34,12 +34,26 @@ export function useOnboardingMachine(rawStep: string | undefined) {
     [router],
   );
 
-  const resolvedRef = useRef(false);
+  // Keyed on the requested step, NOT on the mount. A deep link to another step
+  // updates this route's params in place instead of remounting, so a
+  // once-per-mount guard would already have fired and would wave the new step
+  // straight through — which is how `/onboarding/review` rendered a dossier of
+  // "Not set" on a blank profile.
+  //
+  // Still a guard rather than an unconditional check: without it, a background
+  // refetch that briefly returns a stale profile would throw a member backwards
+  // out of the step she is standing on.
+  const resolvedForRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!settled || resolvedRef.current) return;
-    resolvedRef.current = true;
+    if (!settled) return;
+
+    const key = requested ?? "";
+    if (resolvedForRef.current === key) return;
+    resolvedForRef.current = key;
 
     const { step, redirected } = resolveStep(requested, profile);
+    // Terminates after one hop: resolveStep only ever returns the resume point,
+    // which is reachable by construction (asserted in the machine tests).
     if (redirected) goTo(step, { replace: true });
   }, [settled, requested, profile, goTo]);
 

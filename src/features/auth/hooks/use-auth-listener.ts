@@ -3,6 +3,7 @@ import { useEffect } from "react";
 
 import { supabase } from "@/services/supabase/client";
 import { useAuthStore } from "@/stores/auth-store";
+import { useOnboardingStore } from "@/stores/onboarding-store";
 
 /**
  * Mirrors Supabase's session into the store and keeps the query cache honest.
@@ -23,8 +24,14 @@ export function useAuthListener() {
 
     const { data: subscription } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
-      // Never let one member's cached profile survive into another's session.
-      if (event === "SIGNED_OUT") queryClient.clear();
+      if (event === "SIGNED_OUT") {
+        // Never let one member's cached profile survive into another's session.
+        queryClient.clear();
+        // Nor her onboarding draft: a pending answer left in AsyncStorage would
+        // replay into whoever signs in next, writing her body type to a
+        // stranger's profile.
+        useOnboardingStore.getState().reset();
+      }
     });
 
     return () => {

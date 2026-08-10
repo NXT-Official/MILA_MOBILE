@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 
 import { ErrorState } from "@/components/ui/ErrorState";
@@ -88,6 +88,15 @@ export function OnboardingScreen({ rawStep }: { rawStep: string | undefined }) {
   // flash "No colour result yet" on a cold start into color-result.
   const draftHydrated = useOnboardingStore((s) => s.hydrated);
 
+  // Latches the launch gate open for the whole flow — see the store's `active`.
+  // Cleared only by `handleComplete`, so the exit is hers, not a side effect of
+  // answering the last required question.
+  const enterOnboarding = useOnboardingStore((s) => s.enterOnboarding);
+  const exitOnboarding = useOnboardingStore((s) => s.exitOnboarding);
+  useEffect(() => {
+    enterOnboarding();
+  }, [enterOnboarding]);
+
   const [completing, setCompleting] = useState(false);
   const [completionError, setCompletionError] = useState<string | null>(null);
 
@@ -136,6 +145,7 @@ export function OnboardingScreen({ rawStep }: { rawStep: string | undefined }) {
         return;
       }
 
+      exitOnboarding();
       router.replace("/");
     } catch {
       setCompletionError("We couldn't confirm your profile just now. Please try again.");

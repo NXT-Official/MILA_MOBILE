@@ -19,6 +19,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useAppDestination } from "@/features/auth/hooks/use-app-destination";
 import { useAuthListener } from "@/features/auth/hooks/use-auth-listener";
 import { queryClient } from "@/services/query-client";
+import { useOnboardingStore } from "@/stores/onboarding-store";
 import { useThemeStore } from "@/stores/theme-store";
 import { ThemeProvider } from "@/theme/theme-provider";
 
@@ -34,6 +35,12 @@ SplashScreen.preventAutoHideAsync();
 function RootNavigator() {
   useAuthListener();
   const { ready, destination } = useAppDestination();
+  // Once she is inside onboarding she stays until she leaves through Review.
+  // Without the latch, saving the LAST required answer (hair type) completes the
+  // profile, flips this gate, and ejects her to Home — she never sees beauty
+  // preferences, location, or the review. Web latches `wasCompleteAtLoad` in its
+  // onboarding layout against exactly this.
+  const onboardingActive = useOnboardingStore((s) => s.active);
 
   useEffect(() => {
     if (ready) SplashScreen.hideAsync();
@@ -45,7 +52,8 @@ function RootNavigator() {
 
   const signedOut = destination === "/login";
   const suspended = destination === "/suspended";
-  const onboarding = destination === "/onboarding/welcome";
+  const onboarding =
+    !signedOut && !suspended && (destination === "/onboarding/welcome" || onboardingActive);
 
   return (
     <Stack screenOptions={{ headerShown: false }}>

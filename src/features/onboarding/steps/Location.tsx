@@ -80,9 +80,9 @@ export function Location({
       onRetrySave={onRetrySave}
     >
       <View className="gap-lg">
+        {/* StepShell renders the step description; this adds only what it omits. */}
         <Text className="font-body text-base text-body">
-          Mila can adapt daily recommendations to your weather. This step is optional — you can set
-          it later from your profile.
+          Optional — you can set it later from your profile.
         </Text>
 
         <Button

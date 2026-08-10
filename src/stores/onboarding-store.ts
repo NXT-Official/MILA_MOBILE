@@ -38,12 +38,29 @@ type OnboardingState = {
    * her the choice.
    */
   candidate: StudioColorProfile | null;
+  /**
+   * True while the member is inside the flow.
+   *
+   * The launch gate re-reads `isStyleProfileComplete()` on every profile
+   * change, so without this the answer to the LAST required question
+   * (`hair-type`) flips the gate and throws her straight to Home — skipping
+   * beauty preferences, location, and the review she never got to see. Web has
+   * the same hazard and latches `wasCompleteAtLoad` for the same reason.
+   *
+   * Deliberately NOT persisted: it describes this session, and a cold start
+   * re-derives the truth from the profile.
+   */
+  active: boolean;
   /** False until the persisted draft has been read — a retry before then would send null. */
   hydrated: boolean;
   setPending: (pending: PendingWrite) => void;
   clearPending: () => void;
   setCandidate: (candidate: StudioColorProfile) => void;
   clearCandidate: () => void;
+  enterOnboarding: () => void;
+  exitOnboarding: () => void;
+  /** Wipes every trace of one member's flow. Called on sign-out. */
+  reset: () => void;
 };
 
 /**
@@ -59,11 +76,18 @@ export const useOnboardingStore = create<OnboardingState>()(
     (set) => ({
       pending: null,
       candidate: null,
+      active: false,
       hydrated: false,
       setPending: (pending) => set({ pending }),
       clearPending: () => set({ pending: null }),
       setCandidate: (candidate) => set({ candidate }),
       clearCandidate: () => set({ candidate: null }),
+      enterOnboarding: () => set({ active: true }),
+      exitOnboarding: () => set({ active: false }),
+      // A draft belongs to the member who wrote it. Replaying one into the next
+      // account to sign in on this device would write her answers to a
+      // stranger's profile.
+      reset: () => set({ pending: null, candidate: null, active: false }),
     }),
     {
       name: "mila-onboarding-draft",

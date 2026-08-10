@@ -1,3 +1,4 @@
+import { assertWritableColumns } from "@/lib/profile-columns";
 import { deriveColorMetrics } from "@/lib/profile-color";
 import { supabase } from "@/services/supabase/client";
 import {
@@ -108,6 +109,8 @@ export async function updateStyleProfile(
   userId: string,
   payload: StyleProfileUpdate,
 ): Promise<void> {
+  assertWritableColumns(payload);
+
   const { error } = await supabase
     .from("profiles")
     .update({ ...payload, updated_at: new Date().toISOString() })

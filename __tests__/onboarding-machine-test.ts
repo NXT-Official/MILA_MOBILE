@@ -16,6 +16,7 @@ import {
   resolveStep,
   undertoneForSeason,
 } from "@/features/onboarding/machine";
+import { isStyleProfileComplete, toStyleProfileRow } from "@/lib/style-profile/completion";
 import { PERSISTED_KEYS, useOnboardingStore } from "@/stores/onboarding-store";
 import type { DashboardProfile } from "@/types/models";
 
@@ -279,5 +280,51 @@ describe("the colour candidate survives a step change", () => {
     // make a cold start into color-result show the empty state again.
     expect(PERSISTED_KEYS).toContain("candidate");
     expect(PERSISTED_KEYS).toContain("pending");
+  });
+});
+
+describe("the launch gate must not eject her mid-flow", () => {
+  /**
+   * Answering the LAST required question (hair type) completes the profile.
+   * The launch gate re-reads completeness on every profile change, so without
+   * a latch that answer throws her straight to Home — she never sees beauty
+   * preferences, location, or the review. Observed on device: the flow ended
+   * at step 5 of 8.
+   */
+  beforeEach(() => {
+    useOnboardingStore.setState({ pending: null, candidate: null, active: false, hydrated: true });
+  });
+
+  it("stays active once entered, even as the profile becomes complete", () => {
+    useOnboardingStore.getState().enterOnboarding();
+    expect(useOnboardingStore.getState().active).toBe(true);
+    // Nothing about saving an answer touches `active` — that is the point.
+    expect(isStyleProfileComplete(toStyleProfileRow(withHair))).toBe(true);
+    expect(useOnboardingStore.getState().active).toBe(true);
+  });
+
+  it("clears only on the deliberate exit through Review", () => {
+    useOnboardingStore.getState().enterOnboarding();
+    useOnboardingStore.getState().exitOnboarding();
+    expect(useOnboardingStore.getState().active).toBe(false);
+  });
+
+  it("is not persisted — a cold start re-derives it from the profile", () => {
+    expect(PERSISTED_KEYS).not.toContain("active");
+  });
+
+  it("reset() wipes every trace, so a draft cannot follow a sign-out", () => {
+    useOnboardingStore.getState().enterOnboarding();
+    useOnboardingStore.getState().setCandidate({ season: "Autumn" } as never);
+    useOnboardingStore.getState().setPending({ step: "body-type", payload: { body_type: "Pear" } });
+
+    useOnboardingStore.getState().reset();
+
+    const state = useOnboardingStore.getState();
+    // A pending answer replayed into the next account would write one member's
+    // body type onto a stranger's profile.
+    expect(state.pending).toBeNull();
+    expect(state.candidate).toBeNull();
+    expect(state.active).toBe(false);
   });
 });

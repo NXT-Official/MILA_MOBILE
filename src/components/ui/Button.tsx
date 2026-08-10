@@ -93,8 +93,12 @@ export function Button({
       {...rest}
     >
       {loading ? <ActivityIndicator size="small" /> : null}
-      {/* The label stays visible while loading. */}
-      <Text className={cn(buttonLabelVariants({ variant, size }))}>{label}</Text>
+      {/* The label stays visible while loading. `numberOfLines={1}` because the
+          size variants are fixed-height: a label that wraps is clipped in half
+          rather than pushing the button taller, which is silent and ugly. */}
+      <Text numberOfLines={1} className={cn(buttonLabelVariants({ variant, size }))}>
+        {label}
+      </Text>
     </Pressable>
   );
 }
