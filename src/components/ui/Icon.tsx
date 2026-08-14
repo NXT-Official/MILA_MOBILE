@@ -25,12 +25,14 @@ import {
   MapPin,
   MessageCircle,
   MessageSquare,
+  MessagesSquare,
   Moon,
   Palette,
   Pencil,
   Plus,
   RefreshCw,
   Ruler,
+  Send,
   Settings,
   ShieldCheck,
   Shirt,
@@ -107,6 +109,9 @@ export const icons = {
   edit: Pencil,
   trash: Trash2,
   add: Plus,
+  // Concierge
+  send: Send,
+  conversations: MessagesSquare,
 } as const;
 
 export type IconName = keyof typeof icons;

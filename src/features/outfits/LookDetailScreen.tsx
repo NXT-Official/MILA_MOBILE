@@ -13,6 +13,7 @@ import { LookDetail } from "@/components/ui/LookDetail";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useDeleteOutfit, useOutfit } from "@/hooks/use-outfits";
 import { lookSections, normalizeAnalysisResult } from "@/lib/outfit-history";
+import { useConciergeStore } from "@/stores/concierge-store";
 import { radii } from "@/theme/tokens";
 
 
@@ -27,6 +28,7 @@ export function LookDetailScreen({ id }: { id: string }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const { data: outfit, isPending, isError, refetch } = useOutfit(id);
   const remove = useDeleteOutfit();
+  const anchor = useConciergeStore((s) => s.anchor);
 
   if (isPending) {
     return (
@@ -114,6 +116,25 @@ export function LookDetailScreen({ id }: { id: string }) {
         )}
 
         <View className="gap-md">
+          {/* Anchors the look, then opens the thread. The store carries it
+              across the navigation; the server re-reads the look scoped to the
+              caller and attaches its image (§6). */}
+          <Button
+            label="Ask Mila about this look"
+            onPress={() => {
+              anchor({
+                id: outfit.id,
+                imageUrl: outfit.image_url,
+                headline:
+                  entry.kind === "daily_look"
+                    ? entry.look.outfit.headline || "Saved look"
+                    : entry.kind === "lens"
+                      ? "Lens analysis"
+                      : "Saved look",
+              });
+              router.replace("/concierge");
+            }}
+          />
           <Button
             label="Delete this look"
             variant="secondary"
