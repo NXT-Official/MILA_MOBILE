@@ -75,6 +75,9 @@ function RootNavigator() {
       <Stack.Protected guard={!signedOut && !suspended && !onboarding}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="membership/index" />
+        <Stack.Screen name="history/index" />
+        {/* Deep-linkable (§4). Full-screen so a saved look fills the phone. */}
+        <Stack.Screen name="look/[id]" options={{ presentation: "fullScreenModal" }} />
         {/* Full-screen so the camera is not letterboxed by the tab bar (§4). */}
         <Stack.Screen name="lens-capture" options={{ presentation: "fullScreenModal" }} />
       </Stack.Protected>

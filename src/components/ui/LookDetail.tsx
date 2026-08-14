@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { LayoutAnimation, Pressable, Text, View } from "react-native";
 
-import { Divider } from "@/components/ui/Divider";
-import { Icon } from "@/components/ui/Icon";
-import { Skeleton } from "@/components/ui/Skeleton";
+import { Divider } from "./Divider";
+import { Icon } from "./Icon";
+import { Skeleton } from "./Skeleton";
 
 export type LookSection = { title: string; body: string };
 

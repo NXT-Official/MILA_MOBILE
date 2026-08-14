@@ -7,50 +7,81 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { radii } from "@/theme/tokens";
 
 /**
+ * `image-failed` is the partial-success state and the reason this is a union
+ * rather than a `loading`/`error` pair: the written look succeeded and is on
+ * screen above, so this slot must offer a retry for the *visual alone* without
+ * implying the composition is gone (§8).
+ */
+export type OutfitVisualState =
+  | { kind: "empty" }
+  | { kind: "composing" }
+  | { kind: "rendering" }
+  | { kind: "failed"; message: string }
+  | { kind: "image-failed" }
+  | { kind: "ready"; imageUrl: string };
+
+const PANEL =
+  "aspect-[3/4] w-full items-center justify-center gap-md rounded-card border border-border bg-surface px-xl dark:border-border/12";
+
+/**
  * The 3:4 slot the look lands in. Aspect ratio, never fixed pixels — it has to
  * hold at 360dp and on a foldable alike.
- *
- * Four states, all of them reachable: nothing yet, composing, failed, and the
- * image. The empty one is an invitation rather than a void — this is the
- * largest thing on the screen before she has generated anything, and a blank
- * grey rectangle would be the first impression of the product.
  */
 export function OutfitVisual({
-  imageUrl,
-  loading,
-  error,
+  state,
   onRetry,
+  onRetryImage,
 }: {
-  imageUrl: string | null | undefined;
-  loading: boolean;
-  error: boolean;
+  state: OutfitVisualState;
   onRetry: () => void;
+  onRetryImage: () => void;
 }) {
-  if (loading) {
+  if (state.kind === "composing" || state.kind === "rendering") {
     return (
-      <Skeleton className="aspect-[3/4] w-full rounded-card" />
+      <View
+        accessible
+        accessibilityRole="progressbar"
+        accessibilityState={{ busy: true }}
+        accessibilityLabel={
+          state.kind === "composing" ? "Composing your look" : "Rendering the visual"
+        }
+      >
+        <Skeleton className="aspect-[3/4] w-full rounded-card" />
+      </View>
     );
   }
 
-  if (error) {
+  if (state.kind === "failed") {
     return (
-      <View className="aspect-[3/4] w-full items-center justify-center gap-md rounded-card border border-border bg-surface px-xl dark:border-border/12">
+      <View className={PANEL}>
         <Icon name="alert" size="lg" color="muted" />
         <Text className="font-display text-h3 text-ink text-center">
           That didn&apos;t come together
         </Text>
-        <Text className="font-body text-base text-body text-center">
-          Mila couldn&apos;t compose a look this time. Please try again.
-        </Text>
+        <Text className="font-body text-base text-body text-center">{state.message}</Text>
         <Button label="Try again" variant="secondary" onPress={onRetry} />
       </View>
     );
   }
 
-  if (imageUrl) {
+  if (state.kind === "image-failed") {
+    return (
+      <View className={PANEL}>
+        <Icon name="outfit" size="lg" color="muted" />
+        {/* The §8 copy, verbatim. It says what survived before what did not,
+            because the composition above is still the product. */}
+        <Text className="font-body text-base text-body text-center">
+          The outfit was created, but its visual could not be generated.
+        </Text>
+        <Button label="Try the visual again" variant="secondary" onPress={onRetryImage} />
+      </View>
+    );
+  }
+
+  if (state.kind === "ready") {
     return (
       <Image
-        source={{ uri: imageUrl }}
+        source={{ uri: state.imageUrl }}
         // Case 1 of the StyleSheet exceptions: expo-image takes a style object,
         // and the radius comes from the token scale rather than a literal.
         style={{ width: "100%", aspectRatio: 3 / 4, borderRadius: radii.card }}
@@ -62,7 +93,7 @@ export function OutfitVisual({
   }
 
   return (
-    <View className="aspect-[3/4] w-full items-center justify-center gap-md rounded-card border border-border bg-surface px-xl dark:border-border/12">
+    <View className={PANEL}>
       <Icon name="outfit" size="lg" color="muted" />
       <Text className="font-display text-h3 text-ink text-center">Today is unwritten</Text>
       <Text className="font-body text-base text-body text-center">

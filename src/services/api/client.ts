@@ -1,41 +1,27 @@
 import { env } from "@/constants/env";
 import { supabase } from "@/services/supabase/client";
 
+import { ApiError } from "./errors";
+
 const BASE = env.API_BASE_URL;
 
-export class ApiError extends Error {
-  constructor(
-    readonly code: string,
-    message: string,
-    readonly status: number,
-    readonly retryAfter?: number,
-  ) {
-    super(message);
-    this.name = "ApiError";
-  }
-}
-
 /**
- * The single most important code in the app — it is the paywall trigger and the
- * primary conversion moment. Map it explicitly; never let it fall into a
- * generic handler.
+ * The error taxonomy lives in `./errors` — a leaf module with no imports, so it
+ * is testable without the four `EXPO_PUBLIC_*` values this file requires at
+ * import time. Re-exported here because every existing caller reaches for it
+ * through the client.
  */
-export const isInsufficientCredits = (e: unknown) =>
-  e instanceof ApiError && e.code === "INSUFFICIENT_CREDITS";
-
-export const isRateLimited = (e: unknown) => e instanceof ApiError && e.code === "RATE_LIMITED";
-
-export const isSuspended = (e: unknown) =>
-  e instanceof ApiError && e.code === "ACCOUNT_SUSPENDED";
-
-/** Retrying any of these is always wrong. */
-export const NON_RETRYABLE_CODES = [
-  "INSUFFICIENT_CREDITS",
-  "RATE_LIMITED",
-  "UNAUTHENTICATED",
-  "ACCOUNT_SUSPENDED",
-  "VALIDATION_FAILED",
-] as const;
+export {
+  ApiError,
+  NON_RETRYABLE_CODES,
+  formatRetryAfter,
+  isInsufficientCredits,
+  isRateLimited,
+  isSuspended,
+  resolveApiFailure,
+  type ApiFailure,
+  type FailureKind,
+} from "./errors";
 
 type RequestInit = {
   method?: "GET" | "POST";
@@ -65,6 +51,13 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
       signal: controller.signal,
     });
   } catch {
+    // A timeout arrives here as an abort, indistinguishable from a dead socket
+    // unless the signal is checked. They need different copy: "check your
+    // connection" is wrong and slightly insulting when the request was fine and
+    // the model was simply slow — which, at a 90s image budget, is the common case.
+    if (controller.signal.aborted) {
+      throw new ApiError("TIMEOUT", "That took longer than expected.", 0);
+    }
     throw new ApiError("NETWORK", "Mila couldn't reach the studio. Check your connection.", 0);
   } finally {
     clearTimeout(timer);
