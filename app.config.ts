@@ -84,6 +84,38 @@ const config: ExpoConfig = {
     "expo-secure-store",
     "expo-font",
     [
+      // Stills only. `recordAudioAndroid: false` and `microphonePermission:
+      // false` keep RECORD_AUDIO out of the manifest entirely — Mila captures
+      // no video, and a microphone permission on the Play listing that the app
+      // never uses is both a review question and a trust cost.
+      //
+      // `barcodeScannerEnabled: false` drops the MLKit scanner Mila has no use
+      // for, along with its share of the binary.
+      "expo-camera",
+      {
+        cameraPermission:
+          "Mila uses your camera to analyse an outfit and to capture your outfit of the day.",
+        microphonePermission: false,
+        recordAudioAndroid: false,
+        barcodeScannerEnabled: false,
+      },
+    ],
+    [
+      // Gallery pick. Android uses the system photo picker, which grants access
+      // to the single chosen image and needs no READ_MEDIA_IMAGES.
+      "expo-image-picker",
+      {
+        photosPermission:
+          "Mila needs access to your photos so you can analyse an outfit you have already taken.",
+        cameraPermission:
+          "Mila uses your camera to analyse an outfit and to capture your outfit of the day.",
+        microphonePermission: false,
+      },
+    ],
+    // The share sheet behind `services/files/` — used by the Phase 08 data
+    // export. Its own plugin only registers the module; it adds no permission.
+    "expo-sharing",
+    [
       // Foreground only. Background location is never requested: Mila reads a
       // position once, to suggest the nearest weather hub, and then forgets it.
       "expo-location",

@@ -13,6 +13,7 @@ import {
   Eye,
   EyeOff,
   HelpCircle,
+  Image as ImageIcon,
   Images,
   LayoutGrid,
   LogOut,
@@ -30,6 +31,7 @@ import {
   Snowflake,
   Sparkles,
   Sun,
+  SwitchCamera,
   Wind,
   WifiOff,
   X,
@@ -86,6 +88,10 @@ export const icons = {
   wind: Wind,
   outfit: Shirt,
   offline: WifiOff,
+  // Lens. `gallery` is the single-frame glyph so it does not read as the Feed
+  // tab's stack, which sits two controls away in the capture bar.
+  gallery: ImageIcon,
+  flipCamera: SwitchCamera,
 } as const;
 
 export type IconName = keyof typeof icons;

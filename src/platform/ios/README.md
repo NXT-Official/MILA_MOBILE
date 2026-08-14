@@ -12,15 +12,32 @@ Keep it current as each Android capability lands.
 All three are already set in `app.config.ts` under `ios.infoPlist`, before the features that need
 them exist. A missing usage string is an App Store rejection discovered at submission time.
 
-| Key                                    | Status | Used by                     |
-| -------------------------------------- | ------ | --------------------------- |
-| `NSCameraUsageDescription`             | ✅ set | Lens capture, feed post     |
-| `NSPhotoLibraryUsageDescription`       | ✅ set | Gallery pick                |
-| `NSLocationWhenInUseUsageDescription`  | ✅ set | Onboarding location         |
-| `NSFaceIDUsageDescription`             | ⬜ add if biometrics ships | Destructive-action re-auth |
+| Key | Status | Used by |
+| --- | --- | --- |
+| `NSCameraUsageDescription` | ✅ set | Lens capture, feed post |
+| `NSPhotoLibraryUsageDescription` | ✅ set | Gallery pick |
+| `NSLocationWhenInUseUsageDescription` | ✅ set | Onboarding location |
+| `NSMicrophoneUsageDescription` | ⬜ never | `microphonePermission: false` on both media plugins — Mila records no video |
+| `NSFaceIDUsageDescription` | ⬜ add if biometrics ships | Destructive-action re-auth |
 
 `expo-secure-store`'s config plugin supplies its own Face ID string; a separate entry is needed only
 if `expo-local-authentication` is added.
+
+Both `expo-camera` and `expo-image-picker` would otherwise add a microphone usage string and request
+`RECORD_AUDIO`. Both are disabled in `app.config.ts`.
+
+## Adapter stubs waiting on iOS
+
+Written in the same commit as their Android counterparts so the compiler enforces parity. Each throws
+`NOT_IMPLEMENTED` and carries its own notes in the file.
+
+| Stub | What iOS has to absorb |
+| --- | --- |
+| `services/camera/camera.ios.tsx` | Denial is terminal — no `canAskAgain`, so anything not `granted` resolves to `"blocked"`. **HEIC is the capture default and the backend accepts only jpeg/png/webp**, so it is transcoded at capture time; `prepareUpload()` already saves `SaveFormat.JPEG`, so calling it is the transcode. Front-camera mirroring uses the `mirror` prop on `CameraView`, not the deprecated per-capture option. |
+| `services/files/files.ios.ts` | Writes to `Paths.document` rather than `Paths.cache` — the share sheet can be dismissed and re-presented, and a cached file may be evicted in between. iOS reports share completion natively, so `"cancelled"` there is a real answer rather than the assumption Android forces. |
+
+`services/camera/`'s Android body is otherwise portable: `expo-camera` and `expo-image-picker` are the
+same API on both platforms.
 
 ## Entitlements and capabilities
 

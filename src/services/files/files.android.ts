@@ -1,0 +1,29 @@
+import { File, Paths } from "expo-file-system";
+import * as Sharing from "expo-sharing";
+
+import type { FilesService } from "./types";
+
+export const files: FilesService = {
+  async saveAndShare({ filename, mimeType, contents }) {
+    if (!(await Sharing.isAvailableAsync())) return "cancelled";
+
+    // The cache directory, never external storage. `WRITE_EXTERNAL_STORAGE` is
+    // a scoped-storage-era grant over the member's whole device and a share
+    // intent needs none of it: the file is handed over as a content:// URI that
+    // the receiving app may read exactly once.
+    const file = new File(Paths.cache, filename);
+    file.create({ overwrite: true });
+    file.write(contents);
+
+    // ponytail: Android's share intent reports no completion, so a dismissed
+    // sheet is indistinguishable from a saved file and this always resolves
+    // "shared". If a caller ever needs the real answer, it has to come from the
+    // destination, not from here — iOS reports it natively.
+    await Sharing.shareAsync(file.uri, { mimeType, dialogTitle: filename });
+
+    // The file is deliberately left in the cache: the receiving app may still
+    // be reading it when this resolves, and Android reclaims the directory
+    // under storage pressure anyway.
+    return "shared";
+  },
+};
