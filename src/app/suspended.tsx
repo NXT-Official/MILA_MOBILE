@@ -3,7 +3,7 @@ import { Linking, View } from "react-native";
 import { Screen } from "@/components/layout/Screen";
 import { Button } from "@/components/ui/Button";
 import { ErrorState } from "@/components/ui/ErrorState";
-import { useSignOut } from "@/features/auth/hooks/use-auth-actions";
+import { useSignOut } from "@/hooks/use-sign-out";
 
 /**
  * A full-screen block with exactly two actions (§10). No navigation away, no

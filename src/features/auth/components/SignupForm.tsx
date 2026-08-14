@@ -12,8 +12,8 @@ import { ApiError } from "@/services/api/client";
 import { UNIFORM_AUTH_FAILURE } from "@/services/api/auth";
 
 import { useSignUp } from "../hooks/use-auth-actions";
-import { CaptchaGate, type CaptchaGateHandle } from "./CaptchaGate";
-import { PasswordChecklist } from "./PasswordChecklist";
+import { CaptchaGate, type CaptchaGateHandle } from "@/components/feedback/CaptchaGate";
+import { PasswordChecklist } from "@/components/ui/PasswordChecklist";
 
 export function SignupForm() {
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);

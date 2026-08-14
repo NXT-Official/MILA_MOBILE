@@ -1,18 +1,15 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { makeRedirectUri } from "expo-auth-session";
 import * as WebBrowser from "expo-web-browser";
-import { router } from "expo-router";
 
 import {
   requestPasswordReset,
   signIn,
-  signOut,
   signUp,
   type SignInInput,
   type SignUpInput,
 } from "@/services/api/auth";
 import { supabase } from "@/services/supabase/client";
-import { useAuthStore } from "@/stores/auth-store";
 
 export function useSignIn() {
   return useMutation({
@@ -29,26 +26,6 @@ export function useSignUp() {
 
 export function usePasswordReset() {
   return useMutation({ mutationFn: (email: string) => requestPasswordReset(email), retry: false });
-}
-
-export function useSignOut() {
-  const queryClient = useQueryClient();
-  const setSigningOut = useAuthStore((s) => s.setSigningOut);
-
-  return useMutation({
-    retry: false,
-    mutationFn: async () => {
-      setSigningOut(true);
-      await signOut();
-    },
-    onSettled: () => {
-      // Clear before navigating: a stale profile in the cache would let the
-      // next member briefly see the previous one's gate result.
-      queryClient.clear();
-      setSigningOut(false);
-      router.replace("/login");
-    },
-  });
 }
 
 /**

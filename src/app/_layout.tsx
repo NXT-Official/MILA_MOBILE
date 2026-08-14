@@ -76,6 +76,16 @@ function RootNavigator() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="membership/index" />
         <Stack.Screen name="history/index" />
+        <Stack.Screen name="palettes/index" />
+        <Stack.Screen name="settings/index" />
+        <Stack.Screen name="settings/account" />
+        <Stack.Screen name="settings/location" />
+        <Stack.Screen name="settings/privacy" />
+        <Stack.Screen name="settings/support" />
+        {/* Editing one dossier answer. Outside the `onboarding` group on
+            purpose: that group is hidden once a profile is complete, and
+            entering it would latch the launch gate and unmount the tabs. */}
+        <Stack.Screen name="dossier/[field]" />
         {/* Deep-linkable (§4). Full-screen so a saved look fills the phone. */}
         <Stack.Screen name="look/[id]" options={{ presentation: "fullScreenModal" }} />
         <Stack.Screen name="profile/[userId]" />

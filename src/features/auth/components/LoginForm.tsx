@@ -11,7 +11,7 @@ import { CredentialsForm, type CredentialsFormValues } from "@/lib/auth-input";
 import { UNIFORM_AUTH_FAILURE } from "@/services/api/auth";
 
 import { useSignIn } from "../hooks/use-auth-actions";
-import { CaptchaGate, type CaptchaGateHandle } from "./CaptchaGate";
+import { CaptchaGate, type CaptchaGateHandle } from "@/components/feedback/CaptchaGate";
 
 export function LoginForm() {
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
