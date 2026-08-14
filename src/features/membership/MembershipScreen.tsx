@@ -2,31 +2,43 @@ import { router } from "expo-router";
 import { Text, View } from "react-native";
 
 import { Screen } from "@/components/layout/Screen";
-import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
+import { CreditsMeter } from "@/components/ui/CreditsMeter";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
-import { Icon } from "@/components/ui/Icon";
 import { LoadingState } from "@/components/ui/LoadingState";
-import {
-  formatBillingInterval,
-  formatPlanPrice,
-  useSubscriptionPlans,
-} from "@/hooks/use-subscription-plans";
-import type { SubscriptionPlan } from "@/services/supabase/plans";
+import { useCreditBalance, useCredits } from "@/hooks/use-credits";
+import { useMySubscription } from "@/hooks/use-my-subscription";
+import { useSubscriptionPlans } from "@/hooks/use-subscription-plans";
+import { resolveMembership } from "@/lib/subscription-status";
+
+import { MembershipStatusRow } from "./components/MembershipStatusRow";
+import { PlanCard } from "./components/PlanCard";
 
 /**
- * The plans, read-only. Checkout is Phase 09 (§15) — and until it exists there
- * is deliberately no purchase affordance here at all, not even a disabled one:
- * a button that cannot buy anything is a worse answer than a plain statement of
- * what each plan includes.
+ * Membership: where she stands, what she has, and what each plan gives.
  *
- * Entitlement is never inferred from this screen. It comes from Supabase,
- * written by the Paddle webhook, and nothing on the device may decide it (§9).
+ * **Entitlement is read, never computed.** Everything on this screen comes from
+ * `subscriptions` and `user_entitlements`, both written server-side by the
+ * Paddle webhook — the system of record (§9). Nothing here decides access, and
+ * there is no optimistic state anywhere, so there is nothing to roll back.
+ *
+ * **No checkout.** Purchase, cancel, and resume are gated on Appendix D.1
+ * (Paddle hosted checkout vs. native IAP), which is still an open product
+ * decision. Until it is recorded there is deliberately no purchase affordance
+ * at all — not even a disabled one, which would advertise something the app
+ * cannot do and would have to be unpicked if the answer is IAP.
  */
 export function MembershipScreen() {
-  const { data: plans, isPending, isError, refetch } = useSubscriptionPlans();
+  const plans = useSubscriptionPlans();
+  const subscription = useMySubscription();
+  const credits = useCredits();
+  const balance = useCreditBalance();
+
+  const membership = resolveMembership(subscription.data);
+  const currentPlan = subscription.data
+    ? (plans.data?.find((plan) => plan.id === subscription.data?.plan_id) ?? null)
+    : null;
 
   return (
     <Screen scroll>
@@ -44,71 +56,41 @@ export function MembershipScreen() {
           </Text>
         </View>
 
-        {isPending ? <LoadingState label="Loading membership plans" lines={4} /> : null}
+        <MembershipStatusRow
+          state={membership}
+          planTitle={currentPlan?.title ?? null}
+          loading={subscription.isPending}
+        />
 
-        {isError ? (
+        <CreditsMeter balance={balance} loading={credits.isPending} />
+
+        {plans.isPending ? <LoadingState label="Loading membership plans" lines={4} /> : null}
+
+        {plans.isError ? (
           <ErrorState
             title="Plans didn't load"
             description="Check your connection and try again."
             actionLabel="Try again"
-            onAction={() => void refetch()}
+            onAction={() => void plans.refetch()}
           />
         ) : null}
 
-        {plans?.length === 0 ? (
+        {plans.data?.length === 0 ? (
           <EmptyState
             icon="sparkle"
             title="No plans right now"
             description="Memberships are being updated. Try again shortly."
             actionLabel="Refresh"
-            onAction={() => void refetch()}
+            onAction={() => void plans.refetch()}
           />
         ) : null}
 
-        {plans?.map((plan) => <PlanCard key={plan.id} plan={plan} />)}
+        {plans.data?.map((plan) => (
+          <PlanCard key={plan.id} plan={plan} current={plan.id === currentPlan?.id} />
+        ))}
 
         <Button label="Back" variant="secondary" onPress={() => router.back()} />
       </View>
     </Screen>
-  );
-}
-
-function PlanCard({ plan }: { plan: SubscriptionPlan }) {
-  return (
-    <Card>
-      <View className="gap-md">
-        <View className="flex-row items-start justify-between gap-md">
-          <Text className="font-display text-h3 text-ink">{plan.title}</Text>
-          {plan.is_featured ? <Badge label="Most popular" variant="accent" /> : null}
-        </View>
-
-        <View className="flex-row items-baseline gap-sm">
-          <Text className="font-display text-h2 tracking-heading text-ink">
-            {formatPlanPrice(plan.price_amount, plan.currency)}
-          </Text>
-          <Text className="font-body text-sm text-body">
-            {formatBillingInterval(plan.billing_interval)}
-          </Text>
-        </View>
-
-        <Text className="font-body text-base text-body">{plan.description}</Text>
-
-        <View className="flex-row items-center gap-sm">
-          <Icon name="sparkle" size="sm" color="accent" />
-          <Text className="font-body-medium text-sm text-ink">
-            {plan.credits_included} credits a day
-          </Text>
-        </View>
-
-        {plan.features.map((feature) => (
-          <View key={feature} className="flex-row items-start gap-sm">
-            <View className="mt-xs">
-              <Icon name="check" size="xs" color="muted" />
-            </View>
-            <Text className="flex-1 font-body text-sm text-body">{feature}</Text>
-          </View>
-        ))}
-      </View>
-    </Card>
   );
 }
