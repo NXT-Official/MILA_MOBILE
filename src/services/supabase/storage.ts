@@ -4,6 +4,12 @@ import { File } from "expo-file-system";
 import { supabase } from "./client";
 
 const BUCKET = "outfits";
+const POSTS_BUCKET = "posts";
+
+/** Bytes, not a Blob — see `uploadOutfitImage` for why. */
+async function readBytes(uri: string): Promise<Uint8Array> {
+  return new File(uri).bytes();
+}
 
 /**
  * Uploads a prepared capture and returns its public URL.
@@ -24,7 +30,7 @@ export async function uploadOutfitImage(userId: string, uri: string): Promise<st
   // Bytes, not a Blob: `fetch(uri).blob()` on React Native reads the whole file
   // through the JS bridge as a base64 string first, which is a third of a
   // megabyte of string churn per upload and has a history of arriving empty.
-  const bytes = await new File(uri).bytes();
+  const bytes = await readBytes(uri);
 
   const { error } = await supabase.storage.from(BUCKET).upload(path, bytes, {
     contentType: "image/jpeg",
@@ -35,4 +41,38 @@ export async function uploadOutfitImage(userId: string, uri: string): Promise<st
   if (error) throw error;
 
   return supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+}
+
+/**
+ * Uploads one half of an OOTD and returns its **storage path**, not a URL.
+ *
+ * The `posts` bucket is private: there is no public URL to return, and
+ * `createPost` wants the path anyway. The client never addresses a private
+ * object directly — reading one is always a server-minted signed URL that
+ * arrives with the feed payload.
+ *
+ * Both halves share a timestamp so a post's two files sort together and a
+ * half-finished session is obvious in the bucket.
+ */
+export async function uploadPostImage(
+  userId: string,
+  uri: string,
+  side: "back" | "front",
+  timestamp: number,
+): Promise<string> {
+  // The `${userId}/` prefix is enforced by storage RLS **and** re-checked by
+  // `createPost` — RLS governs uploads, not what a database row may reference.
+  const path = `${userId}/${side}-${timestamp}.jpg`;
+  const bytes = await readBytes(uri);
+
+  const { error } = await supabase.storage.from(POSTS_BUCKET).upload(path, bytes, {
+    contentType: "image/jpeg",
+    // A retried publish after a failed second upload re-sends the first half to
+    // the same path. Overwriting her own identical file is the correct outcome;
+    // failing would strand the post.
+    upsert: true,
+  });
+  if (error) throw error;
+
+  return path;
 }

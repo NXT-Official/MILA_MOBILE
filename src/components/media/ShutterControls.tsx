@@ -10,6 +10,10 @@ import { cn } from "@/utils/cn";
  * understood shape, and Lucide has no glyph for it that does not read as
  * "settings". Both satellites are `tap`-sized with labels, because an icon-only
  * control needs both (§11).
+ *
+ * `onFlip` is optional: the feed's dual capture fixes the camera per step — each
+ * half of an OOTD is a specific shot — so the control is withheld rather than
+ * shown and ignored. The slot is still reserved, so the shutter stays centred.
  */
 export function ShutterControls({
   busy,
@@ -21,7 +25,7 @@ export function ShutterControls({
   busy: boolean;
   onCapture: () => void;
   onPickFromLibrary: () => void;
-  onFlip: () => void;
+  onFlip?: () => void;
 }) {
   return (
     <View className="flex-row items-center justify-between px-xl py-lg">
@@ -44,12 +48,18 @@ export function ShutterControls({
         <View className={cn("h-2xl w-2xl rounded-pill bg-ink", busy && "opacity-50")} />
       </Pressable>
 
-      <SatelliteButton
-        icon="flipCamera"
-        label="Switch between front and back camera"
-        disabled={busy}
-        onPress={onFlip}
-      />
+      {onFlip ? (
+        <SatelliteButton
+          icon="flipCamera"
+          label="Switch between front and back camera"
+          disabled={busy}
+          onPress={onFlip}
+        />
+      ) : (
+        // An empty target-sized box, so removing the control does not slide the
+        // shutter off centre.
+        <View className="h-tap w-tap" />
+      )}
     </View>
   );
 }

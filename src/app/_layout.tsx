@@ -78,8 +78,12 @@ function RootNavigator() {
         <Stack.Screen name="history/index" />
         {/* Deep-linkable (§4). Full-screen so a saved look fills the phone. */}
         <Stack.Screen name="look/[id]" options={{ presentation: "fullScreenModal" }} />
+        <Stack.Screen name="profile/[userId]" />
         {/* Full-screen so the camera is not letterboxed by the tab bar (§4). */}
         <Stack.Screen name="lens-capture" options={{ presentation: "fullScreenModal" }} />
+        {/* Same reason, and the dual capture also owns the back gesture while a
+            shot is in hand — see DualCaptureScreen. */}
+        <Stack.Screen name="publish" options={{ presentation: "fullScreenModal" }} />
       </Stack.Protected>
     </Stack>
   );

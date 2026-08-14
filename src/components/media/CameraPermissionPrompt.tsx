@@ -13,8 +13,12 @@ import { Icon } from "@/components/ui/Icon";
  * reason, one button. Only the button changes, and that difference is exactly
  * what §12 says matters: a `"denied"` prompt can ask again, a `"blocked"` one
  * must deep-link to settings or it taps into a void.
+ *
+ * Lives in `components/` rather than beside Lens because the feed's dual capture
+ * needs the same screen — and a feature may never import another feature's
+ * internals (§5).
  */
-export function PermissionPrompt({
+export function CameraPermissionPrompt({
   status,
   requesting,
   onAllow,

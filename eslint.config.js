@@ -55,6 +55,7 @@ const VERBATIM_COPIES = [
   "src/lib/profile-color.ts",
   "src/lib/beauty-preferences.ts",
   "src/lib/auth-input.ts",
+  "src/lib/outfit-items.ts",
   "src/constants/steps.ts",
   "src/constants/climate.ts",
   "src/constants/wardrobe.ts",

@@ -7,6 +7,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { KeepAwake } from "@/components/feedback/KeepAwake";
 import { PaywallSheet } from "@/components/feedback/PaywallSheet";
 import { Screen } from "@/components/layout/Screen";
+import { CameraPermissionPrompt } from "@/components/media/CameraPermissionPrompt";
+import { ShutterControls } from "@/components/media/ShutterControls";
 import { Button } from "@/components/ui/Button";
 import { ConfirmSheet } from "@/components/ui/ConfirmSheet";
 import { InlineError } from "@/components/ui/ErrorState";
@@ -33,8 +35,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { AnalysisResultCard } from "./components/AnalysisResultCard";
 import { AnalysisSkeleton } from "./components/AnalysisSkeleton";
 import { CapturedPreview } from "./components/CapturedPreview";
-import { PermissionPrompt } from "./components/PermissionPrompt";
-import { ShutterControls } from "./components/ShutterControls";
 import { useAnalyzeOutfit } from "./hooks/use-analyze-outfit";
 
 /**
@@ -221,7 +221,7 @@ export function LensCaptureScreen() {
         // that flashes for 30ms is noise rather than reassurance.
         <View className="flex-1" />
       ) : permission !== "granted" ? (
-        <PermissionPrompt
+        <CameraPermissionPrompt
           status={permission}
           requesting={requesting}
           onAllow={() => void handleAllow()}
