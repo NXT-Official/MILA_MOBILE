@@ -8,6 +8,7 @@ import { Inter_500Medium } from "@expo-google-fonts/inter/500Medium";
 import { Inter_600SemiBold } from "@expo-google-fonts/inter/600SemiBold";
 import { PlayfairDisplay_700Bold } from "@expo-google-fonts/playfair-display/700Bold";
 import { PlayfairDisplay_800ExtraBold } from "@expo-google-fonts/playfair-display/800ExtraBold";
+import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
@@ -71,11 +72,11 @@ function RootNavigator() {
         <Stack.Screen name="onboarding" />
       </Stack.Protected>
 
-      {/* (tabs) lands in Phase 03; until then a member with a complete profile
-          lands on the Phase 00 foundation check. */}
       <Stack.Protected guard={!signedOut && !suspended && !onboarding}>
-        <Stack.Screen name="index" />
-        <Stack.Screen name="foundation/navigation-check" />
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="membership/index" />
+        {/* Full-screen so the camera is not letterboxed by the tab bar (§4). */}
+        <Stack.Screen name="lens-capture" options={{ presentation: "fullScreenModal" }} />
       </Stack.Protected>
     </Stack>
   );
@@ -100,7 +101,11 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
           <ThemeProvider>
-            <RootNavigator />
+            {/* Sheets portal to the root, so the provider has to sit above the
+                navigator or a sheet renders clipped inside its own screen. */}
+            <BottomSheetModalProvider>
+              <RootNavigator />
+            </BottomSheetModalProvider>
           </ThemeProvider>
         </QueryClientProvider>
       </SafeAreaProvider>

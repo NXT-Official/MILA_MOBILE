@@ -6,8 +6,10 @@ import {
   Check,
   ChevronDown,
   ChevronRight,
+  Cloud,
   CloudCheck,
   CloudOff,
+  CloudRain,
   Eye,
   EyeOff,
   HelpCircle,
@@ -24,8 +26,12 @@ import {
   Ruler,
   Settings,
   ShieldCheck,
+  Shirt,
+  Snowflake,
   Sparkles,
   Sun,
+  Wind,
+  WifiOff,
   X,
 } from "lucide-react-native";
 
@@ -70,6 +76,16 @@ export const icons = {
   location: MapPin,
   saved: CloudCheck,
   unsaved: CloudOff,
+  // Home. The five weather names match `ClimateIcon` exactly, so a forecast
+  // maps to a glyph with no lookup table in between — one fewer place for the
+  // two lists to drift apart.
+  sun: Sun,
+  cloud: Cloud,
+  rain: CloudRain,
+  snow: Snowflake,
+  wind: Wind,
+  outfit: Shirt,
+  offline: WifiOff,
 } as const;
 
 export type IconName = keyof typeof icons;
@@ -78,6 +94,13 @@ type IconProps = {
   name: IconName;
   size?: IconSize;
   color?: ColorToken;
+  /**
+   * A resolved colour string, for the one case a token cannot express: a
+   * navigator has already computed the active/inactive tint and hands it to
+   * `tabBarIcon`. Nothing else may use this — a feature passing a colour here
+   * is inventing one outside the token system.
+   */
+  rawColor?: string;
   /** Omit for decorative icons — they are hidden from assistive tech. */
   label?: string;
 };
@@ -89,7 +112,7 @@ type IconProps = {
  * Icons take a `color` prop rather than a className because lucide renders SVG
  * primitives that NativeWind classes do not reach.
  */
-export function Icon({ name, size = "md", color = "ink", label }: IconProps) {
+export function Icon({ name, size = "md", color = "ink", rawColor, label }: IconProps) {
   const Glyph = icons[name];
   const resolved = useThemeColor(color);
 
@@ -97,7 +120,7 @@ export function Icon({ name, size = "md", color = "ink", label }: IconProps) {
     <Glyph
       size={iconSizes[size]}
       strokeWidth={iconDefaults.strokeWidth}
-      color={resolved}
+      color={rawColor ?? resolved}
       accessibilityRole={label ? "image" : undefined}
       accessibilityLabel={label}
       accessibilityElementsHidden={!label}

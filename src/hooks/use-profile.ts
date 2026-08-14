@@ -8,6 +8,8 @@ import {
 } from "@/services/supabase/profile";
 import { useAuthStore } from "@/stores/auth-store";
 
+import { useAppState } from "./use-app-state";
+
 /**
  * The single owner of `queryKeys.profile(userId)`. The launch gate, onboarding,
  * and every later surface read through here — two queries on one key is how a
@@ -15,13 +17,23 @@ import { useAuthStore } from "@/stores/auth-store";
  */
 export function useProfile() {
   const userId = useAuthStore((s) => s.session?.user.id ?? null);
+  const queryClient = useQueryClient();
 
-  return useQuery({
+  const query = useQuery({
     queryKey: queryKeys.profile(userId ?? undefined),
     enabled: Boolean(userId),
     staleTime: 5 * 60_000,
     queryFn: () => fetchProfile(userId as string),
   });
+
+  // Foreground refetch (§6). `refetchOnWindowFocus` is off in the client
+  // because a phone has no window focus; this is its replacement. Suspension is
+  // read from this row, so a stale profile is also a stale suspension check.
+  useAppState(() => {
+    if (userId) void queryClient.invalidateQueries({ queryKey: queryKeys.profile(userId) });
+  });
+
+  return query;
 }
 
 /**
