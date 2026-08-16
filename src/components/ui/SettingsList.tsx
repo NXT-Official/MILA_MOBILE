@@ -54,8 +54,7 @@ export function SettingsRow({
       accessibilityRole="button"
       accessibilityLabel={value ? `${label}, ${value}` : label}
       onPress={onPress}
-      style={({ pressed }) => (pressed ? { opacity: 0.8 } : undefined)}
-      className="min-h-tap flex-row items-center gap-md px-lg py-md"
+      className="active:opacity-80 min-h-tap flex-row items-center gap-md px-lg py-md"
     >
       <Icon name={icon} size="sm" color={destructive ? "destructive" : "muted"} />
 

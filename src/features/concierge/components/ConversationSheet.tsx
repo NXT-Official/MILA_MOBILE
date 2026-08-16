@@ -74,9 +74,8 @@ export function ConversationSheet({
                   onSelect(conversation.id);
                   onClose();
                 }}
-                style={({ pressed }) => (pressed ? { opacity: 0.8 } : undefined)}
                 className={cn(
-                  "min-h-tap flex-1 justify-center gap-xs rounded-panel border px-lg py-md",
+                  "active:opacity-80 min-h-tap flex-1 justify-center gap-xs rounded-panel border px-lg py-md",
                   conversation.id === currentId
                     ? "border-ink bg-accent-soft"
                     : "border-border bg-surface dark:border-border/12",
@@ -94,8 +93,7 @@ export function ConversationSheet({
                 accessibilityRole="button"
                 accessibilityLabel={`Delete "${conversation.title}"`}
                 onPress={() => setConfirmDelete(conversation.id)}
-                style={({ pressed }) => (pressed ? { opacity: 0.6 } : undefined)}
-                className="h-tap w-tap items-center justify-center"
+                className="active:opacity-60 h-tap w-tap items-center justify-center"
               >
                 <Icon name="trash" size="sm" color="muted" />
               </Pressable>

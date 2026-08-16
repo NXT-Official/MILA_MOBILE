@@ -42,8 +42,7 @@ export function ShutterControls({
         accessibilityState={{ disabled: busy, busy }}
         disabled={busy}
         onPress={onCapture}
-        style={({ pressed }) => (pressed ? { transform: [{ scale: 0.94 }] } : undefined)}
-        className="h-tile w-tile items-center justify-center rounded-pill border border-ink"
+        className="active:scale-94 h-tile w-tile items-center justify-center rounded-pill border border-ink"
       >
         <View className={cn("h-2xl w-2xl rounded-pill bg-ink", busy && "opacity-50")} />
       </Pressable>
@@ -82,8 +81,10 @@ function SatelliteButton({
       accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={onPress}
-      style={({ pressed }) => (pressed ? { opacity: 0.6 } : undefined)}
-      className={cn("h-tap w-tap items-center justify-center", disabled && "opacity-50")}
+      className={cn(
+        "active:opacity-60 h-tap w-tap items-center justify-center",
+        disabled && "opacity-50",
+      )}
     >
       <Icon name={icon} size="lg" color="ink" />
     </Pressable>

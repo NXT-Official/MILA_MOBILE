@@ -40,8 +40,7 @@ export function DossierCompletionCard({ profile }: { profile: DashboardProfile |
           accessibilityRole="button"
           accessibilityLabel="Dismiss this reminder"
           onPress={dismiss}
-          style={({ pressed }) => (pressed ? { opacity: 0.6 } : undefined)}
-          className="h-tap w-tap items-center justify-center"
+          className="active:opacity-60 h-tap w-tap items-center justify-center"
         >
           <Icon name="close" size="sm" color="muted" />
         </Pressable>

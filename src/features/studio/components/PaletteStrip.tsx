@@ -56,8 +56,7 @@ export function PaletteStrip({
               .map((s) => s.name)
               .join(", ")}`}
             onPress={() => router.push("/palettes")}
-            style={({ pressed }) => (pressed ? { opacity: 0.85 } : undefined)}
-            className="gap-sm"
+            className="active:opacity-85 gap-sm"
           >
             <View className="flex-row overflow-hidden rounded-panel border border-border dark:border-border/12">
               {swatches.map((swatch) => (

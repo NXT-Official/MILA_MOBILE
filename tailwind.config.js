@@ -58,8 +58,21 @@ module.exports = {
       // Dark-mode rules are specified as `border-border/12` (§11), and 12 is
       // not on Tailwind's default opacity scale — without this the class
       // silently generates nothing and the border renders at full opacity.
+      //
+      // 85 is press feedback. Tailwind ships 80 and 90 but not 85, and an
+      // unknown utility generates NOTHING rather than failing — a press that
+      // silently stops responding is exactly the bug this file prevents.
       opacity: {
         12: "0.12",
+        85: "0.85",
+      },
+      // Press feedback again: the scale steps the design uses sit between
+      // Tailwind's defaults (it jumps 90 → 95 → 100). Named here so no control
+      // reaches for a banned arbitrary value like `scale-[0.98]`.
+      scale: {
+        94: "0.94",
+        98: "0.98",
+        99: "0.99",
       },
       spacing: {
         xs: "4px",

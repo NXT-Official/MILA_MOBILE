@@ -104,8 +104,7 @@ export function StudioScreen() {
             accessibilityRole="button"
             accessibilityLabel="Settings"
             onPress={() => router.push("/settings")}
-            style={({ pressed }) => (pressed ? { opacity: 0.6 } : undefined)}
-            className="h-tap w-tap items-center justify-center"
+            className="active:opacity-60 h-tap w-tap items-center justify-center"
           >
             <Icon name="settings" size="md" color="ink" />
           </Pressable>

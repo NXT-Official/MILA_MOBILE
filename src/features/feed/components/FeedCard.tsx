@@ -124,8 +124,7 @@ function Header({
         accessibilityRole="button"
         accessibilityLabel={`View ${author}'s profile`}
         onPress={onPress}
-        style={({ pressed }) => (pressed ? { opacity: 0.7 } : undefined)}
-        className="min-h-tap flex-1 flex-row items-center gap-md"
+        className="active:opacity-70 min-h-tap flex-1 flex-row items-center gap-md"
       >
         <AvatarInitial name={author} />
         <View className="flex-1 gap-xs">

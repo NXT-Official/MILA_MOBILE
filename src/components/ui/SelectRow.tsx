@@ -29,9 +29,8 @@ export function SelectRow({ title, description, selected, onPress }: SelectRowPr
       accessibilityState={{ checked: selected }}
       accessibilityLabel={description ? `${title}. ${description}` : title}
       onPress={onPress}
-      style={({ pressed }) => (pressed ? { opacity: 0.9, transform: [{ scale: 0.99 }] } : undefined)}
       className={cn(
-        "min-h-tile flex-row items-start gap-md rounded-panel border p-lg",
+        "active:opacity-90 active:scale-99 min-h-tile flex-row items-start gap-md rounded-panel border p-lg",
         selected ? "border-ink bg-accent-soft" : "border-border bg-surface dark:border-border/12",
       )}
     >

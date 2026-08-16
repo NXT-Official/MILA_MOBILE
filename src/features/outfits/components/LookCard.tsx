@@ -33,8 +33,7 @@ export function LookCard({ outfit, onPress }: { outfit: OutfitRow; onPress: () =
       accessibilityRole="button"
       accessibilityLabel={`${title}, ${date}`}
       onPress={onPress}
-      style={({ pressed }) => (pressed ? { opacity: 0.9 } : undefined)}
-      className="flex-1 gap-sm"
+      className="active:opacity-90 flex-1 gap-sm"
     >
       <Image
         source={{ uri: outfit.image_url }}

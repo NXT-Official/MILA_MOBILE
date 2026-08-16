@@ -47,8 +47,7 @@ export function HomeHeader({
           accessibilityRole="button"
           accessibilityLabel={`Switch to ${nextTheme} theme`}
           onPress={() => setPreference(nextTheme)}
-          style={({ pressed }) => (pressed ? { opacity: 0.9 } : undefined)}
-          className="h-tap w-tap items-center justify-center"
+          className="active:opacity-90 h-tap w-tap items-center justify-center"
         >
           <Icon name={resolved === "dark" ? "light" : "dark"} size="sm" color="body" />
         </Pressable>

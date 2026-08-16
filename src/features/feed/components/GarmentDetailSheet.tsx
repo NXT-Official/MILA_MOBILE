@@ -101,8 +101,7 @@ function SourceLink({ url }: { url: string }) {
       accessibilityRole="link"
       accessibilityLabel={`Open the poster's link to ${sourceUrlHost(url)}`}
       onPress={() => void Linking.openURL(url).catch(() => {})}
-      style={({ pressed }) => (pressed ? { opacity: 0.8 } : undefined)}
-      className="min-h-tap flex-row items-center justify-between gap-md rounded-panel border border-border bg-surface px-lg py-md dark:border-border/12"
+      className="active:opacity-80 min-h-tap flex-row items-center justify-between gap-md rounded-panel border border-border bg-surface px-lg py-md dark:border-border/12"
     >
       <View className="flex-1 gap-xs">
         <Text className="font-body-semibold text-section tracking-section uppercase text-muted">
@@ -123,8 +122,7 @@ function MatchCard({ match }: { match: DupeMatch }) {
       accessibilityRole="link"
       accessibilityLabel={`${match.title}, ${formatPrice(match.price, match.currency)}`}
       onPress={() => void Linking.openURL(match.affiliate_link).catch(() => {})}
-      style={({ pressed }) => (pressed ? { opacity: 0.9 } : undefined)}
-      className="flex-1 gap-sm"
+      className="active:opacity-90 flex-1 gap-sm"
     >
       <ImageWithFallback
         uri={match.image_url}

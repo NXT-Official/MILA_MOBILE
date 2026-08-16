@@ -206,8 +206,7 @@ export function LensCaptureScreen() {
           accessibilityRole="button"
           accessibilityLabel="Close Lens"
           onPress={requestClose}
-          style={({ pressed }) => (pressed ? { opacity: 0.6 } : undefined)}
-          className="h-tap w-tap items-center justify-center"
+          className="active:opacity-60 h-tap w-tap items-center justify-center"
         >
           <Icon name="close" size="md" color="ink" />
         </Pressable>

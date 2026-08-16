@@ -178,8 +178,7 @@ export function ConciergeScreen() {
           accessibilityRole="button"
           accessibilityLabel="Your conversations"
           onPress={() => setListOpen(true)}
-          style={({ pressed }) => (pressed ? { opacity: 0.6 } : undefined)}
-          className="h-tap w-tap items-center justify-center"
+          className="active:opacity-60 h-tap w-tap items-center justify-center"
         >
           <Icon name="conversations" size="md" color="ink" />
         </Pressable>

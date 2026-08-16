@@ -36,8 +36,7 @@ export function CreditsPill({
         known ? `${balance} credits. View membership plans.` : "Credits unavailable. View membership plans."
       }
       onPress={onPress}
-      style={({ pressed }) => (pressed ? { opacity: 0.9 } : undefined)}
-      className="min-h-tap justify-center"
+      className="active:opacity-90 min-h-tap justify-center"
     >
       <View className="flex-row items-center gap-xs rounded-pill bg-accent-soft px-md py-xs">
         <Icon name="sparkle" size="xs" color="ink" />

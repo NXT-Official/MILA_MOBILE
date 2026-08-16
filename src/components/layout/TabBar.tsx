@@ -84,8 +84,7 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
                 navigation.navigate(route.name, route.params);
               }
             }}
-            style={({ pressed }) => (pressed ? { opacity: 0.7 } : undefined)}
-            className="h-full flex-1 items-center justify-center"
+            className="active:opacity-70 h-full flex-1 items-center justify-center"
           >
             {options?.tabBarIcon?.({
               focused,

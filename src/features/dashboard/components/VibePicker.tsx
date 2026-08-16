@@ -26,8 +26,7 @@ export function VibePicker({ onPress }: { onPress: () => void }) {
         accessibilityRole="button"
         accessibilityLabel={`Occasion: ${vibe}. Change.`}
         onPress={onPress}
-        style={({ pressed }) => (pressed ? { opacity: 0.9 } : undefined)}
-        className="min-h-tap flex-row items-center justify-between rounded-pill border border-border bg-surface px-lg dark:border-border/12"
+        className="active:opacity-90 min-h-tap flex-row items-center justify-between rounded-pill border border-border bg-surface px-lg dark:border-border/12"
       >
         <Text className="font-body text-base text-ink">{vibe}</Text>
         <Icon name="chevronDown" size="sm" color="muted" />

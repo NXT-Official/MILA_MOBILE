@@ -26,9 +26,8 @@ export function ThemeToggle() {
             accessibilityState={{ selected }}
             accessibilityLabel={`${option.label}. ${option.hint}`}
             onPress={() => setPreference(option.value)}
-            style={({ pressed }) => (pressed ? { opacity: 0.85 } : undefined)}
             className={cn(
-              "min-h-tap flex-row items-center gap-md rounded-panel border px-lg py-md",
+              "active:opacity-85 min-h-tap flex-row items-center gap-md rounded-panel border px-lg py-md",
               selected
                 ? "border-ink bg-accent-soft"
                 : "border-border bg-surface dark:border-border/12",

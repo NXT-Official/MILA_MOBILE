@@ -95,11 +95,14 @@ export function Button({
       accessibilityLabel={label}
       accessibilityState={{ disabled: isBlocked, busy: loading }}
       disabled={isBlocked}
-      // Pressed state replaces the web's hover lift — hover does not exist.
-      style={({ pressed }) =>
-        pressed && !isBlocked ? { opacity: 0.9, transform: [{ scale: 0.98 }] } : undefined
-      }
-      className={cn(buttonVariants({ variant, size, disabled: isBlocked }), className)}
+      // Pressed state replaces the web's hover lift — hover does not exist. The
+      // old guard against firing while blocked is no longer needed: a disabled
+      // Pressable emits no pressIn, so `active:` cannot engage.
+      className={cn(
+        "active:opacity-90 active:scale-98",
+        buttonVariants({ variant, size, disabled: isBlocked }),
+        className,
+      )}
       {...rest}
     >
       {loading ? <ActivityIndicator size="small" /> : icon ? <Icon name={icon} size="sm" color="accent" /> : null}

@@ -53,8 +53,7 @@ export function SuggestedActions({
           accessibilityHint="Puts this in the message box. It is not sent until you send it."
           accessibilityLabel={prompt}
           onPress={() => onSelect(prompt)}
-          style={({ pressed }) => (pressed ? { opacity: 0.8 } : undefined)}
-          className="min-h-tap flex-row items-center rounded-pill border border-border bg-surface px-lg dark:border-border/12"
+          className="active:opacity-80 min-h-tap flex-row items-center rounded-pill border border-border bg-surface px-lg dark:border-border/12"
         >
           <Text className="font-body text-sm text-body">{prompt}</Text>
         </Pressable>

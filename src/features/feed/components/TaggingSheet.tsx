@@ -99,8 +99,7 @@ export function TaggingSheet({
                 accessibilityRole="button"
                 accessibilityLabel={`Remove ${draft.label || "this piece"}`}
                 onPress={() => setDrafts((c) => c.filter((d) => d.id !== draft.id))}
-                style={({ pressed }) => (pressed ? { opacity: 0.6 } : undefined)}
-                className="h-tap w-tap items-center justify-center"
+                className="active:opacity-60 h-tap w-tap items-center justify-center"
               >
                 <Icon name="trash" size="sm" color="muted" />
               </Pressable>

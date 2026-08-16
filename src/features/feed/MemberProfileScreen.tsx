@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { cn } from "@/utils/cn";
 import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import { queryKeys } from "@/constants/query-keys";
 import { getMemberProfile, type FeedPost } from "@/services/api/posts";
@@ -193,14 +194,14 @@ function Tab({
       accessibilityState={{ selected: active }}
       accessibilityLabel={label}
       onPress={onPress}
-      style={({ pressed }) => (pressed ? { opacity: 0.8 } : undefined)}
       // Selection is carried by the border weight and the wash together, never
       // by hue alone (§10).
-      className={
+      className={cn(
+        "active:opacity-80 min-h-tap flex-row items-center rounded-pill border px-lg",
         active
-          ? "min-h-tap flex-row items-center rounded-pill border border-ink bg-accent-soft px-lg"
-          : "min-h-tap flex-row items-center rounded-pill border border-border bg-surface px-lg dark:border-border/12"
-      }
+          ? "border-ink bg-accent-soft"
+          : "border-border bg-surface dark:border-border/12",
+      )}
     >
       <Text
         className={
@@ -219,7 +220,7 @@ function Frame({ children }: { children: React.ReactNode }) {
   const insets = useSafeAreaInsets();
 
   return (
-    <View className="flex-1 bg-canvas" style={{ paddingTop: insets.top }}>
+    <View className="active:opacity-80 flex-1 bg-canvas" style={{ paddingTop: insets.top }}>
       {children}
     </View>
   );

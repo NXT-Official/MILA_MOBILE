@@ -25,8 +25,7 @@ export function DossierRow({
       accessibilityLabel={`${label}, ${shown}`}
       accessibilityHint="Opens this to change it"
       onPress={onPress}
-      style={({ pressed }) => (pressed ? { opacity: 0.8 } : undefined)}
-      className="min-h-tap flex-row items-center gap-md px-lg py-md"
+      className="active:opacity-80 min-h-tap flex-row items-center gap-md px-lg py-md"
     >
       <View className="flex-1 gap-xs">
         <Text className="font-body-semibold text-section tracking-section uppercase text-muted">

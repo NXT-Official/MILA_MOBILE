@@ -25,9 +25,8 @@ export function Chip({ label, selected, onPress }: ChipProps) {
       accessibilityState={{ checked: selected }}
       accessibilityLabel={label}
       onPress={onPress}
-      style={({ pressed }) => (pressed ? { opacity: 0.9 } : undefined)}
       className={cn(
-        "min-h-tap flex-row items-center gap-sm rounded-pill border px-lg py-md",
+        "active:opacity-90 min-h-tap flex-row items-center gap-sm rounded-pill border px-lg py-md",
         selected
           ? "border-ink bg-accent-soft"
           : "border-border bg-surface dark:border-border/12",

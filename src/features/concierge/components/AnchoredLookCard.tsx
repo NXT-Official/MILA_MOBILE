@@ -44,8 +44,7 @@ export function AnchoredLookCard({
         accessibilityRole="button"
         accessibilityLabel="Stop asking about this look"
         onPress={onClear}
-        style={({ pressed }) => (pressed ? { opacity: 0.6 } : undefined)}
-        className="h-tap w-tap items-center justify-center"
+        className="active:opacity-60 h-tap w-tap items-center justify-center"
       >
         <Icon name="close" size="sm" color="muted" />
       </Pressable>

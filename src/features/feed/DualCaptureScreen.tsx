@@ -192,8 +192,7 @@ export function DualCaptureScreen() {
           accessibilityRole="button"
           accessibilityLabel="Close"
           onPress={requestClose}
-          style={({ pressed }) => (pressed ? { opacity: 0.6 } : undefined)}
-          className="h-tap w-tap items-center justify-center"
+          className="active:opacity-60 h-tap w-tap items-center justify-center"
         >
           <Icon name="close" size="md" color="ink" />
         </Pressable>

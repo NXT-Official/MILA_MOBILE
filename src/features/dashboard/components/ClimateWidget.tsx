@@ -81,8 +81,7 @@ export function ClimateWidget({
                 weather ? `City: ${weather.location}. Change it.` : "Choose your city"
               }
               onPress={onPress}
-              style={({ pressed }) => (pressed ? { opacity: 0.9 } : undefined)}
-              className="min-h-tap flex-1 flex-row items-center justify-between rounded-pill border border-border bg-canvas px-lg dark:border-border/12"
+              className="active:opacity-90 min-h-tap flex-1 flex-row items-center justify-between rounded-pill border border-border bg-canvas px-lg dark:border-border/12"
             >
               <Text className="font-body text-base text-ink">
                 {weather?.location ?? "Choose a city"}
@@ -95,8 +94,7 @@ export function ClimateWidget({
               accessibilityLabel="Use my current location"
               accessibilityHint="Finds the city nearest you. You confirm it before it is saved."
               onPress={onUseLocation}
-              style={({ pressed }) => (pressed ? { opacity: 0.9 } : undefined)}
-              className="h-tap w-tap items-center justify-center rounded-pill border border-border bg-canvas dark:border-border/12"
+              className="active:opacity-90 h-tap w-tap items-center justify-center rounded-pill border border-border bg-canvas dark:border-border/12"
             >
               <Icon name="location" size="sm" color="ink" />
             </Pressable>

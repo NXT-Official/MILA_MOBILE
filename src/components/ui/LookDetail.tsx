@@ -69,8 +69,7 @@ function CollapsibleSection({ section }: { section: LookSection }) {
           LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
           setOpen((v) => !v);
         }}
-        style={({ pressed }) => (pressed ? { opacity: 0.9 } : undefined)}
-        className="min-h-tap flex-row items-center justify-between gap-md py-md"
+        className="active:opacity-90 min-h-tap flex-row items-center justify-between gap-md py-md"
       >
         <Text className="font-body-semibold text-section tracking-section uppercase text-ink">
           {section.title}
