@@ -1,9 +1,9 @@
 import { Tabs, router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { TabBar } from "@/components/layout/TabBar";
 import { Icon, type IconName } from "@/components/ui/Icon";
-import { useHaptics } from "@/hooks/use-haptics";
-import { colors } from "@/theme/tokens";
+import { tabBar } from "@/theme/tokens";
 
 const TABS: { name: string; title: string; icon: IconName }[] = [
   { name: "index", title: "Home", icon: "home" },
@@ -14,49 +14,26 @@ const TABS: { name: string; title: string; icon: IconName }[] = [
 ];
 
 /**
- * The bar is ink in **both** themes, so its foreground colours are fixed rather
- * than theme-reactive: `useThemeColors().surface` would resolve to a near-black
- * in dark mode and the inactive tabs would disappear against their own bar.
- * These are the ink-ground values, and they do not flip.
+ * The five tabs (§4), in a floating pill drawn by `TabBar`.
  *
- * Alpha is carried in the hex suffix rather than a `opacity` style key —
- * `opacity` fades the icons and labels along with the ground, which is a
- * dimmed tab bar, not a translucent one.
- */
-const BAR_GROUND = `${colors.dark.canvas}e6`; // 90%
-const INACTIVE_TINT = `${colors.light.surface}80`; // 50%
-const HAIRLINE = colors.dark.border;
-
-/**
- * The five tabs (§4). Navigator options take style objects, so tokens are read
- * from the token module rather than through classes — case 1 of the StyleSheet
- * exceptions.
+ * Labels are off: six icon-only targets fit a 360dp screen where six labels do
+ * not, and the name lives in `accessibilityLabel` rather than being truncated
+ * to nonsense. The haptic fires in `TabBar` — `screenListeners` here would
+ * double it on the one tab that also has its own listener.
  */
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
-  const haptics = useHaptics();
 
   return (
     <Tabs
+      tabBar={(props) => <TabBar {...props} />}
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: colors.light.accent,
-        tabBarInactiveTintColor: INACTIVE_TINT,
-        tabBarStyle: {
-          backgroundColor: BAR_GROUND,
-          height: 56 + insets.bottom,
-          paddingBottom: insets.bottom,
-          borderTopWidth: 1,
-          borderTopColor: HAIRLINE,
-        },
-        tabBarLabelStyle: {
-          fontFamily: "Inter_600SemiBold",
-          fontSize: 10,
-          letterSpacing: 2,
-          textTransform: "uppercase",
-        },
+        tabBarShowLabel: false,
+        // The bar floats over the window rather than reserving layout space, so
+        // every scene has to stop short of it itself. One place, not five.
+        sceneStyle: { paddingBottom: tabBar.clearance + insets.bottom },
       }}
-      screenListeners={{ tabPress: () => haptics.selection() }}
     >
       {TABS.map((tab) => (
         <Tabs.Screen
@@ -64,11 +41,14 @@ export default function TabsLayout() {
           name={tab.name}
           options={{
             title: tab.title,
-            tabBarIcon: ({ focused }) => (
+            // `color` is typed `ColorValue`; TabBar always hands over a plain
+            // hex, and anything else falls back to the token colour rather
+            // than being coerced into a string lucide cannot read.
+            tabBarIcon: ({ color }) => (
               <Icon
                 name={tab.icon}
                 size="md"
-                rawColor={focused ? colors.light.accent : INACTIVE_TINT}
+                rawColor={typeof color === "string" ? color : undefined}
               />
             ),
           }}
@@ -76,9 +56,7 @@ export default function TabsLayout() {
             tab.name === "lens"
               ? {
                   // Lens keeps its tab position but presents full-screen, so
-                  // the camera is not letterboxed by the bar (§4). The haptic
-                  // is already fired by `screenListeners` above — repeating it
-                  // here would buzz twice on this one tab.
+                  // the camera is not letterboxed by the bar (§4).
                   tabPress: (e) => {
                     e.preventDefault();
                     router.push("/lens-capture");

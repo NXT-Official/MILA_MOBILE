@@ -27,6 +27,7 @@ import { DailyPaletteStrip } from "./components/DailyPaletteStrip";
 import { DossierCompletionCard } from "./components/DossierCompletionCard";
 import { GenerateButton, resolveBlockedReason } from "./components/GenerateButton";
 import { Greeting } from "./components/Greeting";
+import { HeroCard } from "./components/HeroCard";
 import { HomeHeader } from "./components/HomeHeader";
 import { HubSheet } from "./components/HubSheet";
 import { LookActions } from "./components/LookActions";
@@ -187,34 +188,39 @@ export function HomeScreen() {
           onCreditsPress={() => router.push("/membership")}
         />
 
-        <Greeting fullName={profile?.full_name} loading={profilePending} />
+        {/* Greeting, weather, mood, and the CTA are one object: everything the
+            member needs to press the button lives inside the card with it. */}
+        <HeroCard>
+          <Greeting fullName={profile?.full_name} loading={profilePending} />
 
-        <ClimateWidget
-          weather={weather.data}
-          loading={profilePending || weather.isPending}
-          hasHub={Boolean(profile?.default_location)}
-          onPress={() => setHubSheetOpen(true)}
-        />
-
-        <VibePicker />
-
-        <View className="gap-md">
-          <GenerateButton
-            blocked={blocked}
-            blockedMessage={
-              blocked === "rate-limited" ? formatRetryAfter(rateLimitedFor) : undefined
-            }
-            loading={generate.isPending}
-            onPress={handleGenerate}
+          <ClimateWidget
+            weather={weather.data}
+            loading={profilePending || weather.isPending}
+            hasHub={Boolean(profile?.default_location)}
+            onPress={() => setHubSheetOpen(true)}
           />
-          {blocked === "profile-incomplete" ? (
-            <Button
-              label="Complete your Style Profile"
-              variant="secondary"
-              onPress={() => router.push("/onboarding/welcome")}
+
+          <VibePicker />
+
+          <View className="gap-md">
+            <GenerateButton
+              blocked={blocked}
+              blockedMessage={
+                blocked === "rate-limited" ? formatRetryAfter(rateLimitedFor) : undefined
+              }
+              loading={generate.isPending}
+              weather={weather.data}
+              onPress={handleGenerate}
             />
-          ) : null}
-        </View>
+            {blocked === "profile-incomplete" ? (
+              <Button
+                label="Complete your Style Profile"
+                variant="secondary"
+                onPress={() => router.push("/onboarding/welcome")}
+              />
+            ) : null}
+          </View>
+        </HeroCard>
 
         <OutfitVisual
           state={visualState}

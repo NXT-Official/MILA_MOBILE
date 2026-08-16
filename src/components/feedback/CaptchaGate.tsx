@@ -65,6 +65,13 @@ export const CaptchaGate = forwardRef<CaptchaGateHandle, { verified: boolean; on
           languageCode="en"
           onMessage={onMessage}
           size="invisible"
+          // The library's own wrapper is react-native's `SafeAreaView`, which
+          // RN 0.86 deprecates and warns about on every challenge. `false`
+          // swaps it for a plain View; nothing is lost, because the wrapper
+          // sits inside a full-screen Modal and centres the challenge box
+          // vertically — it never reaches an inset. Revisit if the package
+          // moves to `react-native-safe-area-context` (latest is 4.1.0).
+          useSafeAreaView={false}
         />
 
         <Pressable

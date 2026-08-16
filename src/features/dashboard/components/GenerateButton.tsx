@@ -50,12 +50,15 @@ export function GenerateButton({
   blocked,
   blockedMessage,
   loading,
+  weather,
   onPress,
 }: {
   blocked: BlockedReason | null;
   /** Required when `blocked` is `rate-limited` — the live countdown copy. */
   blockedMessage?: string;
   loading: boolean;
+  /** Named on the CTA so the promise is concrete: what today actually is. */
+  weather?: { tempC: number; condition: string };
   onPress: () => void;
 }) {
   const copy =
@@ -65,11 +68,18 @@ export function GenerateButton({
         ? (blockedMessage ?? "Mila needs a moment. Try again shortly.")
         : BLOCKED_COPY[blocked];
 
+  const label = loading
+    ? "Composing…"
+    : weather
+      ? `Create my look — ${weather.tempC}°C ${weather.condition}`
+      : "Create my look";
+
   return (
     <View className="gap-sm">
       <Button
-        label={loading ? "Composing your look…" : "Compose today's look"}
-        size="md"
+        label={label}
+        size="pill"
+        icon="sparkle"
         disabled={blocked !== null}
         loading={loading}
         onPress={onPress}

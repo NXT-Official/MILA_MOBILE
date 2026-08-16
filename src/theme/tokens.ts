@@ -69,6 +69,23 @@ export const touchTargets = {
   tile: 56,
 } as const;
 
+/**
+ * The floating tab bar's geometry, in one place because two files need to
+ * agree on it: the bar draws itself from these, and the tab navigator's
+ * `sceneStyle` pads every scene by `clearance` so scroll content stops above
+ * the bar instead of ending underneath it.
+ *
+ * `clearance` excludes the safe-area inset — only the caller knows that.
+ */
+export const tabBar = {
+  height: 64,
+  /** Gap from the left, right, and bottom edges. */
+  inset: 12,
+  get clearance() {
+    return this.height + this.inset * 2;
+  },
+} as const;
+
 /** The five-step hierarchy maps to control size, never to taste. */
 export const radii = {
   control: 12, // buttons, inputs, chips

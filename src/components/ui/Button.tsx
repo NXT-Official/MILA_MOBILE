@@ -3,6 +3,8 @@ import { ActivityIndicator, Pressable, Text, type PressableProps } from "react-n
 
 import { cn } from "@/utils/cn";
 
+import { Icon, type IconName } from "./Icon";
+
 /**
  * `primary` is bg-ink, not bg-accent. Champagne Gold is an accent, and a
  * full-width gold button would consume far more than the ~10% of screen the One
@@ -29,6 +31,10 @@ export const buttonVariants = cva(
         lg: "h-14 px-2xl",
         icon: "h-12 w-12 px-0",
         chip: "h-10 px-md rounded-pill",
+        // The hero CTA. `min-h` rather than a fixed height because its label
+        // carries the weather ("Create my look — 28°C Rain") and has to be
+        // free to wrap on a narrow screen instead of being clipped.
+        pill: "min-h-14 rounded-pill px-xl py-md",
       },
       disabled: { true: "opacity-50", false: "" },
     },
@@ -56,6 +62,7 @@ export const buttonLabelVariants = cva("font-body", {
       lg: "text-lg",
       icon: "",
       chip: "text-label tracking-label uppercase",
+      pill: "text-base",
     },
   },
   defaultVariants: { variant: "primary", size: "md" },
@@ -65,6 +72,8 @@ export type ButtonProps = Omit<PressableProps, "children" | "disabled" | "style"
   VariantProps<typeof buttonVariants> & {
     label: string;
     loading?: boolean;
+    /** A leading glyph. Gold on an ink fill — the One Gold Rule's one job. */
+    icon?: IconName;
     className?: string;
   };
 
@@ -74,6 +83,7 @@ export function Button({
   size,
   disabled,
   loading = false,
+  icon,
   className,
   ...rest
 }: ButtonProps) {
@@ -92,11 +102,15 @@ export function Button({
       className={cn(buttonVariants({ variant, size, disabled: isBlocked }), className)}
       {...rest}
     >
-      {loading ? <ActivityIndicator size="small" /> : null}
-      {/* The label stays visible while loading. `numberOfLines={1}` because the
+      {loading ? <ActivityIndicator size="small" /> : icon ? <Icon name={icon} size="sm" color="accent" /> : null}
+      {/* The label stays visible while loading. Capped at one line because the
           size variants are fixed-height: a label that wraps is clipped in half
-          rather than pushing the button taller, which is silent and ugly. */}
-      <Text numberOfLines={1} className={cn(buttonLabelVariants({ variant, size }))}>
+          rather than pushing the button taller, which is silent and ugly.
+          `pill` is the exception — it sets `min-h`, so it can grow. */}
+      <Text
+        numberOfLines={size === "pill" ? 2 : 1}
+        className={cn(buttonLabelVariants({ variant, size }))}
+      >
         {label}
       </Text>
     </Pressable>
