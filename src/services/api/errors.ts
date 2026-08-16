@@ -100,6 +100,14 @@ export function resolveApiFailure(error: unknown): ApiFailure {
         message: "Mila couldn't compose a look this time. Please try again.",
       };
 
+    // Something the server depends on refused — a provider, Paddle, the
+    // captcha verifier. The server's own message is preferred because it is the
+    // only thing that says *what* refused: after a failed account deletion,
+    // "we couldn't stop your billing, so nothing was deleted" is the difference
+    // between a member who knows her account still exists and one who doesn't.
+    case "UPSTREAM_UNAVAILABLE":
+      return { kind: "retryable", message: error.message || GENERIC };
+
     case "TIMEOUT":
       return { kind: "retryable", message: "That took longer than expected." };
 

@@ -34,6 +34,19 @@ describe("resolveApiFailure — the eight server codes", () => {
     expect(failure.message).toBe("Mila couldn't compose a look this time. Please try again.");
   });
 
+  it("keeps the server's reason on UPSTREAM_UNAVAILABLE, since it names what refused", () => {
+    const failure = resolveApiFailure(
+      new ApiError("UPSTREAM_UNAVAILABLE", "We couldn't stop your billing just now.", 503),
+    );
+    expect(failure.kind).toBe("retryable");
+    expect(failure.message).toBe("We couldn't stop your billing just now.");
+  });
+
+  it("falls back to generic copy when UPSTREAM_UNAVAILABLE carries no message", () => {
+    const failure = resolveApiFailure(new ApiError("UPSTREAM_UNAVAILABLE", "", 503));
+    expect(failure.message).toBe("Something went wrong on our side. Please try again.");
+  });
+
   it("routes ACCOUNT_SUSPENDED to the suspended gate", () => {
     expect(resolveApiFailure(err("ACCOUNT_SUSPENDED", 403)).kind).toBe("suspended");
   });
