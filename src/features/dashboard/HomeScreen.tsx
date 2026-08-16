@@ -33,7 +33,7 @@ import { HubSheet } from "./components/HubSheet";
 import { LookActions } from "./components/LookActions";
 import { LookDetail } from "@/components/ui/LookDetail";
 import { OutfitVisual, type OutfitVisualState } from "./components/OutfitVisual";
-import { VibePicker } from "./components/VibePicker";
+import { VibePicker, VibeSheet } from "./components/VibePicker";
 import { useGenerateLook } from "./hooks/use-generate-look";
 import { useLookImage } from "./hooks/use-look-image";
 import { useSaveLook } from "./hooks/use-save-look";
@@ -49,6 +49,9 @@ import { useWeather } from "./hooks/use-weather";
  */
 export function HomeScreen() {
   const [hubSheetOpen, setHubSheetOpen] = useState(false);
+  /** True when the hub sheet was opened by the pin rather than the city row. */
+  const [hubAutoLocate, setHubAutoLocate] = useState(false);
+  const [vibeSheetOpen, setVibeSheetOpen] = useState(false);
   const [paywallOpen, setPaywallOpen] = useState(false);
   const [regenerateOpen, setRegenerateOpen] = useState(false);
   /** Epoch ms the server's rate limit lifts, or null. */
@@ -197,10 +200,17 @@ export function HomeScreen() {
             weather={weather.data}
             loading={profilePending || weather.isPending}
             hasHub={Boolean(profile?.default_location)}
-            onPress={() => setHubSheetOpen(true)}
+            onPress={() => {
+              setHubAutoLocate(false);
+              setHubSheetOpen(true);
+            }}
+            onUseLocation={() => {
+              setHubAutoLocate(true);
+              setHubSheetOpen(true);
+            }}
           />
 
-          <VibePicker />
+          <VibePicker onPress={() => setVibeSheetOpen(true)} />
 
           <View className="gap-md">
             <GenerateButton
@@ -261,11 +271,17 @@ export function HomeScreen() {
         <DossierCompletionCard profile={profile} />
       </View>
 
+      {/* Every sheet is mounted here, at the screen root — never inside
+          `HeroCard`, whose `overflow-hidden` would clip anything that failed to
+          portal cleanly. */}
       <HubSheet
         visible={hubSheetOpen}
         onClose={() => setHubSheetOpen(false)}
         currentHubId={profile?.default_location ?? null}
+        autoLocate={hubAutoLocate}
       />
+
+      <VibeSheet visible={vibeSheetOpen} onClose={() => setVibeSheetOpen(false)} />
 
       <ConfirmSheet
         visible={regenerateOpen}

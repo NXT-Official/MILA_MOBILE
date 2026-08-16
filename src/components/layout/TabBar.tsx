@@ -61,7 +61,8 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
       {state.routes.map((route, index) => {
         const { options } = descriptors[route.key] ?? {};
         const focused = state.index === index;
-        const label = options?.tabBarAccessibilityLabel ?? options?.title ?? route.name;
+        const label =
+          options?.tabBarAccessibilityLabel ?? options?.title ?? route.name;
 
         return (
           <Pressable
@@ -89,7 +90,7 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
             {options?.tabBarIcon?.({
               focused,
               color: focused ? ACTIVE_TINT : INACTIVE_TINT,
-              size: 22,
+              size: 30,
             })}
           </Pressable>
         );

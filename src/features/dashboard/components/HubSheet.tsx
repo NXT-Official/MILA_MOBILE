@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Text, View } from "react-native";
 
 import { Button } from "@/components/ui/Button";
@@ -28,10 +28,13 @@ export function HubSheet({
   visible,
   onClose,
   currentHubId,
+  autoLocate = false,
 }: {
   visible: boolean;
   onClose: () => void;
   currentHubId: string | null;
+  /** Opened from the dashboard's pin: start the device path without a second tap. */
+  autoLocate?: boolean;
 }) {
   // Her own pick, or the saved hub until she makes one. Held as an override
   // rather than seeded from the prop: the sheet mounts with the screen, often
@@ -57,6 +60,21 @@ export function HubSheet({
     setSuggested(result.hub);
     setPicked(result.hub.id);
   }
+
+  // Fired once per opening, not once per render: the permission prompt is a
+  // system dialog, and asking twice because a parent re-rendered is the kind of
+  // thing that gets an app's location access denied for good.
+  const located = useRef(false);
+  useEffect(() => {
+    if (!visible) {
+      located.current = false;
+      return;
+    }
+    if (autoLocate && !located.current) {
+      located.current = true;
+      void handleUseMyLocation();
+    }
+  }, [visible, autoLocate]);
 
   function handleSave() {
     if (!selected) return;

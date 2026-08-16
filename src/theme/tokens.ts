@@ -78,7 +78,7 @@ export const touchTargets = {
  * `clearance` excludes the safe-area inset — only the caller knows that.
  */
 export const tabBar = {
-  height: 64,
+  height: 74,
   /** Gap from the left, right, and bottom edges. */
   inset: 12,
   get clearance() {

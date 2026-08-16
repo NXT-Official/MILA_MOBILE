@@ -10,9 +10,14 @@ export const NO_WEATHER_COPY =
 /**
  * Today's conditions for her hub, as a porcelain card inside the hero.
  *
- * The whole card is one target, not a hidden chevron — and one target rather
- * than a nested pressable per row, because the readout and the city pill do the
- * same thing: open the hub sheet.
+ * Two controls, matching the web: the city opens the hub sheet, the pin asks
+ * the device where she is. The readout above them is not a target — a member
+ * poking at a temperature expects nothing to happen, and making it tappable
+ * would put a third invisible affordance on a card that already has two.
+ *
+ * The pin **suggests**; it never writes. §7 is explicit that a location is not
+ * saved without confirmation, so it opens the same sheet with the device path
+ * already running and "Set location" still the only thing that commits.
  *
  * Failure degrades to the hub-selection copy rather than an error card: a
  * missing temperature is not something a member can debug, but choosing a city
@@ -23,24 +28,16 @@ export function ClimateWidget({
   loading,
   hasHub,
   onPress,
+  onUseLocation,
 }: {
   weather: ClimateState | undefined;
   loading: boolean;
   hasHub: boolean;
   onPress: () => void;
+  onUseLocation: () => void;
 }) {
-  const label = weather
-    ? `${weather.label}, ${weather.tempC} degrees, ${weather.location}. Change city.`
-    : "Choose your city for today's weather.";
-
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      onPress={onPress}
-      style={({ pressed }) => (pressed ? { opacity: 0.9 } : undefined)}
-      className="gap-md rounded-panel border border-border bg-surface p-lg dark:border-border/12"
-    >
+    <View className="gap-md rounded-panel border border-border bg-surface p-lg dark:border-border/12">
       {loading ? (
         <>
           <View className="flex-row items-center gap-md">
@@ -50,7 +47,7 @@ export function ClimateWidget({
               <Skeleton className="h-4 w-1/4" />
             </View>
           </View>
-          <Skeleton className="h-11 w-full rounded-pill" />
+          <Skeleton className="h-tap w-full rounded-pill" />
         </>
       ) : (
         <>
@@ -77,16 +74,35 @@ export function ClimateWidget({
             )}
           </View>
 
-          {/* Reads as the select it behaves like, without being a second
-              target — the card above already opens the same sheet. */}
-          <View className="min-h-tap flex-row items-center justify-between rounded-pill border border-border bg-canvas px-lg dark:border-border/12">
-            <Text className="font-body text-base text-ink">
-              {weather?.location ?? "Choose a city"}
-            </Text>
-            <Icon name="chevronDown" size="sm" color="muted" />
+          <View className="flex-row items-center gap-md">
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={
+                weather ? `City: ${weather.location}. Change it.` : "Choose your city"
+              }
+              onPress={onPress}
+              style={({ pressed }) => (pressed ? { opacity: 0.9 } : undefined)}
+              className="min-h-tap flex-1 flex-row items-center justify-between rounded-pill border border-border bg-canvas px-lg dark:border-border/12"
+            >
+              <Text className="font-body text-base text-ink">
+                {weather?.location ?? "Choose a city"}
+              </Text>
+              <Icon name="chevronDown" size="sm" color="muted" />
+            </Pressable>
+
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Use my current location"
+              accessibilityHint="Finds the city nearest you. You confirm it before it is saved."
+              onPress={onUseLocation}
+              style={({ pressed }) => (pressed ? { opacity: 0.9 } : undefined)}
+              className="h-tap w-tap items-center justify-center rounded-pill border border-border bg-canvas dark:border-border/12"
+            >
+              <Icon name="location" size="sm" color="ink" />
+            </Pressable>
           </View>
         </>
       )}
-    </Pressable>
+    </View>
   );
 }
