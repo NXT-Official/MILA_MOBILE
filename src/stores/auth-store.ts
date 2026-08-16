@@ -12,18 +12,13 @@ type AuthState = {
   session: Session | null;
   /** True until the first `getSession()` resolves — the splash waits on this. */
   loading: boolean;
-  /** Suppresses the guard redirect flash while a sign-out is in flight. */
-  signingOut: boolean;
   setSession: (session: Session | null) => void;
-  setSigningOut: (signingOut: boolean) => void;
 };
 
 export const useAuthStore = create<AuthState>((set) => ({
   session: null,
   loading: true,
-  signingOut: false,
   setSession: (session) => set({ session, loading: false }),
-  setSigningOut: (signingOut) => set({ signingOut }),
 }));
 
 export const useSession = () => useAuthStore((s) => s.session);

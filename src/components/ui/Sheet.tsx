@@ -54,9 +54,33 @@ export function Sheet({ visible, onClose, title, height = DEFAULT_HEIGHT, childr
   const colors = useThemeColors();
   const snapPoints = useMemo(() => [height], [height]);
 
+  /**
+   * Only ever dismiss a sheet that is actually up.
+   *
+   * `BottomSheetModal.handleDismiss` has no early exit for its `INITIAL`
+   * status — the list it checks is `[CLOSED, MINIMIZED]` — so a dismiss on a
+   * sheet that was never presented falls through, parks the status at
+   * `DISMISSING`, and calls `forceClose()` on a ref that is still null. Nothing
+   * ever calls `unmount()`, which is what would reset the status. From then on
+   * `handlePortalRender` sees `DISMISSING` and returns **without rendering the
+   * portal**, so `present()` mounts the sheet and paints nothing, forever.
+   *
+   * This effect used to hit that on its very first run: every sheet mounts with
+   * `visible === false` and dismissed itself into the wedged state before the
+   * member had touched anything. The second route in is the close path — the
+   * sheet unmounts itself on swipe-down or a backdrop press, and the resulting
+   * `visible === false` would send a dismiss to an already-gone sheet.
+   */
+  const presented = useRef(false);
+
   useEffect(() => {
-    if (visible) ref.current?.present();
-    else ref.current?.dismiss();
+    if (visible) {
+      presented.current = true;
+      ref.current?.present();
+    } else if (presented.current) {
+      presented.current = false;
+      ref.current?.dismiss();
+    }
   }, [visible]);
 
   const renderBackdrop = useCallback(
@@ -92,7 +116,13 @@ export function Sheet({ visible, onClose, title, height = DEFAULT_HEIGHT, childr
       snapPoints={snapPoints}
       index={0}
       enableDynamicSizing={false}
-      onDismiss={onClose}
+      // The sheet also closes itself — swipe down, backdrop press. Clearing the
+      // latch here is what stops the resulting `visible === false` from sending
+      // a dismiss to a sheet that has already unmounted.
+      onDismiss={() => {
+        presented.current = false;
+        onClose();
+      }}
     >
       <BottomSheetScrollView
         contentContainerStyle={{

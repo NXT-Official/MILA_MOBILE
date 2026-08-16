@@ -1,5 +1,4 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { router } from "expo-router";
 import { useRef, useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { View } from "react-native";
@@ -38,7 +37,8 @@ export function SignupForm() {
 
     try {
       await signUp.mutateAsync({ ...values, captchaToken });
-      router.replace("/");
+      // The gate navigates, not this form — a brand new account has an empty
+      // dossier and belongs in onboarding, which `/` is not.
     } catch (error) {
       setFormError(error instanceof ApiError ? error.message : UNIFORM_AUTH_FAILURE);
     } finally {

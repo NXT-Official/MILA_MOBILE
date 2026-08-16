@@ -4,6 +4,7 @@ import { Text, View } from "react-native";
 import { Screen } from "@/components/layout/Screen";
 import { Button } from "@/components/ui/Button";
 import { ConfirmSheet } from "@/components/ui/ConfirmSheet";
+import { InlineError } from "@/components/ui/ErrorState";
 import { SettingsList, SettingsRow } from "@/components/ui/SettingsList";
 import { useSignOut } from "@/hooks/use-sign-out";
 import { hubById } from "@/services/weather";
@@ -82,6 +83,10 @@ export function SettingsScreen() {
             onPress={() => router.push("/membership")}
           />
         </SettingsList>
+
+        {signOut.isError ? (
+          <InlineError message="Mila couldn't sign you out. Please try again." />
+        ) : null}
 
         <Button
           label="Sign out"

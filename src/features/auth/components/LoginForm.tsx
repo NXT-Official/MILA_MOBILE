@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Link, router } from "expo-router";
+import { Link } from "expo-router";
 import { useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { Text, View } from "react-native";
@@ -33,7 +33,10 @@ export function LoginForm() {
 
     try {
       await signIn.mutateAsync({ ...values, captchaToken });
-      router.replace("/");
+      // No navigation here. The root layout's gate reads the new session and
+      // opens the right group — which for a member whose dossier is incomplete
+      // is onboarding, not `/`. Replacing to `/` raced that gate: at this
+      // instant `(tabs)` is still guarded off, so the destination did not exist.
     } catch {
       // Always the uniform message — never distinguish which field was wrong.
       setFormError(UNIFORM_AUTH_FAILURE);

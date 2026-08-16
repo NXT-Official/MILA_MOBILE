@@ -14,6 +14,7 @@ import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
+import { ActivityIndicator, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
@@ -47,9 +48,22 @@ function RootNavigator() {
     if (ready) SplashScreen.hideAsync();
   }, [ready]);
 
-  // Keep the native splash up until the destination is known. Rendering the
-  // stack first would flash the wrong screen for a frame on every cold start.
-  if (!ready) return null;
+  // Hold the stack back until the destination is known — rendering it first
+  // would flash the wrong group for a frame on every cold start.
+  //
+  // A holding screen, not `null`. `ready` is not a one-shot: it drops again the
+  // moment a member signs in, because a session now exists and her profile has
+  // not loaded yet. On a cold start the native splash covers this view anyway,
+  // but by the time she taps "Enter Mila Studio" the splash is long gone, and
+  // `null` there is a blank screen for the whole length of the profile fetch —
+  // the app looks like it died at the exact moment she signed in.
+  if (!ready) {
+    return (
+      <View className="flex-1 items-center justify-center bg-canvas">
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
 
   const signedOut = destination === "/login";
   const suspended = destination === "/suspended";

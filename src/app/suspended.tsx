@@ -2,7 +2,7 @@ import { Linking, View } from "react-native";
 
 import { Screen } from "@/components/layout/Screen";
 import { Button } from "@/components/ui/Button";
-import { ErrorState } from "@/components/ui/ErrorState";
+import { ErrorState, InlineError } from "@/components/ui/ErrorState";
 import { useSignOut } from "@/hooks/use-sign-out";
 
 /**
@@ -21,6 +21,9 @@ export default function SuspendedScreen() {
           description="Access to Mila has been paused. The studio steward can tell you why and what happens next."
         />
         <View className="w-full gap-md px-xl">
+          {signOut.isError ? (
+            <InlineError message="Mila couldn't sign you out. Please try again." />
+          ) : null}
           <Button
             label="Contact the steward"
             size="lg"

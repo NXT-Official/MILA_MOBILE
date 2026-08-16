@@ -104,7 +104,11 @@ export async function signUp(input: SignUpInput): Promise<Session> {
 }
 
 export async function signOut(): Promise<void> {
-  await supabase.auth.signOut();
+  // Never swallow this. Supabase returns without clearing the stored session
+  // when it cannot read it, so a discarded error is a member who tapped "Sign
+  // out", saw the spinner stop, and is still signed in with nothing to retry.
+  const { error } = await supabase.auth.signOut();
+  if (error) throw new ApiError("INTERNAL", "Mila couldn't sign you out. Please try again.", 500);
 }
 
 export async function requestPasswordReset(email: string): Promise<void> {

@@ -1,5 +1,4 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { router } from "expo-router";
+import { useMutation } from "@tanstack/react-query";
 
 import { deleteAccount } from "@/services/api/account";
 import { assembleExport, exportFilename } from "@/services/export";
@@ -73,29 +72,21 @@ export function useExportData() {
 /**
  * Irreversible, and the one action in the app with no undo.
  *
- * The cache is cleared before navigating for the same reason sign-out does it:
- * a stale profile would let the next screen briefly render a member who no
- * longer exists. The session is dropped locally too — the server has already
- * deleted the auth user, so the refresh token in SecureStore is dead weight
- * that would otherwise fail confusingly on the next launch.
+ * The session is dropped locally — the server has already deleted the auth
+ * user, so the refresh token in SecureStore is dead weight that would otherwise
+ * fail confusingly on the next launch. Dropping it emits `SIGNED_OUT`, which
+ * clears the cache and closes the session gate back to `/login`; doing either
+ * by hand here would be a second owner of the same transition.
  */
 export function useDeleteAccount() {
-  const queryClient = useQueryClient();
-  const setSigningOut = useAuthStore((s) => s.setSigningOut);
-
   return useMutation<void, unknown, string>({
     mutationFn: async (email) => {
       await deleteAccount(email);
     },
     onSuccess: async () => {
-      setSigningOut(true);
       await supabase.auth.signOut().catch(() => {
-        // The auth user is already gone, so this can legitimately fail. The
-        // local session is cleared either way by the listener below.
+        // The auth user is already gone, so this can legitimately fail.
       });
-      queryClient.clear();
-      setSigningOut(false);
-      router.replace("/login");
     },
   });
 }
