@@ -23,7 +23,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { DailyLook } from "@/types/look";
 
 import { ClimateWidget } from "./components/ClimateWidget";
-import { DailyPaletteStrip } from "./components/DailyPaletteStrip";
+import { DailyPaletteGenerator } from "./components/DailyPaletteGenerator";
 import { DossierCompletionCard } from "./components/DossierCompletionCard";
 import { GenerateButton, resolveBlockedReason } from "./components/GenerateButton";
 import { Greeting } from "./components/Greeting";
@@ -266,7 +266,7 @@ export function HomeScreen() {
           />
         ) : null}
 
-        {seasonId ? <DailyPaletteStrip seasonId={seasonId} /> : null}
+        {seasonId ? <DailyPaletteGenerator seasonId={seasonId} /> : null}
 
         <DossierCompletionCard profile={profile} />
       </View>

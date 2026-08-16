@@ -3,6 +3,7 @@ import {
   ArrowLeft,
   ArrowRight,
   BadgeCheck,
+  Bookmark,
   Camera,
   Check,
   ChevronDown,
@@ -83,6 +84,7 @@ export const icons = {
   signOut: LogOut,
   // Onboarding
   sparkle: Sparkles,
+  bookmark: Bookmark,
   silhouette: Ruler,
   location: MapPin,
   saved: CloudCheck,

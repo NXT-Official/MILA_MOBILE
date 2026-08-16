@@ -1,3 +1,4 @@
+import { migrateLegacySeason } from "@/lib/color-analysis/schemaMigration";
 import type { SeasonId } from "@/lib/color-analysis/types";
 
 /**
@@ -6,6 +7,13 @@ import type { SeasonId } from "@/lib/color-analysis/types";
  * by case and separator, so the conversion is mechanical — but it still has to
  * be *checked*, because an unrecognised season silently becoming a valid-looking
  * id is how a member gets someone else's palette.
+ *
+ * The input is not always a sub-season. `buildDashboardProfile` falls back to
+ * the *base* season when `color_profile` carries no `subSeason`, so a member who
+ * picked her season by hand rather than from a photo arrives here as "Autumn".
+ * That is what `migrateLegacySeason` is for, and it is the module the web
+ * already runs this through — mapping the four bases here instead of reusing it
+ * is how the two clients end up disagreeing about who has a palette at all.
  *
  * Declared as a Record rather than an array so TypeScript rejects the file if
  * `SeasonId` ever gains a member and this list does not.
@@ -29,8 +37,13 @@ const SEASON_IDS: Record<SeasonId, true> = {
   deep_winter: true,
 };
 
-export function toSeasonId(subSeason: string | null | undefined): SeasonId | null {
-  if (typeof subSeason !== "string") return null;
-  const id = subSeason.trim().toLowerCase().replace(/\s+/g, "_");
+export function toSeasonId(season: string | null | undefined): SeasonId | null {
+  if (typeof season !== "string" || !season.trim()) return null;
+  // `migrateLegacySeason` lowercases and trims, and maps a bare base season to
+  // its true sub-season. Anything it does not recognise it returns unchanged,
+  // which is why the membership check below still has to run: the web casts
+  // that value straight to a SeasonId, and an invented id is worse than no
+  // palette at all.
+  const id = migrateLegacySeason(season).replace(/\s+/g, "_");
   return id in SEASON_IDS ? (id as SeasonId) : null;
 }

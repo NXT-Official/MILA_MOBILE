@@ -81,6 +81,18 @@ describe("toSeasonId", () => {
     expect(toSeasonId("  tRuE   autumn ")).toBe("true_autumn");
   });
 
+  it("maps a bare base season the way the web does", () => {
+    // `buildDashboardProfile` falls back to the base season when the dossier
+    // carries no `subSeason`, so a member who picked her season by hand arrives
+    // as "Autumn". Rejecting that hid the daily palette on mobile for members
+    // who could see it on the web with the same account.
+    expect(toSeasonId("Spring")).toBe("true_spring");
+    expect(toSeasonId("Summer")).toBe("true_summer");
+    expect(toSeasonId("Autumn")).toBe("true_autumn");
+    expect(toSeasonId("Winter")).toBe("true_winter");
+    expect(toSeasonId("  autumn ")).toBe("true_autumn");
+  });
+
   it("rejects an unrecognised season rather than inventing one", () => {
     // An unrecognised season silently becoming a valid-looking id is how a
     // member gets someone else's palette.
