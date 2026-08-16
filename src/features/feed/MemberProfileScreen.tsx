@@ -220,7 +220,7 @@ function Frame({ children }: { children: React.ReactNode }) {
   const insets = useSafeAreaInsets();
 
   return (
-    <View className="active:opacity-80 flex-1 bg-canvas" style={{ paddingTop: insets.top }}>
+    <View className="flex-1 bg-canvas" style={{ paddingTop: insets.top }}>
       {children}
     </View>
   );
