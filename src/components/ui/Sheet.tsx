@@ -4,8 +4,8 @@ import {
   BottomSheetScrollView,
   type BottomSheetBackdropProps,
 } from "@gorhom/bottom-sheet";
-import { useCallback, useEffect, useRef, type ReactNode } from "react";
-import { Text, useWindowDimensions, View } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, type ReactNode } from "react";
+import { Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { radii, shadows, spacing } from "@/theme/tokens";
@@ -23,14 +23,36 @@ type SheetProps = {
   onClose: () => void;
   /** Announced as the sheet's heading. Every sheet has one. */
   title: string;
+  /**
+   * How tall the sheet opens. Content taller than this scrolls; shorter
+   * content leaves space below it, which is the trade for a sheet that is
+   * always visible. See the note on `snapPoints` below.
+   */
+  height?: `${number}%`;
   children: ReactNode;
 };
 
-export function Sheet({ visible, onClose, title, children }: SheetProps) {
+/**
+ * A fixed detent, deliberately, instead of `enableDynamicSizing`.
+ *
+ * `useAnimatedDetents` bails out with **no detents at all** while dynamic
+ * sizing is on and the content height is still unmeasured:
+ *
+ *     if (!enableDynamicSizing) return { detents, ... };
+ *     if (contentHeight === INITIAL_LAYOUT_VALUE) return {};
+ *
+ * A sheet with no detent has nowhere to snap to, so it presents to nothing —
+ * the member taps and the screen simply does not change. Note the order: that
+ * bail-out happens *before* provided snap points are considered, so supplying
+ * both does not help. Measuring is the fragile part; a number is not.
+ */
+const DEFAULT_HEIGHT = "70%";
+
+export function Sheet({ visible, onClose, title, height = DEFAULT_HEIGHT, children }: SheetProps) {
   const ref = useRef<BottomSheetModal>(null);
   const insets = useSafeAreaInsets();
-  const { height } = useWindowDimensions();
   const colors = useThemeColors();
+  const snapPoints = useMemo(() => [height], [height]);
 
   useEffect(() => {
     if (visible) ref.current?.present();
@@ -65,10 +87,11 @@ export function Sheet({ visible, onClose, title, children }: SheetProps) {
       handleIndicatorStyle={{ width: 36, height: 4, backgroundColor: colors.border }}
       backdropComponent={renderBackdrop}
       enablePanDownToClose
-      // Grow to fit the content, then scroll — so a two-line confirmation is
-      // not a half-screen panel and the 11-vibe list is not clipped.
-      enableDynamicSizing
-      maxDynamicContentSize={height * 0.8}
+      // A measured height, never a derived one — see the note above the
+      // default. `index={0}` opens on the single detent rather than closed.
+      snapPoints={snapPoints}
+      index={0}
+      enableDynamicSizing={false}
       onDismiss={onClose}
     >
       <BottomSheetScrollView

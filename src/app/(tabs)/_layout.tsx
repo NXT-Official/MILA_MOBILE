@@ -3,6 +3,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { TabBar } from "@/components/layout/TabBar";
 import { Icon, type IconName } from "@/components/ui/Icon";
+import { useThemeColors } from "@/theme/tailwind";
 import { tabBar } from "@/theme/tokens";
 
 const TABS: { name: string; title: string; icon: IconName }[] = [
@@ -23,6 +24,7 @@ const TABS: { name: string; title: string; icon: IconName }[] = [
  */
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
+  const colors = useThemeColors();
 
   return (
     <Tabs
@@ -32,7 +34,16 @@ export default function TabsLayout() {
         tabBarShowLabel: false,
         // The bar floats over the window rather than reserving layout space, so
         // every scene has to stop short of it itself. One place, not five.
-        sceneStyle: { paddingBottom: tabBar.clearance + insets.bottom },
+        //
+        // The background is not decoration: React Navigation's theme is never
+        // configured here, so the scene container falls back to `DefaultTheme`,
+        // whose background is white. The padding below holds a strip of that
+        // container open beneath each screen's own `bg-canvas`, which is the
+        // white band that showed under the floating bar in dark mode.
+        sceneStyle: {
+          backgroundColor: colors.canvas,
+          paddingBottom: tabBar.clearance + insets.bottom,
+        },
       }}
     >
       {TABS.map((tab) => (
