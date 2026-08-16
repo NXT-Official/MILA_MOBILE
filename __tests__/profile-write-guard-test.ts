@@ -53,6 +53,7 @@ describe("assertWritableColumns", () => {
         "full_name",
         "hair_type",
         "skin_undertone",
+        "style_goals",
         "updated_at",
         "username",
       ].sort(),

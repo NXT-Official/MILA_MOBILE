@@ -8,14 +8,26 @@ import { ErrorState } from "@/components/ui/ErrorState";
 import { Icon } from "@/components/ui/Icon";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { Skeleton } from "@/components/ui/Skeleton";
+import {
+  HAIR_DIRECTION,
+  MAKEUP_HARMONY,
+  SEASONS,
+  SILHOUETTE_STRATEGY,
+  TEXTILE_DIRECTION,
+  type Season,
+} from "@/constants/style-profile";
 import { useProfile } from "@/hooks/use-profile";
 import { useSavedPalettes } from "@/hooks/use-saved-palettes";
 import { normalizeBeautyPreferences } from "@/lib/beauty-preferences";
+import { combosFor } from "@/lib/style-profile/outfit-combos";
 import { normalizeStoredProfile } from "@/lib/style-profile/studio-dossier";
 
+import { ComboCard } from "./components/ComboCard";
 import { DossierHero } from "./components/DossierHero";
 import { DossierRow } from "./components/DossierRow";
 import { PaletteStrip } from "./components/PaletteStrip";
+import { StyleGoalsTray } from "./components/StyleGoalsTray";
+import { StylingNoteCard } from "./components/StylingNoteCard";
 
 /**
  * The style dossier, in the §3 order: hero, Silhouette, Face shape, Hair,
@@ -62,6 +74,21 @@ export function StudioScreen() {
 
   const dossier = normalizeStoredProfile(profile?.color_profile);
   const preferences = normalizeBeautyPreferences(profile?.beauty_preferences);
+
+  // The four-family palette the combos and the palette-derived notes read from.
+  // Never defaulted: showing a member with no season a Summer palette is
+  // inventing her dossier, which is worse than showing her nothing.
+  const seasonBase = profile?.color_season_base ?? null;
+  const family: Season | null = (SEASONS as readonly string[]).includes(seasonBase ?? "")
+    ? (seasonBase as Season)
+    : (dossier?.season ?? null);
+  const combos = family ? combosFor(family) : [];
+
+  // Resolved before the JSX so the "add it" action is gated on there being no
+  // directive, not on the column being empty: an off-taxonomy `body_type` would
+  // otherwise show the fallback copy with no way to act on it.
+  const silhouette = profile?.body_type ? SILHOUETTE_STRATEGY[profile.body_type] : undefined;
+  const hair = profile?.hair_type ? HAIR_DIRECTION[profile.hair_type] : undefined;
 
   return (
     <Screen scroll edges={{ top: true, bottom: false }}>
@@ -120,6 +147,71 @@ export function StudioScreen() {
             onPress={() => router.push("/dossier/beauty-preferences")}
           />
         </View>
+
+        {combos.length > 0 ? (
+          <View className="gap-md">
+            <Text
+              accessibilityRole="header"
+              className="font-body-semibold text-section tracking-section uppercase text-muted"
+            >
+              Colour combinations to try
+            </Text>
+            {combos.map((combo) => (
+              <ComboCard key={combo.id} combo={combo} />
+            ))}
+          </View>
+        ) : null}
+
+        {/* Actions, not colour names — the hero already states the season. */}
+        <View className="gap-md">
+          <Text
+            accessibilityRole="header"
+            className="font-body-semibold text-section tracking-section uppercase text-muted"
+          >
+            Mila&apos;s styling notes
+          </Text>
+
+          <StylingNoteCard
+            title="Silhouette strategy"
+            directive={silhouette}
+            rationale={{ label: "silhouette", value: profile?.body_type }}
+            fallback="Add your silhouette and this becomes specific to your proportions."
+            action={
+              silhouette
+                ? undefined
+                : { label: "Add silhouette", onPress: () => router.push("/dossier/body-type") }
+            }
+          />
+
+          <StylingNoteCard
+            title="Hair direction"
+            directive={hair}
+            rationale={{ label: "hair texture", value: profile?.hair_type }}
+            fallback="Add your hair texture to unlock this."
+            action={
+              hair
+                ? undefined
+                : { label: "Add hair texture", onPress: () => router.push("/dossier/hair-type") }
+            }
+          />
+
+          {family ? (
+            <>
+              <StylingNoteCard
+                title="Makeup harmony"
+                directive={MAKEUP_HARMONY[family]}
+                rationale={{ label: "palette" }}
+              />
+              <StylingNoteCard
+                title="Textile direction"
+                directive={TEXTILE_DIRECTION[family]}
+                rationale={{ label: "palette" }}
+              />
+            </>
+          ) : null}
+        </View>
+
+        <StyleGoalsTray value={profile?.style_goals ?? []} />
 
         <View className="gap-md">
           <Text

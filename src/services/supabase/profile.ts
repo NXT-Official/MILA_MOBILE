@@ -25,6 +25,7 @@ const EMPTY_PROFILE: DashboardProfile = {
   beauty_preferences: null,
   color_profile: null,
   default_location: null,
+  style_goals: [],
   suspended: false,
 };
 
@@ -38,6 +39,7 @@ type ProfileRow = {
   hair_type: string | null;
   beauty_preferences: Json;
   default_location: string | null;
+  style_goals: string[] | null;
   suspended: boolean;
 };
 
@@ -74,6 +76,7 @@ function buildDashboardProfile(data: ProfileRow | null): DashboardProfile {
     beauty_preferences: data.beauty_preferences ?? null,
     color_profile: data.color_profile ?? null,
     default_location: data.default_location ?? null,
+    style_goals: data.style_goals ?? [],
     suspended: data.suspended === true,
   };
 }
@@ -103,6 +106,7 @@ export type StyleProfileUpdate = {
   hair_type?: string | null;
   beauty_preferences?: Json;
   default_location?: string | null;
+  style_goals?: string[];
 };
 
 export async function updateStyleProfile(

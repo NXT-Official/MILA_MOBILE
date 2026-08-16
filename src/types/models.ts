@@ -39,6 +39,8 @@ export type DashboardProfile = {
   beauty_preferences: Json | null;
   color_profile: Json | null;
   default_location: string | null;
+  /** Up to `STYLE_GOAL_LIMIT`; the server folds these into the daily-look brief. */
+  style_goals: string[];
   suspended: boolean;
 };
 
@@ -90,6 +92,7 @@ export const PROFILE_WRITABLE_COLUMNS = [
   "hair_type",
   "beauty_preferences",
   "default_location",
+  "style_goals",
   "updated_at",
 ] as const;
 
@@ -99,4 +102,4 @@ export const PROFILE_WRITABLE_COLUMNS = [
  * into a payload by a `select("*")`.
  */
 export const PROFILE_READ_COLUMNS =
-  "body_type,color_season,skin_undertone,full_name,color_profile,face_shape,hair_type,beauty_preferences,default_location,suspended";
+  "body_type,color_season,skin_undertone,full_name,color_profile,face_shape,hair_type,beauty_preferences,default_location,style_goals,suspended";

@@ -1148,8 +1148,13 @@ mobile profile update must send only the permitted columns:
 ```
 full_name · username · skin_undertone · color_season · body_type ·
 color_profile · face_shape · hair_type · beauty_preferences ·
-default_location · updated_at
+default_location · style_goals · updated_at
 ```
+
+`style_goals` is a `text[]` bounded to five entries by the
+`profiles_style_goals_bounded` check constraint. The server reads it when
+composing the daily look; the client only writes the member's selection and
+displays it back.
 
 Sending `suspended` will fail the grant, not silently no-op.
 

@@ -37,6 +37,7 @@ const BLANK: DashboardProfile = {
   beauty_preferences: null,
   color_profile: null,
   default_location: null,
+  style_goals: [],
   suspended: false,
 };
 

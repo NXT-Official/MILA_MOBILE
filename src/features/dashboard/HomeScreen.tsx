@@ -24,6 +24,7 @@ import type { DailyLook } from "@/types/look";
 
 import { ClimateWidget } from "./components/ClimateWidget";
 import { DailyPaletteStrip } from "./components/DailyPaletteStrip";
+import { DossierCompletionCard } from "./components/DossierCompletionCard";
 import { GenerateButton, resolveBlockedReason } from "./components/GenerateButton";
 import { Greeting } from "./components/Greeting";
 import { HomeHeader } from "./components/HomeHeader";
@@ -250,6 +251,8 @@ export function HomeScreen() {
         ) : null}
 
         {seasonId ? <DailyPaletteStrip seasonId={seasonId} /> : null}
+
+        <DossierCompletionCard profile={profile} />
       </View>
 
       <HubSheet

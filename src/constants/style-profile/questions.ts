@@ -99,6 +99,18 @@ export const BEAUTY_PREFERENCE_TAGS = [
   "Skin-First",
 ] as const;
 
+/** Max 5 enforced by the profiles_style_goals_bounded check constraint. */
+export const STYLE_GOAL_LIMIT = 5;
+
+export const STYLE_GOALS = [
+  "Build a capsule wardrobe",
+  "Look more polished at work",
+  "Dress better for my body shape",
+  "Find my personal style",
+  "Make shopping easier",
+  "Look more put-together daily",
+] as const;
+
 export const MANUAL_SEASON_GROUPS: {
   season: Season;
   keys: { key: keyof typeof SEASONS_MASTER_DATA; label: string }[];
