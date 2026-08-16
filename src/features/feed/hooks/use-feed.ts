@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { queryKeys } from "@/constants/query-keys";
-import { deletePost, getFeed, updatePostCaption } from "@/services/api/posts";
+import { getFeed } from "@/services/api/posts";
+import { deletePost, updatePostCaption } from "@/services/supabase/posts";
 import { useAuthStore } from "@/stores/auth-store";
 
 /**
@@ -35,24 +36,33 @@ function useFeedInvalidation() {
   };
 }
 
+/** Direct through RLS — see `services/supabase/posts`, not an API call. */
 export function useUpdateCaption() {
   const invalidate = useFeedInvalidation();
+  const userId = useAuthStore((s) => s.session?.user.id ?? null);
 
   return useMutation<{ id: string }, unknown, { postId: string; caption: string }>({
-    mutationFn: ({ postId, caption }) =>
+    mutationFn: ({ postId, caption }) => {
+      if (!userId) throw new Error("Not signed in.");
       // An emptied caption is `null`, not `""` — the column is nullable and the
       // feed card branches on absence, so a blank string would render an empty
       // paragraph rather than no paragraph.
-      updatePostCaption({ post_id: postId, caption: caption.trim() || null }),
+      return updatePostCaption(userId, { post_id: postId, caption: caption.trim() || null });
+    },
     onSuccess: invalidate,
   });
 }
 
+/** Direct through RLS — see `services/supabase/posts`, not an API call. */
 export function useDeletePost() {
   const invalidate = useFeedInvalidation();
+  const userId = useAuthStore((s) => s.session?.user.id ?? null);
 
   return useMutation<{ id: string }, unknown, string>({
-    mutationFn: deletePost,
+    mutationFn: (postId) => {
+      if (!userId) throw new Error("Not signed in.");
+      return deletePost(userId, postId);
+    },
     onSuccess: invalidate,
   });
 }

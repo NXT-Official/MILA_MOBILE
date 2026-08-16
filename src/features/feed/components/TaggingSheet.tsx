@@ -8,7 +8,8 @@ import { Icon } from "@/components/ui/Icon";
 import { Sheet } from "@/components/ui/Sheet";
 import { normalizeSourceUrl, type PostItem } from "@/lib/outfit-items";
 import { resolveApiFailure } from "@/services/api/client";
-import { updatePostItems } from "@/services/api/items";
+import { updatePostItems } from "@/services/supabase/post-items";
+import { useAuthStore } from "@/stores/auth-store";
 import { useThemeColor } from "@/theme/tailwind";
 
 type Draft = { id: string; category: string; label: string; sourceUrl: string };
@@ -38,6 +39,7 @@ export function TaggingSheet({
   const [drafts, setDrafts] = useState<Draft[]>(() => toDrafts(items));
   const [seeded, setSeeded] = useState(postId);
   const placeholderColor = useThemeColor("muted");
+  const userId = useAuthStore((s) => s.session?.user.id ?? null);
 
   // A second publish in the same session reuses this component. Re-seeding on
   // the id rather than in an effect keeps the drafts correct on the first render
@@ -48,8 +50,9 @@ export function TaggingSheet({
   }
 
   const save = useMutation({
-    mutationFn: () =>
-      updatePostItems({
+    mutationFn: () => {
+      if (!userId) throw new Error("Not signed in.");
+      return updatePostItems(userId, {
         post_id: postId,
         // A replace, not a patch: anything missing from this array is deleted
         // server-side, which is exactly what removing a row here should mean.
@@ -58,7 +61,8 @@ export function TaggingSheet({
           label: d.label.trim(),
           source_url: d.sourceUrl.trim() || null,
         })),
-      }),
+      });
+    },
     onSuccess: onClose,
   });
 

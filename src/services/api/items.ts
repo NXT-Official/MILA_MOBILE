@@ -26,26 +26,6 @@ export function analyzeOutfitItems(postId: string): Promise<PostItem[]> {
   });
 }
 
-/**
- * Free. **Items absent from the array are deleted** — this is a replace, not a
- * patch, so the caller sends the full surviving list.
- *
- * A non-https `source_url` is **refused with an error**, not silently dropped.
- * `normalizeSourceUrl` catches it client-side first so a typo reports inline
- * rather than as a failed save.
- */
-export type PostItemUpdate = {
-  id: string;
-  label: string;
-  source_url: string | null;
-};
-
-export function updatePostItems(input: {
-  post_id: string;
-  items: PostItemUpdate[];
-}): Promise<PostItem[]> {
-  return api.post<PostItem[]>("/items/update", input, { timeoutMs: TIMEOUTS.default });
-}
 
 /** One row of the affiliate catalogue, scored against the garment's attributes. */
 export type DupeMatch = {

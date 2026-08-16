@@ -72,19 +72,7 @@ export function createPost(input: CreatePostInput): Promise<{ id: string }> {
 /** The web's cap, restated here so the composer and the server agree. */
 export const MAX_CAPTION_LENGTH = 500;
 
-export function updatePostCaption(input: {
-  post_id: string;
-  caption: string | null;
-}): Promise<{ id: string }> {
-  return api.post<{ id: string }>("/posts/caption", input, { timeoutMs: TIMEOUTS.default });
-}
 
-/** Owner-scoped server-side. Deletes the row, then purges both storage objects. */
-export function deletePost(postId: string): Promise<{ id: string }> {
-  return api.post<{ id: string }>("/posts/delete", { post_id: postId }, {
-    timeoutMs: TIMEOUTS.default,
-  });
-}
 
 export type MemberProfile = {
   id: string;

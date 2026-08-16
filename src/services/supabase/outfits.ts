@@ -1,4 +1,5 @@
 import { supabase } from "@/services/supabase/client";
+import { removeOutfitImage, uploadGeneratedOutfitImage } from "@/services/supabase/storage";
 import type { Json } from "@/types/models";
 import type { LensAnalysisRecord } from "@/types/look";
 
@@ -7,12 +8,13 @@ import type { LensAnalysisRecord } from "@/types/look";
  * no permission the database cannot express, so §7's direct-vs-API rule puts
  * them here rather than behind `/api/v1`.
  *
- * Writes split on that same rule. A saved *daily look* is created by
- * `POST /look/save`, because the generated visual has to reach storage
- * server-side. A *Lens analysis* is not: the credit was already charged and
- * metered by `/analysis/outfit`, and the row that records the result needs
- * nothing RLS cannot express — so `saveLensAnalysis` inserts directly, matching
- * the web.
+ * Writes follow that same rule, and **both** are direct. Saving a daily look
+ * used to be `POST /look/save`, on the assumption that the generated visual had
+ * to reach storage server-side. The Phase 11 audit showed otherwise: the web's
+ * `saveOutfitToHistory` uses the caller's own client throughout and needs no
+ * secret, no credit, and no admin — so an HTTP hop was buying nothing, and §7
+ * puts it here. A *Lens analysis* is direct for the same reason: the credit was
+ * already charged and metered by `/analysis/outfit`.
  */
 export type OutfitRow = {
   id: string;
@@ -71,6 +73,61 @@ export async function saveLensAnalysis(
     .single();
 
   if (error) throw error;
+  return data;
+}
+
+export type SaveDailyLookInput = {
+  imageDataUri: string;
+  weather: string;
+  vibe: string;
+  outfit: Json;
+  hair: Json;
+  makeup: Json;
+  vibe_alignment_score: number;
+};
+
+/**
+ * Saves a generated look to history: visual to storage, then the row.
+ *
+ * The compensating delete is the point. The upload and the insert are two
+ * operations with no transaction between them, so a failed insert would
+ * otherwise leave an orphaned image in the member's bucket for good. The web's
+ * `saveOutfitToHistory` does exactly this, and the behaviour is carried over
+ * rather than reinvented.
+ *
+ * The cleanup is best-effort on purpose: if it fails too, the member still gets
+ * the real error about the save, not a second one about tidying up.
+ */
+export async function saveDailyLook(
+  userId: string,
+  input: SaveDailyLookInput,
+): Promise<OutfitRow> {
+  const { publicUrl, storagePath } = await uploadGeneratedOutfitImage(userId, input.imageDataUri);
+
+  const { data, error } = await supabase
+    .from("outfits")
+    .insert({
+      user_id: userId,
+      image_url: publicUrl,
+      analysis_result: {
+        type: "daily_look",
+        weather: input.weather,
+        vibe: input.vibe,
+        vibe_alignment_score: input.vibe_alignment_score,
+        outfit: input.outfit,
+        hair: input.hair,
+        makeup: input.makeup,
+      },
+      match_score: null,
+    })
+    .select("id,image_url,analysis_result,match_score,created_at")
+    .single();
+
+  if (error) {
+    await removeOutfitImage(storagePath).catch(() => {});
+    throw error;
+  }
+
   return data;
 }
 

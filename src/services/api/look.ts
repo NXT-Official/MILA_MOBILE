@@ -7,11 +7,11 @@ import { api, TIMEOUTS } from "./client";
 export type { DailyLook } from "@/types/look";
 
 /**
- * The daily look pipeline. Three calls, and the **order is the billing**:
+ * The daily look pipeline. Two calls, and the **order is the billing**:
  *
  *   /look/generate  charges 1 credit and sets `look_image_pending`
  *   /look/image     claims that flag, so the first visual is free
- *   /look/save      free
+ *   saveDailyLook   free, and direct through RLS — see services/supabase/outfits
  *
  * Do not reorder them and do not merge them (§6). Prompts, Zod schemas, rate
  * limits, and refund predicates are server-side and shared with the web — this
@@ -60,17 +60,4 @@ export type SaveLookInput = DailyLook & {
   vibe: Vibe;
 };
 
-export type SavedLook = {
-  id: string;
-  image_url: string;
-  created_at: string;
-};
 
-/**
- * The generated visual travels as a `data:` URI and reaches storage only here,
- * server-side, under `${userId}/`. The client uploads nothing in this phase —
- * which is also why there is no client-supplied URL anywhere in this file (§8).
- */
-export function saveOutfitToHistory(input: SaveLookInput): Promise<SavedLook> {
-  return api.post<SavedLook>("/look/save", input, { timeoutMs: TIMEOUTS.default });
-}

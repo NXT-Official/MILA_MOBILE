@@ -1,6 +1,8 @@
 import { randomUUID } from "expo-crypto";
 import { File } from "expo-file-system";
 
+import { dataUriMimeType, dataUriToBytes } from "@/utils/data-uri";
+
 import { supabase } from "./client";
 
 const BUCKET = "outfits";
@@ -41,6 +43,39 @@ export async function uploadOutfitImage(userId: string, uri: string): Promise<st
   if (error) throw error;
 
   return supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+}
+
+/**
+ * Uploads the generated look's visual, which arrives as a base64 `data:` URI
+ * rather than a file on disk, and returns both its public URL and its storage
+ * path — the path so the caller can undo the upload if the row insert fails.
+ *
+ * Same `${userId}/` prefix and the same storage RLS as `uploadOutfitImage`: the
+ * first path segment must equal `auth.uid()`, and the database rejects a
+ * mismatch rather than this function.
+ */
+export async function uploadGeneratedOutfitImage(
+  userId: string,
+  dataUri: string,
+): Promise<{ publicUrl: string; storagePath: string }> {
+  const storagePath = `${userId}/${randomUUID()}.jpg`;
+  const bytes = dataUriToBytes(dataUri);
+
+  const { error } = await supabase.storage.from(BUCKET).upload(storagePath, bytes, {
+    contentType: dataUriMimeType(dataUri) ?? "image/jpeg",
+    upsert: false,
+  });
+  if (error) throw error;
+
+  return {
+    publicUrl: supabase.storage.from(BUCKET).getPublicUrl(storagePath).data.publicUrl,
+    storagePath,
+  };
+}
+
+/** Undoes an upload whose row never landed. Best-effort: see `saveDailyLook`. */
+export async function removeOutfitImage(storagePath: string): Promise<void> {
+  await supabase.storage.from(BUCKET).remove([storagePath]);
 }
 
 /**
