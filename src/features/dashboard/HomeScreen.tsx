@@ -9,7 +9,6 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { ConfirmSheet } from "@/components/ui/ConfirmSheet";
 import { useCountdown } from "@/hooks/use-countdown";
-import { useCreditBalance, useCredits } from "@/hooks/use-credits";
 import { useHaptics } from "@/hooks/use-haptics";
 import { useNetworkStatus } from "@/hooks/use-network-status";
 import { useProfile } from "@/hooks/use-profile";
@@ -29,7 +28,6 @@ import { DossierCompletionCard } from "./components/DossierCompletionCard";
 import { GenerateButton, resolveBlockedReason } from "./components/GenerateButton";
 import { Greeting } from "./components/Greeting";
 import { HeroCard } from "./components/HeroCard";
-import { HomeHeader } from "./components/HomeHeader";
 import { HubSheet } from "./components/HubSheet";
 import { LookActions } from "./components/LookActions";
 import { LookDetail } from "@/components/ui/LookDetail";
@@ -70,8 +68,6 @@ export function HomeScreen() {
   const userId = useAuthStore((s) => s.session?.user.id ?? null);
   const queryClient = useQueryClient();
   const { data: profile, isPending: profilePending } = useProfile();
-  const { isPending: creditsPending } = useCredits();
-  const balance = useCreditBalance();
   const weather = useWeather(profile?.default_location);
   const { online } = useNetworkStatus();
   const vibe = useVibeStore((s) => s.vibe);
@@ -186,12 +182,6 @@ export function HomeScreen() {
       {busy ? <KeepAwake /> : null}
 
       <View className="gap-xl pb-2xl">
-        <HomeHeader
-          balance={balance}
-          creditsLoading={creditsPending}
-          onCreditsPress={() => router.push("/membership")}
-        />
-
         {/* Greeting, weather, mood, and the CTA are one object: everything the
             member needs to press the button lives inside the card with it. */}
         <HeroCard>

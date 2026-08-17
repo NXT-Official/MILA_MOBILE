@@ -11,13 +11,18 @@ import { PlayfairDisplay_800ExtraBold } from "@expo-google-fonts/playfair-displa
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { useFonts } from "expo-font";
-import { Stack } from "expo-router";
+import { Stack, usePathname } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { SafeAreaProvider } from "react-native-safe-area-context";
+import {
+  SafeAreaInsetsContext,
+  SafeAreaProvider,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 
+import { AppHeader } from "@/components/layout/AppHeader";
 import { useAppDestination } from "@/features/auth/hooks/use-app-destination";
 import { useAuthListener } from "@/features/auth/hooks/use-auth-listener";
 import { queryClient } from "@/services/query-client";
@@ -36,6 +41,8 @@ SplashScreen.preventAutoHideAsync();
  */
 function RootNavigator() {
   useAuthListener();
+  const insets = useSafeAreaInsets();
+  const pathname = usePathname();
   const { ready, destination } = useAppDestination();
   // Once she is inside onboarding she stays until she leaves through Review.
   // Without the latch, saving the LAST required answer (hair type) completes the
@@ -68,48 +75,93 @@ function RootNavigator() {
   const signedOut = destination === "/login";
   const suspended = destination === "/suspended";
   const onboarding =
-    !signedOut && !suspended && (destination === "/onboarding/welcome" || onboardingActive);
+    !signedOut &&
+    !suspended &&
+    (destination === "/onboarding/welcome" || onboardingActive);
+
+  const showHeader =
+    !signedOut && !suspended && !onboarding && !isFullBleed(pathname);
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Protected guard={signedOut}>
-        <Stack.Screen name="(auth)" />
-      </Stack.Protected>
+    // The header sits above the navigator, so it survives every push and every
+    // tab change rather than being re-mounted per screen.
+    <View className="flex-1 bg-canvas">
+      {showHeader ? <AppHeader /> : null}
 
-      <Stack.Protected guard={suspended}>
-        <Stack.Screen name="suspended" />
-      </Stack.Protected>
+      {/* The header has already spent the top inset, so the stack below it is
+          told there is none left. Doing it here means no screen had to be
+          edited: `Screen`'s `edges.top` and Concierge's own `insets.top` both
+          read this context and both correctly add nothing.
 
-      {/* The step machine, not this guard, decides WHICH step — the group's
+          Always rendered, never conditionally wrapped — swapping the element
+          type around the navigator would remount it and lose the history. */}
+      <SafeAreaInsetsContext.Provider
+        value={showHeader ? { ...insets, top: 0 } : insets}
+      >
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Protected guard={signedOut}>
+            <Stack.Screen name="(auth)" />
+          </Stack.Protected>
+
+          <Stack.Protected guard={suspended}>
+            <Stack.Screen name="suspended" />
+          </Stack.Protected>
+
+          {/* The step machine, not this guard, decides WHICH step — the group's
           initial route is the resume point, resolved inside the screen. */}
-      <Stack.Protected guard={onboarding}>
-        <Stack.Screen name="onboarding" />
-      </Stack.Protected>
+          <Stack.Protected guard={onboarding}>
+            <Stack.Screen name="onboarding" />
+          </Stack.Protected>
 
-      <Stack.Protected guard={!signedOut && !suspended && !onboarding}>
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="membership/index" />
-        <Stack.Screen name="history/index" />
-        <Stack.Screen name="palettes/index" />
-        <Stack.Screen name="settings/index" />
-        <Stack.Screen name="settings/account" />
-        <Stack.Screen name="settings/location" />
-        <Stack.Screen name="settings/privacy" />
-        <Stack.Screen name="settings/support" />
-        {/* Editing one dossier answer. Outside the `onboarding` group on
+          <Stack.Protected guard={!signedOut && !suspended && !onboarding}>
+            <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="membership/index" />
+            <Stack.Screen name="history/index" />
+            <Stack.Screen name="palettes/index" />
+            <Stack.Screen name="settings/index" />
+            <Stack.Screen name="settings/account" />
+            <Stack.Screen name="settings/location" />
+            <Stack.Screen name="settings/privacy" />
+            <Stack.Screen name="settings/support" />
+            {/* Editing one dossier answer. Outside the `onboarding` group on
             purpose: that group is hidden once a profile is complete, and
             entering it would latch the launch gate and unmount the tabs. */}
-        <Stack.Screen name="dossier/[field]" />
-        {/* Deep-linkable (§4). Full-screen so a saved look fills the phone. */}
-        <Stack.Screen name="look/[id]" options={{ presentation: "fullScreenModal" }} />
-        <Stack.Screen name="profile/[userId]" />
-        {/* Full-screen so the camera is not letterboxed by the tab bar (§4). */}
-        <Stack.Screen name="lens-capture" options={{ presentation: "fullScreenModal" }} />
-        {/* Same reason, and the dual capture also owns the back gesture while a
+            <Stack.Screen name="dossier/[field]" />
+            {/* Deep-linkable (§4). Full-screen so a saved look fills the phone. */}
+            <Stack.Screen
+              name="look/[id]"
+              options={{ presentation: "fullScreenModal" }}
+            />
+            <Stack.Screen name="profile/[userId]" />
+            {/* Full-screen so the camera is not letterboxed by the tab bar (§4). */}
+            <Stack.Screen
+              name="lens-capture"
+              options={{ presentation: "fullScreenModal" }}
+            />
+            {/* Same reason, and the dual capture also owns the back gesture while a
             shot is in hand — see DualCaptureScreen. */}
-        <Stack.Screen name="publish" options={{ presentation: "fullScreenModal" }} />
-      </Stack.Protected>
-    </Stack>
+            <Stack.Screen
+              name="publish"
+              options={{ presentation: "fullScreenModal" }}
+            />
+          </Stack.Protected>
+        </Stack>
+      </SafeAreaInsetsContext.Provider>
+    </View>
+  );
+}
+
+/**
+ * The routes that draw to the edge of the glass and must not be capped by the
+ * header: the two cameras, and a saved look whose image fills the phone. An
+ * allow-list rather than a route-group restructure — three names in one place
+ * beat moving nine files to express the same thing.
+ */
+function isFullBleed(pathname: string): boolean {
+  return (
+    pathname === "/lens-capture" ||
+    pathname === "/publish" ||
+    pathname.startsWith("/look/")
   );
 }
 
