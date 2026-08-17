@@ -52,9 +52,12 @@ export function Composer({
   const canSend = value.trim().length > 0 && !sending && !blockedMessage;
 
   return (
-    <View className="gap-sm border-t border-border bg-canvas px-xl pt-md dark:border-border/12">
+    <View className="gap-sm border-t border-border bg-canvas px-lg pt-md dark:border-border/12">
       {blockedMessage ? (
-        <Text accessibilityLiveRegion="polite" className="font-body text-sm text-body">
+        <Text
+          accessibilityLiveRegion="polite"
+          className="font-body text-sm text-body"
+        >
           {blockedMessage}
         </Text>
       ) : null}
@@ -81,8 +84,11 @@ export function Composer({
         </View>
       ) : null}
 
-      {attachError ?? dictation.error ? (
-        <Text accessibilityLiveRegion="polite" className="font-body text-sm text-body">
+      {(attachError ?? dictation.error) ? (
+        <Text
+          accessibilityLiveRegion="polite"
+          className="font-body text-sm text-body"
+        >
           {attachError ?? dictation.error}
         </Text>
       ) : null}
@@ -91,7 +97,10 @@ export function Composer({
         // A dot and a sentence, not a colour: §11 forbids a state carried by
         // hue alone, and "the mic is live" is the one state in the app where
         // getting that wrong means she is being listened to and cannot tell.
-        <View accessibilityLiveRegion="polite" className="flex-row items-center gap-sm">
+        <View
+          accessibilityLiveRegion="polite"
+          className="flex-row items-center gap-sm"
+        >
           <View className="h-xs w-xs rounded-pill bg-accent" />
           <Text className="font-body-semibold text-label tracking-label uppercase text-body">
             Listening — tap the mic to stop
@@ -119,7 +128,9 @@ export function Composer({
 
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={attachmentUri ? "Replace the attached photo" : "Attach a photo"}
+          accessibilityLabel={
+            attachmentUri ? "Replace the attached photo" : "Attach a photo"
+          }
           accessibilityHint="Opens your photo library. Nothing is sent until you send the message."
           disabled={sending}
           onPress={onAttach}
@@ -137,7 +148,9 @@ export function Composer({
           <Pressable
             accessibilityRole="button"
             accessibilityState={{ selected: dictation.listening }}
-            accessibilityLabel={dictation.listening ? "Stop dictation" : "Dictate your message"}
+            accessibilityLabel={
+              dictation.listening ? "Stop dictation" : "Dictate your message"
+            }
             disabled={sending}
             onPress={dictation.toggle}
             className={cn(
@@ -148,7 +161,11 @@ export function Composer({
               sending ? "opacity-50" : "active:opacity-80",
             )}
           >
-            <Icon name="mic" size="sm" color={dictation.listening ? "ink" : "body"} />
+            <Icon
+              name="mic"
+              size="sm"
+              color={dictation.listening ? "ink" : "body"}
+            />
           </Pressable>
         ) : null}
 
@@ -158,7 +175,9 @@ export function Composer({
           accessibilityState={{ disabled: !canSend, busy: sending }}
           disabled={!canSend}
           onPress={onSend}
-          style={({ pressed }) => (pressed && canSend ? { opacity: 0.9 } : undefined)}
+          style={({ pressed }) =>
+            pressed && canSend ? { opacity: 0.9 } : undefined
+          }
           className={cn(
             "h-tap w-tap items-center justify-center rounded-pill bg-ink",
             !canSend && "opacity-50",
@@ -169,7 +188,10 @@ export function Composer({
       </View>
 
       {nearLimit ? (
-        <Text accessibilityLiveRegion="polite" className="self-end font-body text-micro text-ink">
+        <Text
+          accessibilityLiveRegion="polite"
+          className="self-end font-body text-micro text-ink"
+        >
           {value.length} / {MAX_MESSAGE_LENGTH}
         </Text>
       ) : null}
