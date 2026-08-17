@@ -1,3 +1,4 @@
+import { SEASONS_MASTER_DATA, SEASON_KEYS } from "@/constants/style-profile";
 import { generateDailyPalette } from "@/lib/color-analysis/paletteGenerator";
 import { migrateLegacySeason } from "@/lib/color-analysis/schemaMigration";
 import { SEASONS_DATA } from "@/lib/color-analysis/seasonsData";
@@ -91,6 +92,18 @@ describe("toSeasonId", () => {
     expect(toSeasonId("Autumn")).toBe("true_autumn");
     expect(toSeasonId("Winter")).toBe("true_winter");
     expect(toSeasonId("  autumn ")).toBe("true_autumn");
+  });
+
+  it("converts every atelier sub-season label to its id", () => {
+    // `ColorPath` writes SEASONS_MASTER_DATA's own label into
+    // `color_profile.subSeason` ("Autumn Warm / True Autumn"), and that is what
+    // `buildDashboardProfile` hands the home screen. Rejecting it hid the daily
+    // palette for every member who picked her season by hand.
+    for (const key of SEASON_KEYS) {
+      expect(toSeasonId(SEASONS_MASTER_DATA[key].subSeason)).not.toBeNull();
+    }
+    expect(toSeasonId("Autumn Warm / True Autumn")).toBe("warm_autumn");
+    expect(toSeasonId("  winter clear /  crystal winter ")).toBe("bright_winter");
   });
 
   it("rejects an unrecognised season rather than inventing one", () => {

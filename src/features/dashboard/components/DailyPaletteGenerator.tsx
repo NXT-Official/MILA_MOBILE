@@ -66,21 +66,23 @@ export function DailyPaletteGenerator({ seasonId }: { seasonId: SeasonId }) {
 
   return (
     <View className="gap-lg rounded-card border border-border bg-surface p-lg dark:border-border/12">
-      <View className="flex-row items-center justify-between gap-md">
-        <Text className="font-body-semibold text-label tracking-label uppercase text-muted">
-          {today}
-        </Text>
-        <View className="rounded-pill bg-accent-soft px-md py-xs">
-          <Text className="font-body-semibold text-label tracking-label uppercase text-ink">
-            {palette.styleVibe}
+      <View className="flex-row items-start justify-between gap-md">
+        <View className="gap-sm">
+          <Text className="font-body-semibold text-label tracking-label uppercase text-muted">
+            {today}
           </Text>
+          <View className="rounded-pill bg-accent-soft px-md py-xs">
+            <Text className="font-body-semibold text-label tracking-label uppercase text-ink">
+              {palette.styleVibe}
+            </Text>
+          </View>
         </View>
         <Text className="font-body-semibold text-label tracking-label uppercase text-muted">
           Mix {String(mixCount).padStart(2, "0")}
         </Text>
       </View>
 
-      <View className="flex-row gap-md">
+      <View className="gap-sm">
         {paletteSwatches(palette).map((swatch) => (
           <View
             key={swatch.hex}
@@ -98,7 +100,9 @@ export function DailyPaletteGenerator({ seasonId }: { seasonId: SeasonId }) {
               <Text className="text-center font-body-semibold text-label tracking-label uppercase text-muted">
                 {swatch.role}
               </Text>
-              <Text className="text-center font-body-medium text-sm text-ink">{swatch.name}</Text>
+              <Text className="text-center font-body-medium text-sm text-ink">
+                {swatch.name}
+              </Text>
             </View>
           </View>
         ))}
@@ -109,7 +113,9 @@ export function DailyPaletteGenerator({ seasonId }: { seasonId: SeasonId }) {
           <Icon name="sparkle" size="xs" color="ink" />
         </View>
         <Text className="flex-1 font-body text-sm text-body">
-          <Text className="font-body-semibold text-ink">Mila&apos;s take — </Text>
+          <Text className="font-body-semibold text-ink">
+            Mila&apos;s take —{" "}
+          </Text>
           {palette.isSisterSeasonIncluded
             ? "I borrowed the accent from your Sister Season for a little range without leaving your palette."
             : palette.insight}
@@ -124,7 +130,9 @@ export function DailyPaletteGenerator({ seasonId }: { seasonId: SeasonId }) {
         <Pressable
           accessibilityRole="button"
           accessibilityState={{ selected: isSaved, disabled: pending }}
-          accessibilityLabel={isSaved ? "Remove this palette from saved" : "Save this palette"}
+          accessibilityLabel={
+            isSaved ? "Remove this palette from saved" : "Save this palette"
+          }
           disabled={pending}
           onPress={toggleSaved}
           className={
@@ -137,13 +145,20 @@ export function DailyPaletteGenerator({ seasonId }: { seasonId: SeasonId }) {
           <Icon name="bookmark" size="sm" color={isSaved ? "onInk" : "ink"} />
         </Pressable>
 
-        <Button label="Generate" icon="retry" onPress={shuffle} className="flex-1" />
+        <Button
+          label="Generate"
+          icon="retry"
+          onPress={shuffle}
+          className="flex-1"
+        />
       </View>
 
       <Pressable
         accessibilityRole="link"
         accessibilityLabel={
-          savedCount > 0 ? `View ${savedCount} saved palettes` : "View saved palettes"
+          savedCount > 0
+            ? `View ${savedCount} saved palettes`
+            : "View saved palettes"
         }
         onPress={() => router.push("/palettes")}
         className="active:opacity-60 min-h-tap flex-row items-center justify-center gap-sm"
