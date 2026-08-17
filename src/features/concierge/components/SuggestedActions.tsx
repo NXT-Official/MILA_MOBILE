@@ -1,6 +1,6 @@
-import { Pressable, ScrollView, Text } from "react-native";
+import { Pressable, Text, View } from "react-native";
 
-import { spacing } from "@/theme/tokens";
+import { Icon } from "@/components/ui/Icon";
 
 /**
  * Openers that prefill the composer.
@@ -39,13 +39,10 @@ export function SuggestedActions({
   const prompts = anchored ? ANCHORED_PROMPTS : GENERAL_PROMPTS;
 
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      // A deliberate carousel, which §10 permits — the alternative is a wrapping
-      // grid that pushes the composer off a small screen.
-      contentContainerStyle={{ gap: spacing.sm, paddingHorizontal: spacing.xl }}
-    >
+    // Wrapping, as the web stacks them — not the horizontal carousel this was.
+    // They are only rendered against an empty composer, so the tallest this
+    // gets is the opening screen, where the thread above it is empty anyway.
+    <View className="flex-row flex-wrap items-center gap-sm px-xl">
       {prompts.map((prompt) => (
         <Pressable
           key={prompt}
@@ -53,11 +50,14 @@ export function SuggestedActions({
           accessibilityHint="Puts this in the message box. It is not sent until you send it."
           accessibilityLabel={prompt}
           onPress={() => onSelect(prompt)}
-          className="active:opacity-80 min-h-tap flex-row items-center rounded-pill border border-border bg-surface px-lg dark:border-border/12"
+          className="active:opacity-80 min-h-tap flex-row items-center gap-sm rounded-pill border border-border bg-surface px-lg dark:border-border/12"
         >
+          {/* Gold, and the only gold on this screen — it marks "this fills the
+              box" and carries no state, so §10's hue rule is not in play. */}
+          <Icon name="prompt" size="xs" color="accent" />
           <Text className="font-body text-sm text-body">{prompt}</Text>
         </Pressable>
       ))}
-    </ScrollView>
+    </View>
   );
 }

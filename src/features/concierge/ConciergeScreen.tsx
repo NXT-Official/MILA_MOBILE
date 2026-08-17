@@ -5,11 +5,13 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { KeepAwake } from "@/components/feedback/KeepAwake";
 import { PaywallSheet } from "@/components/feedback/PaywallSheet";
+import { Badge } from "@/components/ui/Badge";
 import { Icon } from "@/components/ui/Icon";
 import { queryKeys } from "@/constants/query-keys";
 import { useCountdown } from "@/hooks/use-countdown";
 import { useHaptics } from "@/hooks/use-haptics";
 import { useNetworkStatus } from "@/hooks/use-network-status";
+import { useProfile } from "@/hooks/use-profile";
 import { formatRetryAfter, resolveApiFailure } from "@/services/api/client";
 import { useAuthStore } from "@/stores/auth-store";
 import { useConciergeStore } from "@/stores/concierge-store";
@@ -55,6 +57,12 @@ export function ConciergeScreen() {
 
   const anchoredLook = useConciergeStore((s) => s.anchoredLook);
   const clearAnchor = useConciergeStore((s) => s.clear);
+
+  const { data: profile } = useProfile();
+  /** Silhouette and season, as the web's header badges. */
+  const dossierBadges = [profile?.body_type, profile?.color_season].filter(
+    (value): value is string => Boolean(value),
+  );
 
   const rateLimitedFor = useCountdown(rateLimitedUntil);
   const { data: loaded } = useConversationMessages(conversationId);
@@ -170,18 +178,41 @@ export function ConciergeScreen() {
     <View className="flex-1 bg-canvas" style={{ paddingTop: insets.top }}>
       {send.isPending ? <KeepAwake /> : null}
 
-      <View className="flex-row items-center justify-between gap-md px-lg py-sm">
-        <Text accessibilityRole="header" className="font-display text-h2 tracking-heading text-ink">
-          Concierge
-        </Text>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Your conversations"
-          onPress={() => setListOpen(true)}
-          className="active:opacity-60 h-tap w-tap items-center justify-center"
-        >
-          <Icon name="conversations" size="md" color="ink" />
-        </Pressable>
+      {/* The web's studio header: the panel glyph, the kicker and title, then
+          the dossier badges. The panel presents the conversation list as a
+          bottom sheet — a side drawer would fight the Android back gesture. */}
+      <View className="gap-md border-b border-border px-lg py-md dark:border-border/12">
+        <View className="flex-row items-center gap-sm">
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Your conversations"
+            onPress={() => setListOpen(true)}
+            className="active:opacity-60 -ml-md h-tap w-tap items-center justify-center"
+          >
+            <Icon name="panel" size="md" color="body" />
+          </Pressable>
+
+          <View className="flex-1 gap-xs">
+            <Text className="font-body-medium text-label tracking-label uppercase text-muted">
+              Mila&apos;s Insights
+            </Text>
+            <Text
+              accessibilityRole="header"
+              numberOfLines={1}
+              className="font-display text-h2 tracking-heading text-ink"
+            >
+              Mila&apos;s Styling Studio
+            </Text>
+          </View>
+        </View>
+
+        {dossierBadges.length > 0 ? (
+          <View className="flex-row flex-wrap items-center gap-sm">
+            {dossierBadges.map((badge) => (
+              <Badge key={badge} label={badge} />
+            ))}
+          </View>
+        ) : null}
       </View>
 
       {/* `padding` on both platforms: under the edge-to-edge that SDK 54+ always
@@ -197,11 +228,7 @@ export function ConciergeScreen() {
               <AnchoredLookCard look={anchoredLook} onClear={clearAnchor} />
             ) : null
           }
-          emptyAction={
-            anchoredLook
-              ? undefined
-              : { label: "Start a conversation", onPress: () => setListOpen(true) }
-          }
+          anchored={Boolean(anchoredLook)}
         />
 
         {/* The composer sits above the gesture bar or the button navigation bar,

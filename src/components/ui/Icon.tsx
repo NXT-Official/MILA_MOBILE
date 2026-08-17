@@ -26,9 +26,9 @@ import {
   MapPin,
   MessageCircle,
   MessageSquare,
-  MessagesSquare,
   Moon,
   Palette,
+  PanelLeft,
   Pencil,
   Plus,
   RefreshCw,
@@ -42,6 +42,7 @@ import {
   Sun,
   SwitchCamera,
   Trash2,
+  Wand2,
   Wind,
   WifiOff,
   X,
@@ -113,7 +114,12 @@ export const icons = {
   add: Plus,
   // Concierge
   send: Send,
-  conversations: MessagesSquare,
+  /** Opens the conversation list. The web's header glyph, kept verbatim so the
+      two clients teach the same gesture — on mobile it presents a bottom sheet,
+      never a side drawer (§3). */
+  panel: PanelLeft,
+  /** Marks a prompt that only fills the composer. */
+  prompt: Wand2,
 } as const;
 
 export type IconName = keyof typeof icons;
