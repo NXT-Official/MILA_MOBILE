@@ -116,6 +116,26 @@ const config: ExpoConfig = {
     // export. Its own plugin only registers the module; it adds no permission.
     "expo-sharing",
     [
+      // Dictation in the Concierge composer, behind `services/speech.ts`.
+      //
+      // This is the one thing in Mila that holds a microphone, and it is the
+      // reason RECORD_AUDIO is back in the manifest after `expo-camera` and
+      // `expo-image-picker` were both configured to keep it out. It is
+      // requested at the mic button, never at launch, and the recogniser is
+      // stopped the moment she taps it again.
+      //
+      // The plugin also declares package visibility for the speech service —
+      // without that `<queries>` entry Android's SpeechRecognizer cannot see
+      // Google's provider at targetSdk 30+ and dictation silently never starts.
+      "@jamsch/expo-speech-recognition",
+      {
+        microphonePermission:
+          "Mila uses your microphone only while you are dictating a message to her.",
+        speechRecognitionPermission:
+          "Mila turns what you say into the text of your message. Nothing is recorded or kept.",
+      },
+    ],
+    [
       // Foreground only. Background location is never requested: Mila reads a
       // position once, to suggest the nearest weather hub, and then forgets it.
       "expo-location",

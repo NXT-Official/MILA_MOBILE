@@ -1,8 +1,11 @@
+import { Image } from "expo-image";
 import { Pressable, Text, TextInput, View } from "react-native";
 
 import { Icon } from "@/components/ui/Icon";
+import type { Dictation } from "@/hooks/use-dictation";
 import { MAX_MESSAGE_LENGTH } from "@/lib/concierge-history";
 import { useThemeColor } from "@/theme/tailwind";
+import { radii } from "@/theme/tokens";
 import { cn } from "@/utils/cn";
 
 /**
@@ -21,6 +24,11 @@ export function Composer({
   onSend,
   sending,
   blockedMessage,
+  attachmentUri,
+  onAttach,
+  onClearAttachment,
+  attachError,
+  dictation,
 }: {
   value: string;
   onChangeText: (next: string) => void;
@@ -28,10 +36,19 @@ export function Composer({
   sending: boolean;
   /** Offline or rate-limited: sending is disabled and the reason is shown. */
   blockedMessage: string | null;
+  /** The local file waiting to go with the next message, or null. */
+  attachmentUri: string | null;
+  onAttach: () => void;
+  onClearAttachment: () => void;
+  /** The picker failed. Plain language, no code (§10). */
+  attachError: string | null;
+  dictation: Dictation;
 }) {
   const placeholderColor = useThemeColor("muted");
   const remaining = MAX_MESSAGE_LENGTH - value.length;
   const nearLimit = remaining <= 100;
+  // Text is still required with a photo, as on the web: an image with no
+  // question spends a credit on Mila guessing what was being asked.
   const canSend = value.trim().length > 0 && !sending && !blockedMessage;
 
   return (
@@ -42,20 +59,98 @@ export function Composer({
         </Text>
       ) : null}
 
-      <View className="flex-row items-end gap-sm">
+      {attachmentUri ? (
+        <View className="flex-row items-center gap-md self-start rounded-panel border border-border bg-surface p-sm dark:border-border/12">
+          <Image
+            source={{ uri: attachmentUri }}
+            // Case 1 of the StyleSheet exceptions: expo-image takes a style
+            // object, and the radius comes from the token scale.
+            style={{ width: 40, height: 40, borderRadius: radii.control }}
+            contentFit="cover"
+            accessibilityLabel="The photo you attached"
+          />
+          <Text className="font-body text-sm text-body">Photo attached</Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Remove the attached photo"
+            onPress={onClearAttachment}
+            className="active:opacity-60 h-tap w-tap items-center justify-center"
+          >
+            <Icon name="close" size="sm" color="muted" />
+          </Pressable>
+        </View>
+      ) : null}
+
+      {attachError ?? dictation.error ? (
+        <Text accessibilityLiveRegion="polite" className="font-body text-sm text-body">
+          {attachError ?? dictation.error}
+        </Text>
+      ) : null}
+
+      {dictation.listening ? (
+        // A dot and a sentence, not a colour: §11 forbids a state carried by
+        // hue alone, and "the mic is live" is the one state in the app where
+        // getting that wrong means she is being listened to and cannot tell.
+        <View accessibilityLiveRegion="polite" className="flex-row items-center gap-sm">
+          <View className="h-xs w-xs rounded-pill bg-accent" />
+          <Text className="font-body-semibold text-label tracking-label uppercase text-body">
+            Listening — tap the mic to stop
+          </Text>
+        </View>
+      ) : null}
+
+      <View className="flex-row items-center gap-sm">
         <TextInput
           value={value}
           onChangeText={onChangeText}
-          multiline
           maxLength={MAX_MESSAGE_LENGTH}
-          textAlignVertical="top"
           placeholder="Ask Mila about a look, an occasion, or a piece you own."
           placeholderTextColor={placeholderColor}
           accessibilityLabel="Message"
-          // Grows with the text, then scrolls. A fixed single line makes a
-          // considered question feel like a search box.
-          className="max-h-3xl min-h-tap flex-1 rounded-control border border-border bg-surface px-lg py-md font-body text-base text-ink dark:border-border/12"
+          // Deliberately single-line, as the web's is. It scrolls horizontally
+          // rather than growing: with three controls beside it, a box that grew
+          // to four lines pushed the send button off a short screen while she
+          // was still typing.
+          submitBehavior="submit"
+          returnKeyType="send"
+          onSubmitEditing={() => canSend && onSend()}
+          className="h-tap flex-1 rounded-pill border border-border bg-surface px-lg font-body text-base text-ink dark:border-border/12"
         />
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={attachmentUri ? "Replace the attached photo" : "Attach a photo"}
+          accessibilityHint="Opens your photo library. Nothing is sent until you send the message."
+          disabled={sending}
+          onPress={onAttach}
+          className={cn(
+            "h-tap w-tap items-center justify-center rounded-pill border border-border bg-surface dark:border-border/12",
+            sending ? "opacity-50" : "active:opacity-80",
+          )}
+        >
+          <Icon name="attach" size="sm" color="body" />
+        </Pressable>
+
+        {/* Absent, not disabled, on a device with no recogniser: a mic that can
+            never work is worse than no mic. */}
+        {dictation.supported ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ selected: dictation.listening }}
+            accessibilityLabel={dictation.listening ? "Stop dictation" : "Dictate your message"}
+            disabled={sending}
+            onPress={dictation.toggle}
+            className={cn(
+              "h-tap w-tap items-center justify-center rounded-pill border",
+              dictation.listening
+                ? "border-ink bg-accent-soft"
+                : "border-border bg-surface dark:border-border/12",
+              sending ? "opacity-50" : "active:opacity-80",
+            )}
+          >
+            <Icon name="mic" size="sm" color={dictation.listening ? "ink" : "body"} />
+          </Pressable>
+        ) : null}
 
         <Pressable
           accessibilityRole="button"

@@ -18,6 +18,7 @@ import {
   HelpCircle,
   Image as ImageIcon,
   ImageOff,
+  ImagePlus,
   Images,
   LayoutGrid,
   Link2,
@@ -26,6 +27,7 @@ import {
   MapPin,
   MessageCircle,
   MessageSquare,
+  Mic,
   Moon,
   Palette,
   PanelLeft,
@@ -120,6 +122,8 @@ export const icons = {
   panel: PanelLeft,
   /** Marks a prompt that only fills the composer. */
   prompt: Wand2,
+  attach: ImagePlus,
+  mic: Mic,
 } as const;
 
 export type IconName = keyof typeof icons;

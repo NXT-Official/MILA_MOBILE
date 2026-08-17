@@ -1,7 +1,9 @@
+import { Image } from "expo-image";
 import { Text, View } from "react-native";
 
 import { Icon } from "@/components/ui/Icon";
 import type { ChatRole } from "@/lib/concierge-history";
+import { radii } from "@/theme/tokens";
 import { cn } from "@/utils/cn";
 
 /**
@@ -19,10 +21,13 @@ import { cn } from "@/utils/cn";
 export function MessageBubble({
   role,
   content,
+  imageUrl,
   failed = false,
 }: {
   role: ChatRole;
   content: string;
+  /** A photo she attached, already in Mila storage. */
+  imageUrl?: string | null;
   /** The send never reached Mila. Marked, kept, and retryable. */
   failed?: boolean;
 }) {
@@ -32,7 +37,7 @@ export function MessageBubble({
     <View
       accessible
       accessibilityRole="text"
-      accessibilityLabel={`${mine ? "You" : "Mila"} said: ${content}${failed ? ". Not sent." : ""}`}
+      accessibilityLabel={`${mine ? "You" : "Mila"} said: ${content}${imageUrl ? ". With an attached photo." : ""}${failed ? ". Not sent." : ""}`}
       className={cn("w-full gap-xs", mine ? "items-end" : "items-start")}
     >
       <Text className="font-body-semibold text-section tracking-section uppercase text-muted">
@@ -48,6 +53,19 @@ export function MessageBubble({
           failed && "opacity-60",
         )}
       >
+        {imageUrl ? (
+          <View className="mb-md">
+            <Image
+              source={{ uri: imageUrl }}
+              // Case 1 of the StyleSheet exceptions: expo-image takes a style
+              // object, and the radius comes from the token scale.
+              style={{ width: "100%", aspectRatio: 3 / 4, borderRadius: radii.panel }}
+              contentFit="cover"
+              transition={200}
+              accessibilityLabel="The photo you attached"
+            />
+          </View>
+        ) : null}
         <Text className="font-body text-base text-ink">{content}</Text>
       </View>
 

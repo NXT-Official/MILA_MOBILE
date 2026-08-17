@@ -9,22 +9,31 @@ Keep it current as each Android capability lands.
 
 ## Info.plist usage strings
 
-All three are already set in `app.config.ts` under `ios.infoPlist`, before the features that need
-them exist. A missing usage string is an App Store rejection discovered at submission time.
+These are set in `app.config.ts` — three under `ios.infoPlist` and two supplied by the speech
+recogniser's config plugin — before the features that need them exist. A missing usage string is an App Store rejection discovered at submission time.
 
 | Key | Status | Used by |
 | --- | --- | --- |
 | `NSCameraUsageDescription` | ✅ set | Lens capture, feed post |
 | `NSPhotoLibraryUsageDescription` | ✅ set | Gallery pick |
 | `NSLocationWhenInUseUsageDescription` | ✅ set | Onboarding location |
-| `NSMicrophoneUsageDescription` | ⬜ never | `microphonePermission: false` on both media plugins — Mila records no video |
+| `NSMicrophoneUsageDescription` | ✅ set | Concierge dictation, via the `@jamsch/expo-speech-recognition` plugin. **Not** the media plugins — `microphonePermission: false` still holds on both, because Mila records no video |
+| `NSSpeechRecognitionUsageDescription` | ✅ set | Concierge dictation, same plugin. iOS treats speech recognition as a permission separate from the microphone, and needs both |
 | `NSFaceIDUsageDescription` | ⬜ add if biometrics ships | Destructive-action re-auth |
 
 `expo-secure-store`'s config plugin supplies its own Face ID string; a separate entry is needed only
 if `expo-local-authentication` is added.
 
 Both `expo-camera` and `expo-image-picker` would otherwise add a microphone usage string and request
-`RECORD_AUDIO`. Both are disabled in `app.config.ts`.
+`RECORD_AUDIO`. Both are disabled in `app.config.ts`; the microphone has exactly one caller, and it is
+`services/speech.ts`.
+
+**`SFSpeechRecognizer` differences to expect on the first iOS build:** iOS may route recognition
+through Apple's servers unless `requiresOnDeviceRecognition` is set, it enforces a roughly one-minute
+ceiling per request where Android does not, and denial is terminal as everywhere else on the platform
+— `services/speech.ts` already resolves anything not granted to `"blocked"`. None of this needs a
+platform file today; if it ever does, that is the justification for promoting `speech.ts` to an
+adapter folder.
 
 ## Adapter stubs waiting on iOS
 

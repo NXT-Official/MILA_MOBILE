@@ -21,9 +21,10 @@ export type ConciergeChatInput = {
   /** The server re-reads the look scoped to the caller; a 404 refunds the credit. */
   lookId?: string | null;
   /**
-   * Supported by the contract, unused by this phase's UI. Any URL sent here
-   * must already be a Mila storage URL — the server rejects anything else, and
-   * that check is the SSRF defence (§8).
+   * A photo she attached in the composer. Any URL sent here must already be a
+   * Mila storage URL — the server rejects anything else, and that check is the
+   * SSRF defence (§8). `useSendMessage` uploads the local file first and passes
+   * the URL it just minted; nothing takes a URL from anywhere else.
    */
   imageUrl?: string | null;
 };

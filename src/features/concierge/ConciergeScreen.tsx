@@ -1,6 +1,13 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { AccessibilityInfo, KeyboardAvoidingView, Pressable, Text, View } from "react-native";
+import {
+  AccessibilityInfo,
+  KeyboardAvoidingView,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { KeepAwake } from "@/components/feedback/KeepAwake";
@@ -10,11 +17,14 @@ import { Icon } from "@/components/ui/Icon";
 import { queryKeys } from "@/constants/query-keys";
 import { useCountdown } from "@/hooks/use-countdown";
 import { useHaptics } from "@/hooks/use-haptics";
+import { useDictation } from "@/hooks/use-dictation";
 import { useNetworkStatus } from "@/hooks/use-network-status";
 import { useProfile } from "@/hooks/use-profile";
+import { camera } from "@/services/camera";
 import { formatRetryAfter, resolveApiFailure } from "@/services/api/client";
 import { useAuthStore } from "@/stores/auth-store";
 import { useConciergeStore } from "@/stores/concierge-store";
+import { spacing } from "@/theme/tokens";
 
 import { AnchoredLookCard } from "./components/AnchoredLookCard";
 import { Composer } from "./components/Composer";
@@ -44,6 +54,9 @@ export function ConciergeScreen() {
   const [seededFrom, setSeededFrom] = useState<string | null>(null);
   const [messages, setMessages] = useState<ThreadMessage[]>([]);
   const [draft, setDraft] = useState("");
+  /** A local file from the picker. It is uploaded on send, never before. */
+  const [attachmentUri, setAttachmentUri] = useState<string | null>(null);
+  const [attachError, setAttachError] = useState<string | null>(null);
   const [listOpen, setListOpen] = useState(false);
   const [paywallOpen, setPaywallOpen] = useState(false);
   /** Epoch ms the server's rate limit lifts, or null. */
@@ -54,6 +67,7 @@ export function ConciergeScreen() {
   const { online } = useNetworkStatus();
   const haptics = useHaptics();
   const send = useSendMessage();
+  const dictation = useDictation(draft, setDraft);
 
   const anchoredLook = useConciergeStore((s) => s.anchoredLook);
   const clearAnchor = useConciergeStore((s) => s.clear);
@@ -77,7 +91,12 @@ export function ConciergeScreen() {
   if (conversationId && conversationId !== seededFrom && loaded) {
     setSeededFrom(conversationId);
     setMessages(
-      loaded.map((row) => ({ id: row.id, role: row.role, content: row.content })),
+      loaded.map((row) => ({
+        id: row.id,
+        role: row.role,
+        content: row.content,
+        imageUrl: row.image_url,
+      })),
     );
   }
 
@@ -109,6 +128,23 @@ export function ConciergeScreen() {
     }
   }
 
+  /**
+   * The system photo picker. It runs out of process and hands back the one
+   * chosen item, so nothing here asks for a gallery permission — and the
+   * adapter has already downscaled the file to 1440px / q0.85 (§5) before it
+   * gets anywhere near an upload.
+   */
+  async function handleAttach() {
+    setAttachError(null);
+    try {
+      const picked = await camera.pickFromLibrary();
+      // Backing out of the picker is not an error and says nothing on screen.
+      if (picked) setAttachmentUri(picked.uri);
+    } catch {
+      setAttachError("That photo could not be opened. Try another one.");
+    }
+  }
+
   function handleSend() {
     const message = draft.trim();
     if (!message || send.isPending || blockedMessage) return;
@@ -119,14 +155,23 @@ export function ConciergeScreen() {
       content: m.content,
       failed: m.failed,
     }));
+    const imageUri = attachmentUri;
+    // The mic keeps writing into a box that is about to be cleared, so the next
+    // interim result would resurrect the message she just sent.
+    dictation.cancel();
 
     // Optimistic, and the draft is cleared only here — a failure below puts it
     // back rather than losing what she typed.
-    setMessages((current) => [...current, { id: pendingId, role: "user", content: message }]);
+    setMessages((current) => [
+      ...current,
+      { id: pendingId, role: "user", content: message, imageUrl: imageUri },
+    ]);
     setDraft("");
+    setAttachmentUri(null);
+    setAttachError(null);
 
     send.mutate(
-      { message, thread, conversationId, lookId: anchoredLook?.id ?? null },
+      { message, thread, conversationId, lookId: anchoredLook?.id ?? null, imageUri },
       {
         onSuccess: (result) => {
           haptics.success();
@@ -135,7 +180,12 @@ export function ConciergeScreen() {
           // letting the query re-seed would drop any failed message above.
           setSeededFrom(result.conversationId);
           setMessages((current) => [
-            ...current,
+            // The optimistic bubble still points at the picker's temporary
+            // file. Swapping in the storage URL means the thread survives the
+            // OS clearing its cache without a blank frame where a photo was.
+            ...current.map((m) =>
+              m.id === pendingId ? { ...m, imageUrl: result.imageUrl } : m,
+            ),
             { id: `${pendingId}-reply`, role: "assistant", content: result.reply },
           ]);
           AccessibilityInfo.announceForAccessibility("Mila replied.");
@@ -147,6 +197,9 @@ export function ConciergeScreen() {
             current.map((m) => (m.id === pendingId ? { ...m, failed: true } : m)),
           );
           setDraft(message);
+          // The photo goes back with the text. Re-picking it after a dropped
+          // connection is work she already did once.
+          setAttachmentUri(imageUri);
           handleFailure(error);
         },
       },
@@ -157,6 +210,8 @@ export function ConciergeScreen() {
     setConversationId(null);
     setSeededFrom(null);
     setMessages([]);
+    setAttachmentUri(null);
+    setAttachError(null);
     send.reset();
   }
 
@@ -171,6 +226,8 @@ export function ConciergeScreen() {
     setConversationId(id);
     setSeededFrom(null);
     setMessages([]);
+    setAttachmentUri(null);
+    setAttachError(null);
     send.reset();
   }
 
@@ -207,11 +264,20 @@ export function ConciergeScreen() {
         </View>
 
         {dossierBadges.length > 0 ? (
-          <View className="flex-row flex-wrap items-center gap-sm">
+          // One line that scrolls, never a wrap: a long sub-season
+          // ("Autumn True / Pure Earthy Warm") would otherwise push the header
+          // down onto the thread. A deliberate carousel, which §10 permits.
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            // Third-party prop that takes a style object — case 1 of the
+            // StyleSheet exceptions.
+            contentContainerStyle={{ gap: spacing.sm }}
+          >
             {dossierBadges.map((badge) => (
               <Badge key={badge} label={badge} />
             ))}
-          </View>
+          </ScrollView>
         ) : null}
       </View>
 
@@ -247,6 +313,11 @@ export function ConciergeScreen() {
             onSend={handleSend}
             sending={send.isPending}
             blockedMessage={blockedMessage}
+            attachmentUri={attachmentUri}
+            onAttach={() => void handleAttach()}
+            onClearAttachment={() => setAttachmentUri(null)}
+            attachError={attachError}
+            dictation={dictation}
           />
         </View>
       </KeyboardAvoidingView>

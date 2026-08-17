@@ -1,6 +1,7 @@
-import { Pressable, Text, View } from "react-native";
+import { Pressable, ScrollView, Text } from "react-native";
 
 import { Icon } from "@/components/ui/Icon";
+import { spacing } from "@/theme/tokens";
 
 /**
  * Openers that prefill the composer.
@@ -39,10 +40,15 @@ export function SuggestedActions({
   const prompts = anchored ? ANCHORED_PROMPTS : GENERAL_PROMPTS;
 
   return (
-    // Wrapping, as the web stacks them — not the horizontal carousel this was.
-    // They are only rendered against an empty composer, so the tallest this
-    // gets is the opening screen, where the thread above it is empty anyway.
-    <View className="flex-row flex-wrap items-center gap-sm px-xl">
+    // One line that scrolls. The web wraps these into a five-row stack, which
+    // on a phone is a third of the screen standing between the thread and the
+    // composer — a deliberate carousel is the §10-permitted answer.
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      // Third-party prop that takes a style object — case 1 of the exceptions.
+      contentContainerStyle={{ gap: spacing.sm, paddingHorizontal: spacing.xl }}
+    >
       {prompts.map((prompt) => (
         <Pressable
           key={prompt}
@@ -55,9 +61,11 @@ export function SuggestedActions({
           {/* Gold, and the only gold on this screen — it marks "this fills the
               box" and carries no state, so §10's hue rule is not in play. */}
           <Icon name="prompt" size="xs" color="accent" />
-          <Text className="font-body text-sm text-body">{prompt}</Text>
+          <Text numberOfLines={1} className="font-body text-sm text-body">
+            {prompt}
+          </Text>
         </Pressable>
       ))}
-    </View>
+    </ScrollView>
   );
 }

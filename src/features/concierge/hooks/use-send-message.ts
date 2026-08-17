@@ -5,6 +5,7 @@ import { queryKeys } from "@/constants/query-keys";
 import { conversationTitle, toHistory, type ChatRole } from "@/lib/concierge-history";
 import { conciergeChat } from "@/services/api/concierge";
 import { appendTurn, createConversation } from "@/services/supabase/concierge";
+import { uploadOutfitImage } from "@/services/supabase/storage";
 import { useAuthStore } from "@/stores/auth-store";
 
 import { conciergeMessagesKey } from "./use-conversations";
@@ -15,9 +16,16 @@ export type SendInput = {
   thread: { role: ChatRole; content: string; failed?: boolean }[];
   conversationId: string | null;
   lookId: string | null;
+  /**
+   * A local file from the picker, already downscaled by the camera adapter.
+   * Uploaded to Mila storage in here, before the paid call — the server accepts
+   * only a URL it can recognise as ours, and that check is the SSRF defence
+   * (§8). A URL is never taken from the caller.
+   */
+  imageUri?: string | null;
 };
 
-export type SendResult = { conversationId: string; reply: string };
+export type SendResult = { conversationId: string; reply: string; imageUrl: string | null };
 
 /**
  * One chat turn: ask, then persist both sides.
@@ -43,15 +51,24 @@ export function useSendMessage() {
    * a second credit to fix a database hiccup would be indefensible. Keyed on
    * the message text, so a different question always asks properly.
    */
-  const paid = useRef<{ message: string; reply: string; conversationId: string | null } | null>(
-    null,
-  );
+  const paid = useRef<{
+    message: string;
+    reply: string;
+    conversationId: string | null;
+    imageUrl: string | null;
+  } | null>(null);
 
   return useMutation<SendResult, unknown, SendInput>({
-    mutationFn: async ({ message, thread, conversationId, lookId }) => {
+    mutationFn: async ({ message, thread, conversationId, lookId, imageUri }) => {
       if (!userId) throw new Error("Not signed in.");
 
       const resumed = paid.current?.message === message ? paid.current : null;
+
+      // Before the paid call and outside the resume path: the upload costs no
+      // credit, so re-running it after a failed chat is safe, while re-running
+      // it after a *successful* one would orphan a second copy in the bucket.
+      const imageUrl =
+        resumed?.imageUrl ?? (imageUri ? await uploadOutfitImage(userId, imageUri) : null);
 
       const reply =
         resumed?.reply ??
@@ -63,11 +80,17 @@ export function useSendMessage() {
             // the difference on a cellular connection first.
             history: toHistory(thread),
             lookId,
+            imageUrl,
           })
         ).reply;
 
       // From here the credit is spent. Everything below is recoverable.
-      paid.current = { message, reply, conversationId: resumed?.conversationId ?? conversationId };
+      paid.current = {
+        message,
+        reply,
+        conversationId: resumed?.conversationId ?? conversationId,
+        imageUrl,
+      };
 
       let targetId = paid.current.conversationId;
       if (!targetId) {
@@ -78,10 +101,16 @@ export function useSendMessage() {
         paid.current = { ...paid.current, conversationId: targetId };
       }
 
-      await appendTurn({ userId, conversationId: targetId, message, reply });
+      await appendTurn({
+        userId,
+        conversationId: targetId,
+        message,
+        reply,
+        imageUrl: paid.current.imageUrl,
+      });
 
       paid.current = null;
-      return { conversationId: targetId, reply };
+      return { conversationId: targetId, reply, imageUrl };
     },
 
     onSuccess: (result) => {

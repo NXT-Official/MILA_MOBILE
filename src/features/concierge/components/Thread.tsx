@@ -12,6 +12,8 @@ export type ThreadMessage = {
   id: string;
   role: ChatRole;
   content: string;
+  /** A photo she attached, already in Mila storage. */
+  imageUrl?: string | null;
   failed?: boolean;
 };
 
@@ -77,7 +79,12 @@ export function Thread({
       // is reading further up.
       onContentSizeChange={() => list.current?.scrollToEnd({ animated: true })}
       renderItem={({ item }) => (
-        <MessageBubble role={item.role} content={item.content} failed={item.failed} />
+        <MessageBubble
+          role={item.role}
+          content={item.content}
+          imageUrl={item.imageUrl}
+          failed={item.failed}
+        />
       )}
     />
   );
