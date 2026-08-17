@@ -5,6 +5,7 @@ import { AccessibilityInfo, View } from "react-native";
 import { KeepAwake } from "@/components/feedback/KeepAwake";
 import { PaywallSheet } from "@/components/feedback/PaywallSheet";
 import { Screen } from "@/components/layout/Screen";
+import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { ConfirmSheet } from "@/components/ui/ConfirmSheet";
 import { useCountdown } from "@/hooks/use-countdown";
@@ -230,41 +231,54 @@ export function HomeScreen() {
               />
             ) : null}
           </View>
+
+          {/* The result lives inside the hero, as it does on the web: the look
+              and the controls that produced it are one object, not a card
+              answering another card. */}
+          <View className="gap-xl pt-lg">
+            {look ? (
+              <View className="flex-row flex-wrap items-center gap-sm">
+                <Badge label={vibe} />
+                <Badge label={`Vibe fit ${look.vibe_alignment_score}/10`} />
+                {weather.data ? <Badge label={weather.data.label} /> : null}
+              </View>
+            ) : null}
+
+            <OutfitVisual
+              state={visualState}
+              onRetry={handleGenerate}
+              // Free: the server re-marked the pending flag when the image came
+              // back empty, so this claims it rather than buying a second one.
+              onRetryImage={() => look && requestImage(look)}
+            />
+
+            <LookDetail
+              headline={look?.outfit.headline ?? null}
+              sections={look ? lookSections(look) : []}
+              loading={generate.isPending}
+            />
+
+            {look ? (
+              <LookActions
+                hasVisual={Boolean(imageUri)}
+                saved={save.isSuccess}
+                saving={save.isPending}
+                saveError={
+                  save.isError
+                    ? resolveApiFailure(save.error).message
+                    : // A regeneration that failed while a visual is already on
+                      // screen has no slot of its own to report into.
+                      lookImage.isError && imageUri
+                      ? resolveApiFailure(lookImage.error).message
+                      : null
+                }
+                onSave={handleSave}
+                onRegenerate={() => setRegenerateOpen(true)}
+                regenerating={lookImage.isPending}
+              />
+            ) : null}
+          </View>
         </HeroCard>
-
-        <OutfitVisual
-          state={visualState}
-          onRetry={handleGenerate}
-          // Free: the server re-marked the pending flag when the image came back
-          // empty, so this claims it rather than buying a second one.
-          onRetryImage={() => look && requestImage(look)}
-        />
-
-        <LookDetail
-          headline={look?.outfit.headline ?? null}
-          sections={look ? lookSections(look) : []}
-          loading={generate.isPending}
-        />
-
-        {look ? (
-          <LookActions
-            hasVisual={Boolean(imageUri)}
-            saved={save.isSuccess}
-            saving={save.isPending}
-            saveError={
-              save.isError
-                ? resolveApiFailure(save.error).message
-                : // A regeneration that failed while a visual is already on
-                  // screen has no slot of its own to report into.
-                  lookImage.isError && imageUri
-                  ? resolveApiFailure(lookImage.error).message
-                  : null
-            }
-            onSave={handleSave}
-            onRegenerate={() => setRegenerateOpen(true)}
-            regenerating={lookImage.isPending}
-          />
-        ) : null}
 
         {seasonId ? <DailyPaletteGenerator seasonId={seasonId} /> : null}
 

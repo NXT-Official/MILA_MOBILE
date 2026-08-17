@@ -92,12 +92,22 @@ export function OutfitVisual({
     );
   }
 
+  // The web's empty hero, verbatim: centred prose, no icon and no frame. A
+  // framed 3:4 box here read as an image that had failed to load — there is no
+  // visual yet, so there is nothing to draw a frame around. §10's icon-and-
+  // action empty state governs a list with nothing in it, not a slot that has
+  // not been asked to fill yet; the action is the CTA directly above.
   return (
-    <View className={PANEL}>
-      <Icon name="outfit" size="lg" color="muted" />
-      <Text className="font-display text-h3 text-ink text-center">Today is unwritten</Text>
+    <View className="items-center gap-md py-lg">
+      <Text
+        accessibilityRole="header"
+        className="font-display text-h2 tracking-heading text-ink text-center"
+      >
+        Set the mood. Mila will compose the rest.
+      </Text>
       <Text className="font-body text-base text-body text-center">
-        Pick your occasion and Mila will put today&apos;s look together.
+        Each look is composed from first principles — tuned to your palette, body architecture, and
+        the weather outside.
       </Text>
     </View>
   );
