@@ -11,11 +11,14 @@ const TABS: { name: string; title: string; icon: IconName }[] = [
   { name: "feed", title: "Feed", icon: "feed" },
   { name: "lens", title: "Lens", icon: "camera" },
   { name: "studio", title: "Studio", icon: "studio" },
+  { name: "profile", title: "Profile", icon: "profile" },
   { name: "concierge", title: "Concierge", icon: "concierge" },
 ];
 
 /**
- * The five tabs (§4), in a floating pill drawn by `TabBar`.
+ * The six tabs (§4), in a floating pill drawn by `TabBar` — the same set and
+ * order the web shows: Home, Feed, Lens, Studio (try-on), Profile (dossier),
+ * Concierge.
  *
  * Labels are off: six icon-only targets fit a 360dp screen where six labels do
  * not, and the name lives in `accessibilityLabel` rather than being truncated

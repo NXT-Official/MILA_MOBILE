@@ -9,16 +9,16 @@ import { Icon } from "@/components/ui/Icon";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { Skeleton } from "@/components/ui/Skeleton";
 import {
+  ATELIER_PROVENANCE,
   HAIR_DIRECTION,
   MAKEUP_HARMONY,
-  SEASONS,
   SILHOUETTE_STRATEGY,
   TEXTILE_DIRECTION,
-  type Season,
 } from "@/constants/style-profile";
 import { useProfile } from "@/hooks/use-profile";
 import { useSavedPalettes } from "@/hooks/use-saved-palettes";
 import { normalizeBeautyPreferences } from "@/lib/beauty-preferences";
+import { matrixForSubSeason } from "@/lib/style-profile";
 import { combosFor } from "@/lib/style-profile/outfit-combos";
 import { normalizeStoredProfile } from "@/lib/style-profile/studio-dossier";
 
@@ -26,8 +26,10 @@ import { ComboCard } from "./components/ComboCard";
 import { DossierHero } from "./components/DossierHero";
 import { DossierRow } from "./components/DossierRow";
 import { PaletteStrip } from "./components/PaletteStrip";
+import { SeasonPalette } from "./components/SeasonPalette";
 import { StyleGoalsTray } from "./components/StyleGoalsTray";
 import { StylingNoteCard } from "./components/StylingNoteCard";
+import { resolveSeasonFamily } from "./season";
 
 /**
  * The style dossier, in the §3 order: hero, Silhouette, Face shape, Hair,
@@ -76,19 +78,25 @@ export function StudioScreen() {
   const preferences = normalizeBeautyPreferences(profile?.beauty_preferences);
 
   // The four-family palette the combos and the palette-derived notes read from.
-  // Never defaulted: showing a member with no season a Summer palette is
-  // inventing her dossier, which is worse than showing her nothing.
-  const seasonBase = profile?.color_season_base ?? null;
-  const family: Season | null = (SEASONS as readonly string[]).includes(seasonBase ?? "")
-    ? (seasonBase as Season)
-    : (dossier?.season ?? null);
+  const family = resolveSeasonFamily(profile?.color_season_base, dossier);
   const combos = family ? combosFor(family) : [];
+
+  // The archive grid. The stored full palette wins; the sub-season matrix is
+  // the fallback for a legacy dossier that never persisted one.
+  const fullPalette = family
+    ? (dossier?.fullPalette ??
+      matrixForSubSeason(family, dossier?.subSeason ?? ""))
+    : [];
 
   // Resolved before the JSX so the "add it" action is gated on there being no
   // directive, not on the column being empty: an off-taxonomy `body_type` would
   // otherwise show the fallback copy with no way to act on it.
-  const silhouette = profile?.body_type ? SILHOUETTE_STRATEGY[profile.body_type] : undefined;
-  const hair = profile?.hair_type ? HAIR_DIRECTION[profile.hair_type] : undefined;
+  const silhouette = profile?.body_type
+    ? SILHOUETTE_STRATEGY[profile.body_type]
+    : undefined;
+  const hair = profile?.hair_type
+    ? HAIR_DIRECTION[profile.hair_type]
+    : undefined;
 
   return (
     <Screen scroll edges={{ top: true, bottom: false }}>
@@ -147,6 +155,20 @@ export function StudioScreen() {
           />
         </View>
 
+        {family ? (
+          <>
+            <SeasonPalette season={family} fullPalette={fullPalette} />
+            {/* The Studio tab reads this same palette, so the shortcut only
+                exists once there is a season to preview. */}
+            <Button
+              label="Try looks on yourself"
+              variant="secondary"
+              icon="sparkle"
+              onPress={() => router.navigate("/studio")}
+            />
+          </>
+        ) : null}
+
         {combos.length > 0 ? (
           <View className="gap-md">
             <Text
@@ -163,12 +185,21 @@ export function StudioScreen() {
 
         {/* Actions, not colour names — the hero already states the season. */}
         <View className="gap-md">
-          <Text
-            accessibilityRole="header"
-            className="font-body-semibold text-section tracking-section uppercase text-muted"
-          >
-            Mila&apos;s styling notes
-          </Text>
+          <View className="gap-xs">
+            <Text
+              accessibilityRole="header"
+              className="font-body-semibold text-section tracking-section uppercase text-muted"
+            >
+              Mila&apos;s styling notes
+            </Text>
+            {/* Credits the source rather than renaming the season, which the
+                hero already states once. Only when there is a real reading. */}
+            {dossier ? (
+              <Text className="font-body text-sm text-body">
+                {ATELIER_PROVENANCE}
+              </Text>
+            ) : null}
+          </View>
 
           <StylingNoteCard
             title="Silhouette strategy"
@@ -178,7 +209,10 @@ export function StudioScreen() {
             action={
               silhouette
                 ? undefined
-                : { label: "Add silhouette", onPress: () => router.push("/dossier/body-type") }
+                : {
+                    label: "Add silhouette",
+                    onPress: () => router.push("/dossier/body-type"),
+                  }
             }
           />
 
@@ -190,7 +224,10 @@ export function StudioScreen() {
             action={
               hair
                 ? undefined
-                : { label: "Add hair texture", onPress: () => router.push("/dossier/hair-type") }
+                : {
+                    label: "Add hair texture",
+                    onPress: () => router.push("/dossier/hair-type"),
+                  }
             }
           />
 
@@ -219,7 +256,10 @@ export function StudioScreen() {
           >
             Saved palettes
           </Text>
-          <PaletteStrip palettes={palettes.data ?? []} loading={palettes.isPending} />
+          <PaletteStrip
+            palettes={palettes.data ?? []}
+            loading={palettes.isPending}
+          />
           {palettes.data?.length ? (
             <Button
               label="See all palettes"

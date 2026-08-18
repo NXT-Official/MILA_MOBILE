@@ -413,15 +413,19 @@ duplicate the shell, progress bar, and autosave nine times.
 - Exit condition is `isStyleProfileComplete()`: valid `skin_undertone`, `color_season`, `body_type`,
   `face_shape`, `hair_type` **and** a non-empty `color_profile`.
 
-### Main tabs (5)
+### Main tabs (6)
 
 | #   | Screen        | Route               | Purpose                             |
 | --- | ------------- | ------------------- | ----------------------------------- |
 | 5   | **Home**      | `/(tabs)/`          | The daily look — the primary screen |
 | 6   | **Feed**      | `/(tabs)/feed`      | Community OOTDs, publish, tagging   |
 | 7   | **Lens**      | `/(tabs)/lens`      | Camera outfit analysis              |
-| 8   | **Studio**    | `/(tabs)/studio`    | Style dossier + saved palettes      |
-| 9   | **Concierge** | `/(tabs)/concierge` | AI stylist chat                     |
+| 8   | **Studio**    | `/(tabs)/studio`    | Try-on workspace                    |
+| 9   | **Profile**   | `/(tabs)/profile`   | Style dossier + saved palettes      |
+| 10  | **Concierge** | `/(tabs)/concierge` | AI stylist chat                     |
+
+Studio and Profile are the same split the web makes: Studio (`/style-profile`) is the
+try-it-on workspace, Profile (`/profile`) is the dossier. Each cross-links to the other.
 
 #### 5. Home — detail
 
@@ -510,6 +514,20 @@ Face shape, Hair, Beauty preferences, Saved palettes (horizontal strip → full 
 
 Every row is tappable and re-enters the corresponding onboarding step in edit mode.
 
+#### 8b. Try it on — detail
+
+Reached from Studio, never from the tab bar. Preview tile (camera or chosen photo) with the
+selected shade laid over it, then the controls: Makeup / Colours, the makeup categories, and the
+season's named swatches.
+
+**The photo never leaves the device.** It is a local capture URI held in component state, dropped
+on unmount. Nothing is uploaded, nothing is analysed, no credit is charged, and no endpoint is
+called — this is a preview, not a render. React Native has no `mix-blend-mode`, so the web's
+soft-light wash is approximated with a low-opacity `react-native-svg` gradient.
+
+States: loading → no season (empty, routes to the colour reading) → camera permission (blocked) →
+no photo → photo + shade selected.
+
 #### 9. Concierge — detail
 
 Chat thread. Composer pinned above the keyboard with
@@ -526,16 +544,17 @@ reply; it does not write history — same as web).
 | 10  | History           | `/history`           | Grid of saved looks + Lens analyses, newest first   |
 | 11  | Look detail       | `/look/[id]`         | Deep-linkable. Delete, Ask Concierge                |
 | 12  | Saved palettes    | `/palettes`          | Swatches + names + vibe + delete                    |
-| 13  | Member profile    | `/profile/[userId]`  | Own profile shows a "Hidden" tab; others do not     |
-| 14  | Membership plans  | `/membership`        | Plan cards + checkout                               |
-| 15  | Manage membership | `/membership/manage` | Current plan, renewal date, cancel, resume          |
-| 16  | Settings          | `/settings`          | Menu list                                           |
-| 17  | Account           | `/settings/account`  | Change email, change password (re-auth required)    |
-| 18  | Default location  | `/settings/location` | 10 `HUBS` + device location                         |
-| 19  | Privacy & data    | `/settings/privacy`  | Export JSON, delete account (type email to confirm) |
-| 20  | Support           | `/settings/support`  | Help / feedback + captcha                           |
-| 21  | Not found         | `/+not-found`        |                                                     |
-| 22  | Splash / boot     | root `_layout`       | Session resolution, fonts, profile check            |
+| 13  | Try it on         | `/try-on`            | Local selfie + makeup / colour preview. No upload   |
+| 14  | Member profile    | `/profile/[userId]`  | Own profile shows a "Hidden" tab; others do not     |
+| 15  | Membership plans  | `/membership`        | Plan cards + checkout                               |
+| 16  | Manage membership | `/membership/manage` | Current plan, renewal date, cancel, resume          |
+| 17  | Settings          | `/settings`          | Menu list                                           |
+| 18  | Account           | `/settings/account`  | Change email, change password (re-auth required)    |
+| 19  | Default location  | `/settings/location` | 10 `HUBS` + device location                         |
+| 20  | Privacy & data    | `/settings/privacy`  | Export JSON, delete account (type email to confirm) |
+| 21  | Support           | `/settings/support`  | Help / feedback + captcha                           |
+| 22  | Not found         | `/+not-found`        |                                                     |
+| 23  | Splash / boot     | root `_layout`       | Session resolution, fonts, profile check            |
 
 ### Explicitly out of scope
 
@@ -621,7 +640,8 @@ convenience — **the server re-verifies the JWT and suspension on every call re
 | Home      | `LayoutGrid`                 | Home      | —                                  |
 | Feed      | `Images`                     | Feed      | —                                  |
 | Lens      | `Camera`                     | Lens      | —                                  |
-| Studio    | `Palette`                    | Studio    | dot when the dossier is incomplete |
+| Studio    | `Palette`                    | Studio    | —                                  |
+| Profile   | `UserRound`                  | Profile   | dot when the dossier is incomplete |
 | Concierge | `MessageCircle`              | Concierge | —                                  |
 
 **Styling** (mirrors the web's floating pill, adapted to a native bar):
@@ -2190,6 +2210,7 @@ reach.
 | Feed      | `Images`        | `feed`        |
 | Lens      | `Camera`        | `camera`      |
 | Studio    | `Palette`       | `studio`      |
+| Profile   | `UserRound`     | `profile`     |
 | Concierge | `MessageCircle` | `concierge`   |
 
 Size `22` (`md`) · `strokeWidth` `1.75` · **active** `accent` · **inactive** `on-ink` at 50%
