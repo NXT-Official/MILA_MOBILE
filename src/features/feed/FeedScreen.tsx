@@ -1,15 +1,15 @@
 import { router } from "expo-router";
 import { useState } from "react";
-import { FlatList, Pressable, View, useWindowDimensions } from "react-native";
+import { FlatList, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
-import { Icon } from "@/components/ui/Icon";
 import { Skeleton } from "@/components/ui/Skeleton";
 import type { PostItem } from "@/lib/outfit-items";
 import type { FeedPost } from "@/services/api/posts";
-import { shadows, spacing } from "@/theme/tokens";
+import { spacing } from "@/theme/tokens";
 
 import { FeedCard } from "./components/FeedCard";
 import { GarmentDetailSheet } from "./components/GarmentDetailSheet";
@@ -17,21 +17,21 @@ import { PostContextMenu } from "./components/PostContextMenu";
 import { useFeed } from "./hooks/use-feed";
 
 /**
- * The community feed. One post per viewport, vertically paged.
+ * The community feed — the web's Atelier Feed, in one column.
  *
- * `FlatList`, not `FlashList`. The endpoint returns at most 80 posts and each
- * one fills the screen, so the render window is never more than about three
- * cards — well inside what `FlatList` handles, and one fewer native dependency
- * on the highest-risk row of the Phase 0 ratification table. The thing that
- * actually prevents the OOM is `recyclingKey` on the images, which is an
- * `expo-image` prop and applies either way.
+ * An editorial masthead over a scrolling column of cards, and the feed is
+ * **reciprocal**: it stays closed until the member has posted today, which is
+ * the server's `has_posted_today` and the same rule the web enforces.
+ *
+ * `FlatList`, not `FlashList`. The endpoint returns at most 80 posts, and the
+ * thing that actually prevents the OOM is `recyclingKey` on the images, which is
+ * an `expo-image` prop and applies either way.
  *
  * If the feed ever outgrows the 80-post cap — Appendix D.5 proposes pagination —
  * this is the decision to revisit.
  */
 export function FeedScreen() {
   const insets = useSafeAreaInsets();
-  const { height } = useWindowDimensions();
 
   /** One sheet for the whole list, not one per card. */
   const [openItem, setOpenItem] = useState<PostItem | null>(null);
@@ -42,10 +42,10 @@ export function FeedScreen() {
   if (isPending) {
     return (
       <Frame>
-        <View className="flex-1 justify-center gap-md px-lg">
-          <Skeleton className="h-2xl w-1/2" />
+        <Masthead />
+        <View className="gap-xl">
           <Skeleton className="aspect-[3/4] w-full rounded-card" />
-          <Skeleton className="h-5 w-3/4" />
+          <Skeleton className="aspect-[3/4] w-full rounded-card" />
         </View>
       </Frame>
     );
@@ -68,21 +68,30 @@ export function FeedScreen() {
 
   const posts = data?.posts ?? [];
 
+  // Reciprocity, not a paywall: everyone here has shown their mirror today, and
+  // the masthead's one action is the one that opens it.
+  if (!data?.has_posted_today) {
+    return (
+      <Frame>
+        <Masthead />
+        <EmptyState
+          icon="lock"
+          title="Post today's look to open the feed"
+          description="The Atelier trades in kind — yours unlocks theirs."
+        />
+      </Frame>
+    );
+  }
+
   if (posts.length === 0) {
     return (
       <Frame>
-        <View className="flex-1 justify-center">
-          {/* An invitation, not a blank scroll (§10). The copy names what will
-              fill the screen, and the action is the one that fills it. */}
-          <EmptyState
-            icon="feed"
-            title="No looks yet today"
-            description="Be the first. Post what you are wearing and it lands here."
-            actionLabel="Post your outfit"
-            onAction={() => router.push("/publish")}
-          />
-        </View>
-        <PublishButton hasPosted={data?.has_posted_today ?? false} />
+        <Masthead />
+        <EmptyState
+          icon="feed"
+          title="You're first to the mirror today"
+          description="As your circle posts, their looks will land here."
+        />
       </Frame>
     );
   }
@@ -92,20 +101,23 @@ export function FeedScreen() {
       <FlatList
         data={posts}
         keyExtractor={(post) => post.id}
-        // One post per viewport (§3). `getItemLayout` lets the list skip
-        // measuring — every row is exactly the window height.
-        pagingEnabled
-        snapToInterval={height}
-        decelerationRate="fast"
+        ListHeaderComponent={Masthead}
         showsVerticalScrollIndicator={false}
-        getItemLayout={(_, index) => ({ length: height, offset: height * index, index })}
-        // The memory guard, alongside `recyclingKey` in the card: hold three
-        // screens of cards, not eighty.
+        // The memory guard, alongside `recyclingKey` in the card: hold a few
+        // screens of photography, not eighty.
         windowSize={3}
         initialNumToRender={2}
         maxToRenderPerBatch={2}
         removeClippedSubviews
-        contentContainerStyle={{ paddingTop: insets.top }}
+        // Case 1 of the StyleSheet exceptions: a list's content padding is a
+        // style object by the FlatList API. The tab bar's clearance is already
+        // held open by the navigator's `sceneStyle`.
+        contentContainerStyle={{
+          paddingTop: insets.top,
+          paddingBottom: spacing.xl,
+          paddingHorizontal: spacing.xl,
+          gap: spacing.xl,
+        }}
         refreshing={isRefetching}
         onRefresh={() => void refetch()}
         renderItem={({ item }) => (
@@ -116,12 +128,11 @@ export function FeedScreen() {
             onExpired={() => void refetch()}
             onLongPress={setMenuPost}
             onOpenAuthor={(userId) => router.push(`/profile/${userId}`)}
+            onOpenBlueprint={() => router.push("/history")}
             onSelectItem={setOpenItem}
           />
         )}
       />
-
-      <PublishButton hasPosted={data?.has_posted_today ?? false} />
 
       <GarmentDetailSheet item={openItem} onClose={() => setOpenItem(null)} />
       <PostContextMenu post={menuPost} onClose={() => setMenuPost(null)} />
@@ -130,36 +141,38 @@ export function FeedScreen() {
 }
 
 /**
- * The publish affordance. Gold, and it carries the single accent job on this
- * screen — the feed is otherwise all photography.
+ * The masthead the web feed opens with: eyebrow, serif promise, one line of
+ * copy, and the single action on the screen.
  */
-function PublishButton({ hasPosted }: { hasPosted: boolean }) {
-  const insets = useSafeAreaInsets();
-
+function Masthead() {
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={hasPosted ? "Post another outfit" : "Post your outfit"}
-      onPress={() => router.push("/publish")}
-      // Case 1 of the StyleSheet exceptions: an absolute offset computed from a
-      // safe-area inset, plus a shadow, which is a native primitive.
-      style={[
-        { position: "absolute", right: spacing.xl, bottom: insets.bottom + spacing.xl },
-        shadows.raised,
-      ]}
-      className="h-tile w-tile items-center justify-center rounded-pill bg-accent"
-    >
-      <Icon name="add" size="lg" color="ink" />
-    </Pressable>
+    <View className="items-center gap-md pb-xl pt-lg">
+      <Text className="font-body-semibold text-section tracking-section uppercase text-muted">
+        The Atelier Feed
+      </Text>
+      <Text className="font-display text-h1 tracking-heading text-ink text-center">
+        Today&apos;s looks, in real time
+      </Text>
+      <Text className="font-body text-base text-body text-center">
+        One outfit, one mirror, one mood — your community&apos;s daily blueprints.
+      </Text>
+      <Button
+        label="Post today's OOTD"
+        icon="camera"
+        size="pill"
+        onPress={() => router.push("/publish")}
+        className="mt-sm"
+      />
+    </View>
   );
 }
 
-/** The non-list states share a frame so they sit where the feed would. */
+/** The non-list states share the feed's frame, so they sit where the feed would. */
 function Frame({ children }: { children: React.ReactNode }) {
   const insets = useSafeAreaInsets();
 
   return (
-    <View className="flex-1 bg-canvas" style={{ paddingTop: insets.top }}>
+    <View className="flex-1 bg-canvas px-xl" style={{ paddingTop: insets.top }}>
       {children}
     </View>
   );

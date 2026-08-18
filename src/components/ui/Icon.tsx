@@ -23,6 +23,7 @@ import {
   Images,
   LayoutGrid,
   Link2,
+  Lock,
   LogOut,
   Mail,
   MapPin,
@@ -112,6 +113,7 @@ export const icons = {
   flipCamera: SwitchCamera,
   // Feed
   verified: BadgeCheck,
+  lock: Lock,
   imageOff: ImageOff,
   link: Link2,
   external: ExternalLink,

@@ -1,30 +1,35 @@
-import { Pressable, Text, View, useWindowDimensions } from "react-native";
+import { Pressable, Text, View } from "react-native";
 
 import { AvatarInitial } from "@/components/media/AvatarInitial";
 import { RemoteImage } from "@/components/media/RemoteImage";
 import { Badge } from "@/components/ui/Badge";
+import { Card } from "@/components/ui/Card";
+import { Icon } from "@/components/ui/Icon";
 import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import type { PostItem } from "@/lib/outfit-items";
 import type { FeedPost } from "@/services/api/posts";
-import { radii, spacing } from "@/theme/tokens";
+import { spacing } from "@/theme/tokens";
 import { relativeTime } from "@/utils/relative-time";
 
 import { GarmentHotspot } from "./GarmentHotspot";
 
 /**
- * One post, one viewport.
+ * One post, as an editorial card — header, the outfit, then the caption. This
+ * mirrors the web's `PostCanvas`: the feed scrolls as a column of cards rather
+ * than paging one post per viewport, so a member can scan the day's looks the
+ * way they read the rest of Mila.
  *
  * The back capture is the outfit and fills the card; the front portrait is a
- * small disc over it, which is how the web reads and is the right hierarchy —
- * this is a feed of clothes, not of faces.
+ * small disc over it, which is the right hierarchy — this is a feed of clothes,
+ * not of faces.
  *
  * `recyclingKey` on both images is the OOM guard: without it a recycled row
  * shows the previous post's photograph while the new one decodes, and 80 posts
- * of full-bleed photography is exactly the shape that exhausts a cheap phone.
+ * of photography is exactly the shape that exhausts a cheap phone.
  *
  * The garment sheet is **not** rendered here. One sheet lives on the screen and
  * this card only reports which item was tapped — a bottom-sheet modal and its
- * query per card would be three of each in the render window, for one that can
+ * query per card would be several of each in the render window, for one that can
  * ever be open.
  */
 export function FeedCard({
@@ -32,6 +37,7 @@ export function FeedCard({
   onExpired,
   onLongPress,
   onOpenAuthor,
+  onOpenBlueprint,
   onSelectItem,
 }: {
   post: FeedPost;
@@ -40,22 +46,25 @@ export function FeedCard({
   /** Own posts only; the context menu has no meaning on someone else's. */
   onLongPress: (post: FeedPost) => void;
   onOpenAuthor: (userId: string) => void;
+  /** Only offered when the post was published from a generated look. */
+  onOpenBlueprint: () => void;
   onSelectItem: (item: PostItem) => void;
 }) {
-  const { height } = useWindowDimensions();
   const author = post.is_self ? "You" : post.author_name?.trim() || "Member";
 
   return (
-    // One post per viewport (§3). Height comes from `useWindowDimensions`, never
-    // a fixed value — it has to survive a rotation and a foldable.
-    <View style={{ height }} className="justify-center gap-md px-lg">
-      <Header
-        author={author}
-        verified={post.author_verified}
-        createdAt={post.created_at}
-        isSelf={post.is_self}
-        onPress={() => onOpenAuthor(post.user_id)}
-      />
+    // The card clips the photograph to its own radius, so the image needs no
+    // radius of its own — and the portrait disc and hotspots clip with it.
+    <Card floating className="overflow-hidden p-0">
+      <View className="px-lg py-md">
+        <Header
+          author={author}
+          verified={post.author_verified}
+          createdAt={post.created_at}
+          isSelf={post.is_self}
+          onPress={() => onOpenAuthor(post.user_id)}
+        />
+      </View>
 
       <Pressable
         // Long-press rather than inline controls (§3): an edit and a delete
@@ -65,9 +74,6 @@ export function FeedCard({
         accessibilityRole={post.is_self ? "button" : undefined}
         accessibilityLabel={post.is_self ? "Your post. Long press for options." : undefined}
         delayLongPress={400}
-        // Case 1 of the StyleSheet exceptions: `overflow: hidden` with a radius
-        // has to sit on the same node the absolute children clip to.
-        style={{ borderRadius: radii.card, overflow: "hidden" }}
         className="w-full"
       >
         <RemoteImage
@@ -96,12 +102,30 @@ export function FeedCard({
         ))}
       </Pressable>
 
-      {post.caption ? (
-        <Text numberOfLines={4} className="font-display text-base text-ink">
-          {post.caption}
-        </Text>
+      {post.caption || post.generated_look_id ? (
+        <View className="gap-md px-lg py-lg">
+          {post.caption ? (
+            <Text numberOfLines={4} className="font-display text-base text-ink">
+              {post.caption}
+            </Text>
+          ) : null}
+
+          {post.generated_look_id ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="View the AI blueprint behind this look"
+              onPress={onOpenBlueprint}
+              className="active:opacity-70 min-h-tap flex-row items-center gap-sm"
+            >
+              <Icon name="sparkle" size="xs" color="muted" />
+              <Text className="font-body-semibold text-label tracking-label uppercase text-muted">
+                View AI blueprint
+              </Text>
+            </Pressable>
+          ) : null}
+        </View>
       ) : null}
-    </View>
+    </Card>
   );
 }
 
@@ -138,7 +162,7 @@ function Header({
         </View>
       </Pressable>
 
-      {isSelf ? <Badge label="Yours" variant="neutral" /> : null}
+      {isSelf ? <Badge label="Today's OOTD" variant="neutral" /> : null}
     </View>
   );
 }
