@@ -1,8 +1,10 @@
 import { Image } from "expo-image";
 import { router } from "expo-router";
+import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { AccountSheet } from "@/components/layout/AccountSheet";
 import { CreditsPill } from "@/components/ui/CreditsPill";
 import { Icon } from "@/components/ui/Icon";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -25,6 +27,7 @@ import { useAppliedTheme } from "@/theme/theme";
  * dashboard.
  */
 export function AppHeader() {
+  const [accountOpen, setAccountOpen] = useState(false);
   const insets = useSafeAreaInsets();
   const { resolved } = useAppliedTheme();
   const setPreference = useThemeStore((s) => s.setPreference);
@@ -81,15 +84,15 @@ export function AppHeader() {
             />
           </Pressable>
 
-          {/* The account entry, as the web's header avatar: everything the
-              membership drawer holds there lives behind /settings here. */}
+          {/* The account entry, as the web's header avatar: it opens the same
+              membership drawer content, presented as a sheet. */}
           {profilePending ? (
             <Skeleton className="h-10 w-10 rounded-pill" />
           ) : (
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Your account, membership, and settings"
-              onPress={() => router.push("/settings")}
+              onPress={() => setAccountOpen(true)}
               className="active:opacity-80 min-h-tap items-center justify-center"
             >
               <View className="h-10 w-10 items-center justify-center rounded-pill border border-border bg-surface">
@@ -101,6 +104,8 @@ export function AppHeader() {
           )}
         </View>
       </View>
+
+      <AccountSheet visible={accountOpen} onClose={() => setAccountOpen(false)} />
     </View>
   );
 }
