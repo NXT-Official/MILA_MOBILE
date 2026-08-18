@@ -4,7 +4,6 @@ import { Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { CreditsPill } from "@/components/ui/CreditsPill";
-import { Divider } from "@/components/ui/Divider";
 import { Icon } from "@/components/ui/Icon";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { images } from "@/constants/images";
@@ -42,7 +41,7 @@ export function AppHeader() {
   return (
     // The header owns the notch. Everything below it is handed insets with the
     // top already spent — see the provider in `app/_layout.tsx`.
-    <View style={{ paddingTop: insets.top }} className="bg-canvas px-lg">
+    <View style={{ paddingTop: insets.top }} className="bg-canvas px-lg pb-3">
       <View className="flex-row items-center justify-between gap-md py-sm">
         {/* The mark carries its own palette (the colour-analysis motif) and is
             never re-tinted to a theme token — §11's brand-artwork carve-out. */}
@@ -94,16 +93,14 @@ export function AppHeader() {
               className="active:opacity-80 min-h-tap items-center justify-center"
             >
               <View className="h-10 w-10 items-center justify-center rounded-pill border border-border bg-surface">
-                <Text className="font-display text-sm text-ink">{monogram}</Text>
+                <Text className="font-display text-sm text-ink">
+                  {monogram}
+                </Text>
               </View>
             </Pressable>
           )}
         </View>
       </View>
-
-      {/* The hairline the web header carries — the only thing separating a
-          scrolled screen from the wordmark above it. */}
-      <Divider />
     </View>
   );
 }

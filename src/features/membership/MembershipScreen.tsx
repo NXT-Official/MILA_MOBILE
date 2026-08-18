@@ -37,22 +37,26 @@ export function MembershipScreen() {
 
   const membership = resolveMembership(subscription.data);
   const currentPlan = subscription.data
-    ? (plans.data?.find((plan) => plan.id === subscription.data?.plan_id) ?? null)
+    ? (plans.data?.find((plan) => plan.id === subscription.data?.plan_id) ??
+      null)
     : null;
 
   return (
     <Screen scroll>
       <View className="gap-xl py-xl">
         <View className="gap-sm">
-          <Text
-            accessibilityRole="header"
-            className="font-display text-h1 tracking-heading text-ink"
-          >
+          <Text className="font-body-semibold text-label text-center tracking-label uppercase text-muted">
             Membership
           </Text>
-          <Text className="font-body text-base text-body">
-            Credits refresh every day with a membership. They are what Mila spends composing your
-            looks.
+          <Text
+            accessibilityRole="header"
+            className="font-display text-h1 text-center tracking-heading text-ink"
+          >
+            Choose Your Atelier Access
+          </Text>
+          <Text className="font-body text-center text-base text-body">
+            Select the membership that best fits the way you want to style,
+            explore, and create with Mila.
           </Text>
         </View>
 
@@ -64,7 +68,9 @@ export function MembershipScreen() {
 
         <CreditsMeter balance={balance} loading={credits.isPending} />
 
-        {plans.isPending ? <LoadingState label="Loading membership plans" lines={4} /> : null}
+        {plans.isPending ? (
+          <LoadingState label="Loading membership plans" lines={4} />
+        ) : null}
 
         {plans.isError ? (
           <ErrorState
@@ -86,10 +92,18 @@ export function MembershipScreen() {
         ) : null}
 
         {plans.data?.map((plan) => (
-          <PlanCard key={plan.id} plan={plan} current={plan.id === currentPlan?.id} />
+          <PlanCard
+            key={plan.id}
+            plan={plan}
+            current={plan.id === currentPlan?.id}
+          />
         ))}
 
-        <Button label="Back" variant="secondary" onPress={() => router.back()} />
+        <Button
+          label="Back"
+          variant="secondary"
+          onPress={() => router.back()}
+        />
       </View>
     </Screen>
   );

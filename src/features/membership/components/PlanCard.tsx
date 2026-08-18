@@ -3,6 +3,7 @@ import { Text, View } from "react-native";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { Icon } from "@/components/ui/Icon";
+import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import {
   formatBillingInterval,
   formatPlanPrice,
@@ -40,7 +41,7 @@ export function PlanCard({
           {current ? (
             <Badge label="Your plan" variant="success" />
           ) : plan.is_featured ? (
-            <Badge label="Most popular" variant="accent" />
+            <Badge label="Recommended" variant="accent" />
           ) : null}
         </View>
 
@@ -57,21 +58,34 @@ export function PlanCard({
           <Text className="font-body text-base text-body">{plan.description}</Text>
         ) : null}
 
-        <View className="flex-row items-center gap-sm">
-          <Icon name="sparkle" size="sm" color="accent" />
-          <Text className="font-body-medium text-sm text-ink">
-            {plan.credits_included} credits a day
-          </Text>
-        </View>
-
-        {features.map((feature) => (
-          <View key={feature} className="flex-row items-start gap-sm">
-            <View className="mt-xs">
-              <Icon name="check" size="xs" color="muted" />
+        <View className="gap-sm border-t border-border pt-lg dark:border-border/12">
+          {plan.credits_included > 0 ? (
+            <View className="flex-row items-center gap-sm">
+              <Icon name="sparkle" size="sm" color="accent" />
+              <Text className="font-body-medium text-sm text-ink">
+                {plan.credits_included} styling credits per day
+              </Text>
             </View>
-            <Text className="flex-1 font-body text-sm text-body">{feature}</Text>
+          ) : null}
+
+          {features.map((feature) => (
+            <View key={feature} className="flex-row items-start gap-sm">
+              <View className="mt-xs">
+                <Icon name="check" size="xs" color="muted" />
+              </View>
+              <Text className="flex-1 font-body text-sm text-body">{feature}</Text>
+            </View>
+          ))}
+
+          <View className="flex-row items-start gap-sm">
+            <View className="mt-xs">
+              <VerifiedBadge />
+            </View>
+            <Text className="flex-1 font-body text-sm text-body">
+              Verified badge on your profile and posts
+            </Text>
           </View>
-        ))}
+        </View>
       </View>
     </Card>
   );
