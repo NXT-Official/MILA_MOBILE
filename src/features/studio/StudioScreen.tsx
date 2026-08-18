@@ -3,7 +3,6 @@ import { Pressable, Text, View } from "react-native";
 
 import { Screen } from "@/components/layout/Screen";
 import { Button } from "@/components/ui/Button";
-import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { Icon } from "@/components/ui/Icon";
 import { LoadingState } from "@/components/ui/LoadingState";
@@ -24,20 +23,21 @@ import { normalizeStoredProfile } from "@/lib/style-profile/studio-dossier";
 
 import { ComboCard } from "./components/ComboCard";
 import { DossierHero } from "./components/DossierHero";
-import { DossierRow } from "./components/DossierRow";
 import { PaletteStrip } from "./components/PaletteStrip";
+import { SectionHeader } from "./components/SectionHeader";
 import { SeasonPalette } from "./components/SeasonPalette";
 import { StyleGoalsTray } from "./components/StyleGoalsTray";
 import { StylingNoteCard } from "./components/StylingNoteCard";
 import { resolveSeasonFamily } from "./season";
 
 /**
- * The style dossier, in the §3 order: hero, Silhouette, Face shape, Hair,
- * Beauty preferences, Saved palettes, then "Retake analysis".
+ * The style dossier, in the §3 order: hero, palette, combinations, styling
+ * notes, style goals, saved palettes.
  *
- * Every row re-enters the step that set it. There is no second set of editors
- * here — the rows navigate to `/dossier/[field]`, which mounts the same
- * onboarding step components in an edit shell.
+ * The hero's fact chips carry Silhouette, Face shape, Hair and Beauty, and each
+ * re-enters the step that set it. There is no second set of editors here — the
+ * chips navigate to `/dossier/[field]`, which mounts the same onboarding step
+ * components in an edit shell.
  */
 export function StudioScreen() {
   const { data: profile, isPending, isError, refetch } = useProfile();
@@ -104,9 +104,9 @@ export function StudioScreen() {
         <View className="flex-row items-center justify-between gap-md">
           <Text
             accessibilityRole="header"
-            className="font-display text-h1 tracking-heading text-ink"
+            className="font-body-semibold text-label tracking-label uppercase text-muted"
           >
-            Studio
+            Digital style dossier
           </Text>
           <Pressable
             accessibilityRole="button"
@@ -118,42 +118,12 @@ export function StudioScreen() {
           </Pressable>
         </View>
 
-        {dossier ? (
-          <DossierHero dossier={dossier} />
-        ) : (
-          <EmptyState
-            icon="studio"
-            title="No colour reading yet"
-            description="Mila reads your season from a photo, or you can pick it yourself."
-            actionLabel="Read my colouring"
-            onAction={() => router.push("/dossier/color")}
-          />
-        )}
-
-        <View className="overflow-hidden rounded-panel border border-border bg-surface dark:border-border/12">
-          <DossierRow
-            label="Silhouette"
-            value={profile?.body_type ?? null}
-            onPress={() => router.push("/dossier/body-type")}
-          />
-          <DossierRow
-            label="Face shape"
-            value={profile?.face_shape ?? null}
-            onPress={() => router.push("/dossier/face-shape")}
-          />
-          <DossierRow
-            label="Hair"
-            value={profile?.hair_type ?? null}
-            onPress={() => router.push("/dossier/hair-type")}
-          />
-          <DossierRow
-            label="Beauty preferences"
-            // Optional in onboarding, so an empty list is a normal state and
-            // reads as "Not set" rather than as an empty row.
-            value={preferences.length > 0 ? preferences.join(" · ") : null}
-            onPress={() => router.push("/dossier/beauty-preferences")}
-          />
-        </View>
+        <DossierHero
+          profile={profile}
+          dossier={dossier}
+          family={family}
+          preferences={preferences}
+        />
 
         {family ? (
           <>
@@ -171,12 +141,7 @@ export function StudioScreen() {
 
         {combos.length > 0 ? (
           <View className="gap-md">
-            <Text
-              accessibilityRole="header"
-              className="font-body-semibold text-section tracking-section uppercase text-muted"
-            >
-              Colour combinations to try
-            </Text>
+            <SectionHeader eyebrow="Wear it" title="Colour combinations to try" />
             {combos.map((combo) => (
               <ComboCard key={combo.id} combo={combo} />
             ))}
@@ -185,21 +150,14 @@ export function StudioScreen() {
 
         {/* Actions, not colour names — the hero already states the season. */}
         <View className="gap-md">
-          <View className="gap-xs">
-            <Text
-              accessibilityRole="header"
-              className="font-body-semibold text-section tracking-section uppercase text-muted"
-            >
-              Mila&apos;s styling notes
-            </Text>
-            {/* Credits the source rather than renaming the season, which the
-                hero already states once. Only when there is a real reading. */}
-            {dossier ? (
-              <Text className="font-body text-sm text-body">
-                {ATELIER_PROVENANCE}
-              </Text>
-            ) : null}
-          </View>
+          {/* The subtitle credits the source rather than renaming the season,
+              which the hero already states once — and only when there is a
+              real reading behind it. */}
+          <SectionHeader
+            eyebrow="Personal brief"
+            title="Mila's styling notes"
+            subtitle={dossier ? ATELIER_PROVENANCE : undefined}
+          />
 
           <StylingNoteCard
             title="Silhouette strategy"
@@ -250,12 +208,7 @@ export function StudioScreen() {
         <StyleGoalsTray value={profile?.style_goals ?? []} />
 
         <View className="gap-md">
-          <Text
-            accessibilityRole="header"
-            className="font-body-semibold text-section tracking-section uppercase text-muted"
-          >
-            Saved palettes
-          </Text>
+          <SectionHeader eyebrow="Archive" title="Saved palettes" />
           <PaletteStrip
             palettes={palettes.data ?? []}
             loading={palettes.isPending}
@@ -268,14 +221,6 @@ export function StudioScreen() {
             />
           ) : null}
         </View>
-
-        {/* Last, and deliberately understated: re-reading her colouring replaces
-            the dossier every other screen is built on. */}
-        <Button
-          label="Retake colour analysis"
-          variant="secondary"
-          onPress={() => router.push("/dossier/color")}
-        />
       </View>
     </Screen>
   );

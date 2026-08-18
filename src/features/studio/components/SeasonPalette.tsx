@@ -5,6 +5,8 @@ import { Icon } from "@/components/ui/Icon";
 import { Sheet } from "@/components/ui/Sheet";
 import { NAMED_PALETTE, type NamedSwatch, type Season } from "@/constants/style-profile";
 
+import { SectionHeader } from "./SectionHeader";
+
 /**
  * The season's named palette — the web dossier's "Your Palette" section (§3.8).
  *
@@ -25,17 +27,11 @@ export function SeasonPalette({
 
   return (
     <View className="gap-xl">
-      <View className="gap-xs">
-        <Text
-          accessibilityRole="header"
-          className="font-body-semibold text-section tracking-section uppercase text-muted"
-        >
-          Your palette
-        </Text>
-        <Text className="font-body text-sm text-body">
-          Tap any swatch for its name and where to wear it.
-        </Text>
-      </View>
+      <SectionHeader
+        eyebrow="Explore"
+        title="Your palette"
+        subtitle="Tap any swatch for its name and where to wear it."
+      />
 
       <Band label="Primary tones" swatches={palette.primary} onSelect={setSelected} />
       <Band label="Accents" swatches={palette.accents} onSelect={setSelected} />
