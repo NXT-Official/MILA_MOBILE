@@ -1,15 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { Linking, Pressable, Text, View } from "react-native";
 
-import { ImageWithFallback } from "@/components/media/ImageWithFallback";
+import { DupeMatchCard } from "@/components/ui/DupeMatchCard";
 import { Icon } from "@/components/ui/Icon";
 import { Sheet } from "@/components/ui/Sheet";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { queryKeys } from "@/constants/query-keys";
 import { sourceUrlHost, type PostItem } from "@/lib/outfit-items";
-import { findSimilarItems, type DupeMatch } from "@/services/api/items";
-import { radii } from "@/theme/tokens";
-import { formatPrice } from "@/utils/format-price";
+import { findSimilarItems } from "@/services/api/items";
 
 /** The catalogue barely moves in a day, and this is a free query worth caching hard. */
 const MATCH_CACHE_MS = 24 * 60 * 60 * 1000;
@@ -80,7 +78,7 @@ export function GarmentDetailSheet({
             ) : (
               <View className="flex-row flex-wrap gap-md">
                 {similar.map((match) => (
-                  <MatchCard key={match.id} match={match} />
+                  <DupeMatchCard key={match.id} match={match} />
                 ))}
               </View>
             )}
@@ -112,32 +110,6 @@ function SourceLink({ url }: { url: string }) {
         </Text>
       </View>
       <Icon name="external" size="sm" color="muted" />
-    </Pressable>
-  );
-}
-
-function MatchCard({ match }: { match: DupeMatch }) {
-  return (
-    <Pressable
-      accessibilityRole="link"
-      accessibilityLabel={`${match.title}, ${formatPrice(match.price, match.currency)}`}
-      onPress={() => void Linking.openURL(match.affiliate_link).catch(() => {})}
-      className="active:opacity-90 flex-1 gap-sm"
-    >
-      <ImageWithFallback
-        uri={match.image_url}
-        recyclingKey={match.id}
-        accessibilityLabel={match.title}
-        style={{ width: "100%", aspectRatio: 3 / 4, borderRadius: radii.panel }}
-      />
-      <View className="gap-xs">
-        <Text numberOfLines={2} className="font-body-medium text-sm text-ink">
-          {match.title}
-        </Text>
-        <Text className="font-body text-micro text-muted">
-          {formatPrice(match.price, match.currency)}
-        </Text>
-      </View>
     </Pressable>
   );
 }

@@ -3,11 +3,9 @@ import type { ClothingAttributes, PostItem } from "@/lib/outfit-items";
 import { api, TIMEOUTS } from "./client";
 
 /**
- * Garment detection, tagging, and the free similar-items lookup.
- *
- * Note what is **not** here: `/dupes/find`, which costs a credit and runs a
- * vision call on a captured image. Phase 06 ships only the free
- * attribute-based path.
+ * Garment detection, tagging, and the two dupe lookups — the free
+ * attribute-based one, and the credit-charging vision one the Lens sheet's
+ * Dupe Hunter mode runs on a fresh capture.
  */
 
 /**
@@ -26,7 +24,6 @@ export function analyzeOutfitItems(postId: string): Promise<PostItem[]> {
   });
 }
 
-
 /** One row of the affiliate catalogue, scored against the garment's attributes. */
 export type DupeMatch = {
   id: string;
@@ -41,6 +38,28 @@ export type DupeMatch = {
   match_score: number;
   match_reasons: string[];
 };
+
+/**
+ * The extracted inspiration piece, plus the catalogue rows ranked against it.
+ */
+export type DupeHuntResult = {
+  inspiration: ClothingAttributes;
+  dupes: DupeMatch[];
+};
+
+/**
+ * **1 credit**, 15/hour, and a vision call — the paid half of the pair below.
+ *
+ * `imageUrl` must already be a Mila storage URL: the server rejects anything
+ * else, because handing a server-side fetch a client-supplied URL is a
+ * server-side request forgery primitive (§8). Upload first, then hunt.
+ */
+export function findDupes(input: {
+  imageUrl: string;
+  maxResults?: number;
+}): Promise<DupeHuntResult> {
+  return api.post<DupeHuntResult>("/dupes/find", input, { timeoutMs: TIMEOUTS.analysis });
+}
 
 /**
  * **Free, and no AI call.** The attributes were already catalogued when the post

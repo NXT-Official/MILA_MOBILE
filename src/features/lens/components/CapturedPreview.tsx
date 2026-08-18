@@ -17,6 +17,7 @@ export function CapturedPreview({
   error,
   busy,
   blockedMessage,
+  actionLabel,
   onRetake,
   onAnalyse,
 }: {
@@ -26,6 +27,8 @@ export function CapturedPreview({
   busy: boolean;
   /** Offline or rate-limited: the action is disabled with the reason shown. */
   blockedMessage: string | null;
+  /** What the credit is about to be spent on — the mode names it. */
+  actionLabel: string;
   onRetake: () => void;
   onAnalyse: () => void;
 }) {
@@ -37,7 +40,7 @@ export function CapturedPreview({
         style={{ flex: 1 }}
         contentFit="contain"
         transition={120}
-        accessibilityLabel="The outfit you just captured"
+        accessibilityLabel="The photo you just captured"
       />
 
       <View className="gap-md px-xl py-lg">
@@ -50,7 +53,7 @@ export function CapturedPreview({
         ) : null}
 
         <Button
-          label={error ? "Try again" : "Analyse this outfit"}
+          label={error ? "Try again" : actionLabel}
           loading={busy}
           disabled={Boolean(blockedMessage)}
           onPress={onAnalyse}

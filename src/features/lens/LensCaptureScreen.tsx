@@ -35,7 +35,10 @@ import { useQueryClient } from "@tanstack/react-query";
 import { AnalysisResultCard } from "./components/AnalysisResultCard";
 import { AnalysisSkeleton } from "./components/AnalysisSkeleton";
 import { CapturedPreview } from "./components/CapturedPreview";
+import { DupeResultCard, DupeSkeleton } from "./components/DupeResultCard";
 import { useAnalyzeOutfit } from "./hooks/use-analyze-outfit";
+import { useFindDupes } from "./hooks/use-find-dupes";
+import type { LensMode } from "./modes";
 
 /**
  * Lens, presented full-screen so the camera is not letterboxed by the tab bar.
@@ -48,8 +51,19 @@ import { useAnalyzeOutfit } from "./hooks/use-analyze-outfit";
  * Nothing in this file knows which operating system it is running on. The
  * camera, its permission semantics, and the image format all sit behind
  * `services/camera` (§12).
+ *
+ * `mode` is chosen in the Lens sheet, not here. Both modes are the same
+ * capture — frame, review, spend a credit — so they share one screen; only the
+ * call they spend it on and the result they render differ.
  */
-export function LensCaptureScreen() {
+export function LensCaptureScreen({
+  mode = "analysis",
+  source = "camera",
+}: {
+  mode?: LensMode;
+  /** `"gallery"` opens the picker on arrival: the choice was already made. */
+  source?: "camera" | "gallery";
+} = {}) {
   const insets = useSafeAreaInsets();
 
   /** Null while the first, non-prompting permission read is in flight. */
@@ -74,10 +88,17 @@ export function LensCaptureScreen() {
   const { online } = useNetworkStatus();
   const haptics = useHaptics();
   const analyse = useAnalyzeOutfit();
+  const hunt = useFindDupes();
 
+  const dupeMode = mode === "dupe";
+  // Both are mutations with the same shape; only the data differs, so the
+  // states below read from one and the results render from whichever ran.
+  const run = dupeMode ? hunt : analyse;
   const rateLimitedFor = useCountdown(rateLimitedUntil);
   const profileComplete = isStyleProfileComplete(toStyleProfileRow(profile));
   const result = analyse.data ?? null;
+  const dupes = hunt.data ?? null;
+  const hasResult = Boolean(result ?? dupes);
 
   // Read on mount, never prompt on mount. The rationale screen owns the prompt,
   // so a member sees why the camera is wanted before the OS asks (§10).
@@ -99,22 +120,25 @@ export function LensCaptureScreen() {
    */
   useEffect(() => {
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {
-      if (photo && !result) {
+      if (photo && !hasResult) {
         setDiscardOpen(true);
         return true;
       }
       return false;
     });
     return () => sub.remove();
-  }, [photo, result]);
+  }, [photo, hasResult]);
 
-  const blockedMessage = !profileComplete
-    ? "Complete your Style Profile so Mila can read this against your season."
-    : !online
-      ? "Mila needs a connection to read this outfit."
-      : rateLimitedFor > 0
-        ? formatRetryAfter(rateLimitedFor)
-        : null;
+  // The Style Profile is what an analysis is read *against*; a dupe hunt reads
+  // the garment alone, so it is not gated on one.
+  const blockedMessage =
+    !profileComplete && !dupeMode
+      ? "Complete your Style Profile so Mila can read this against your season."
+      : !online
+        ? "Mila needs a connection to read this outfit."
+        : rateLimitedFor > 0
+          ? formatRetryAfter(rateLimitedFor)
+          : null;
 
   /**
    * Every analysis failure lands here. `kind` decides the response, so a server
@@ -136,7 +160,10 @@ export function LensCaptureScreen() {
     if (failure.kind === "suspended" || failure.kind === "auth") {
       // The root gate owns the redirect; re-reading the profile is what makes
       // it re-decide. One place decides where the app is, always.
-      if (userId) void queryClient.invalidateQueries({ queryKey: queryKeys.profile(userId) });
+      if (userId)
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.profile(userId),
+        });
     }
   }
 
@@ -160,6 +187,7 @@ export function LensCaptureScreen() {
       if (next) {
         setPhoto(next);
         analyse.reset();
+        hunt.reset();
         haptics.selection();
       }
     } catch {
@@ -169,8 +197,36 @@ export function LensCaptureScreen() {
     }
   }
 
+  /**
+   * Arriving from the sheet's "choose a photo" exit. She has already chosen the
+   * gallery over the shutter, so asking her again with a second tap would be
+   * the app forgetting what it was just told. Once only — cancelling the picker
+   * drops her onto the live preview rather than reopening it.
+   */
+  const galleryOpened = useRef(false);
+  useEffect(() => {
+    if (source !== "gallery" || galleryOpened.current) return;
+    galleryOpened.current = true;
+    void withCapture(() => camera.pickFromLibrary());
+    // `withCapture` is stable for this purpose: it only ever sets state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [source]);
+
   function handleAnalyse() {
     if (!photo || blockedMessage) return;
+
+    if (dupeMode) {
+      hunt.mutate(photo, {
+        onSuccess: (next) => {
+          haptics.success();
+          AccessibilityInfo.announceForAccessibility(
+            `${next.dupes.length} budget alternatives found.`,
+          );
+        },
+        onError: handleFailure,
+      });
+      return;
+    }
 
     analyse.mutate(photo, {
       onSuccess: (next) => {
@@ -184,7 +240,7 @@ export function LensCaptureScreen() {
   }
 
   function requestClose() {
-    if (photo && !result) {
+    if (photo && !hasResult) {
       setDiscardOpen(true);
       return;
     }
@@ -195,23 +251,24 @@ export function LensCaptureScreen() {
     setPhoto(null);
     setCaptureError(null);
     analyse.reset();
+    hunt.reset();
   }
 
   return (
     <View className="flex-1 bg-canvas" style={{ paddingTop: insets.top }}>
-      {analyse.isPending ? <KeepAwake /> : null}
+      {run.isPending ? <KeepAwake /> : null}
 
       <View className="flex-row items-center gap-md px-lg py-sm">
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Close Lens"
+          accessibilityLabel={dupeMode ? "Close Dupe Hunter" : "Close Lens"}
           onPress={requestClose}
           className="active:opacity-60 h-tap w-tap items-center justify-center"
         >
           <Icon name="close" size="md" color="ink" />
         </Pressable>
         <Text accessibilityRole="header" className="font-display text-h3 text-ink">
-          Lens
+          {dupeMode ? "Dupe Hunter" : "Lens"}
         </Text>
       </View>
 
@@ -219,13 +276,21 @@ export function LensCaptureScreen() {
         // Deliberately blank: this resolves in a frame or two, and a skeleton
         // that flashes for 30ms is noise rather than reassurance.
         <View className="flex-1" />
-      ) : permission !== "granted" ? (
+      ) : permission !== "granted" && !photo ? (
         <CameraPermissionPrompt
           status={permission}
           requesting={requesting}
           onAllow={() => void handleAllow()}
           onOpenSettings={() => void camera.openSettings()}
         />
+      ) : dupes && photo ? (
+        <Screen scroll edges={{ top: false, bottom: true }}>
+          <View className="gap-xl py-lg">
+            <ResultImage uri={photo.uri} />
+            <DupeResultCard result={dupes} />
+            <Button label="Hunt another piece" variant="secondary" onPress={startOver} />
+          </View>
+        </Screen>
       ) : result && photo ? (
         <Screen scroll edges={{ top: false, bottom: true }}>
           <View className="gap-xl py-lg">
@@ -243,30 +308,27 @@ export function LensCaptureScreen() {
             </View>
           </View>
         </Screen>
-      ) : analyse.isPending && photo ? (
+      ) : run.isPending && photo ? (
         <Screen scroll edges={{ top: false, bottom: true }}>
           <View className="gap-xl py-lg">
             <ResultImage uri={photo.uri} />
-            <AnalysisSkeleton />
+            {dupeMode ? <DupeSkeleton /> : <AnalysisSkeleton />}
           </View>
         </Screen>
       ) : photo ? (
         <CapturedPreview
           photo={photo}
-          error={analyse.isError ? resolveApiFailure(analyse.error).message : null}
-          busy={analyse.isPending}
+          error={run.isError ? resolveApiFailure(run.error).message : null}
+          busy={run.isPending}
           blockedMessage={blockedMessage}
+          actionLabel={dupeMode ? "Hunt the dupes" : "Analyse this outfit"}
           onRetake={startOver}
           onAnalyse={handleAnalyse}
         />
       ) : (
         <View className="flex-1" style={{ paddingBottom: insets.bottom }}>
           <View className="flex-1 overflow-hidden bg-surface-alt">
-            <CameraPreview
-              facing={facing}
-              ref={handle}
-              onReady={() => setPreviewReady(true)}
-            />
+            <CameraPreview facing={facing} ref={handle} onReady={() => setPreviewReady(true)} />
           </View>
 
           {captureError ? (
@@ -311,7 +373,7 @@ export function LensCaptureScreen() {
           setPaywallOpen(false);
           // Clear the failed mutation with the sheet, or the review step stays
           // in its error state behind a paywall she has already dismissed.
-          if (analyse.isError) analyse.reset();
+          if (run.isError) run.reset();
         }}
       />
     </View>
