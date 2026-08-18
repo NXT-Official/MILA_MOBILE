@@ -12,6 +12,7 @@ import {
   CloudCheck,
   CloudOff,
   CloudRain,
+  Coins,
   ExternalLink,
   Eye,
   EyeOff,
@@ -45,8 +46,8 @@ import {
   SwitchCamera,
   Trash2,
   Wand2,
-  Wind,
   WifiOff,
+  Wind,
   X,
 } from "lucide-react-native";
 
@@ -77,6 +78,7 @@ export const icons = {
   alert: AlertCircle,
   light: Sun,
   dark: Moon,
+  coins: Coins,
   // Auth
   eye: Eye,
   eyeOff: EyeOff,
@@ -150,7 +152,13 @@ type IconProps = {
  * Icons take a `color` prop rather than a className because lucide renders SVG
  * primitives that NativeWind classes do not reach.
  */
-export function Icon({ name, size = "md", color = "ink", rawColor, label }: IconProps) {
+export function Icon({
+  name,
+  size = "md",
+  color = "ink",
+  rawColor,
+  label,
+}: IconProps) {
   const Glyph = icons[name];
   const resolved = useThemeColor(color);
 

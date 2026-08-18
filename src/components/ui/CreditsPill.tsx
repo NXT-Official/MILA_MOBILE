@@ -3,17 +3,6 @@ import { Pressable, Text, View } from "react-native";
 import { Icon } from "@/components/ui/Icon";
 import { Skeleton } from "@/components/ui/Skeleton";
 
-/**
- * `ai_credits + purchased_credits`, and nothing else.
- *
- * It does not predict the daily reset, does not decrement when a look is
- * generated, and nothing in the app branches on the number it shows. The
- * server's `INSUFFICIENT_CREDITS` is the only authority on affordability (§7),
- * so this is a readout, not a gate.
- *
- * An unreadable balance renders as a dash. A stale or guessed number on the
- * screen a member checks before spending would be worse than an honest gap.
- */
 export function CreditsPill({
   balance,
   loading,
@@ -24,7 +13,7 @@ export function CreditsPill({
   onPress: () => void;
 }) {
   if (loading) {
-    return <Skeleton className="h-8 w-16 rounded-pill" />;
+    return <Skeleton className="h-9 w-[72px] rounded-pill" />;
   }
 
   const known = balance !== null;
@@ -33,14 +22,43 @@ export function CreditsPill({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={
-        known ? `${balance} credits. View membership plans.` : "Credits unavailable. View membership plans."
+        known
+          ? `${balance} AI credits. View membership plans and credits.`
+          : "Credits unavailable. View membership plans and credits."
       }
       onPress={onPress}
-      className="active:opacity-90 min-h-tap justify-center"
+      className="min-h-tap justify-center active:opacity-80"
     >
-      <View className="flex-row items-center gap-xs rounded-pill bg-accent-soft px-md py-xs">
-        <Icon name="sparkle" size="xs" color="ink" />
-        <Text className="font-body-semibold text-micro text-ink">{known ? balance : "—"}</Text>
+      <View
+        className="
+          h-9
+          flex-row
+          items-center
+          justify-center
+          gap-1.5
+          rounded-pill
+          border
+          border-border/60
+          bg-surface/40
+          px-3
+          dark:border-white/10
+          dark:bg-white/5
+        "
+      >
+        <Icon name="coins" size="xs" color="accent" />
+
+        <Text
+          className="
+            font-body-semibold
+            text-micro
+            tracking-label-wide
+            text-ink
+
+            dark:text-white/90
+          "
+        >
+          {known ? balance : "—"}
+        </Text>
       </View>
     </Pressable>
   );

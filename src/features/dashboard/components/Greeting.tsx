@@ -36,7 +36,8 @@ export function Greeting({
         {greeting(new Date(), fullName)}.
       </Text>
       <Text className="font-body text-base text-body">
-        Let Mila compose an ideal OOTD for today&apos;s weather, your palette, and your silhouette.
+        Let Mila compose an ideal OOTD for today&apos;s weather, your palette,
+        and your silhouette.
       </Text>
     </View>
   );

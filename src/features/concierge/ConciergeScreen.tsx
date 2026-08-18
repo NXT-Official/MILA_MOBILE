@@ -16,12 +16,12 @@ import { Badge } from "@/components/ui/Badge";
 import { Icon } from "@/components/ui/Icon";
 import { queryKeys } from "@/constants/query-keys";
 import { useCountdown } from "@/hooks/use-countdown";
-import { useHaptics } from "@/hooks/use-haptics";
 import { useDictation } from "@/hooks/use-dictation";
+import { useHaptics } from "@/hooks/use-haptics";
 import { useNetworkStatus } from "@/hooks/use-network-status";
 import { useProfile } from "@/hooks/use-profile";
-import { camera } from "@/services/camera";
 import { formatRetryAfter, resolveApiFailure } from "@/services/api/client";
+import { camera } from "@/services/camera";
 import { useAuthStore } from "@/stores/auth-store";
 import { useConciergeStore } from "@/stores/concierge-store";
 import { spacing } from "@/theme/tokens";
@@ -119,12 +119,17 @@ export function ConciergeScreen() {
       return;
     }
     if (failure.kind === "rate-limited") {
-      setRateLimitedUntil(Date.now() + (failure.retryAfterSeconds ?? 60) * 1000);
+      setRateLimitedUntil(
+        Date.now() + (failure.retryAfterSeconds ?? 60) * 1000,
+      );
       return;
     }
     if (failure.kind === "suspended" || failure.kind === "auth") {
       // The root gate owns the redirect; re-reading the profile makes it decide.
-      if (userId) void queryClient.invalidateQueries({ queryKey: queryKeys.profile(userId) });
+      if (userId)
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.profile(userId),
+        });
     }
   }
 
@@ -171,7 +176,13 @@ export function ConciergeScreen() {
     setAttachError(null);
 
     send.mutate(
-      { message, thread, conversationId, lookId: anchoredLook?.id ?? null, imageUri },
+      {
+        message,
+        thread,
+        conversationId,
+        lookId: anchoredLook?.id ?? null,
+        imageUri,
+      },
       {
         onSuccess: (result) => {
           haptics.success();
@@ -186,7 +197,11 @@ export function ConciergeScreen() {
             ...current.map((m) =>
               m.id === pendingId ? { ...m, imageUrl: result.imageUrl } : m,
             ),
-            { id: `${pendingId}-reply`, role: "assistant", content: result.reply },
+            {
+              id: `${pendingId}-reply`,
+              role: "assistant",
+              content: result.reply,
+            },
           ]);
           AccessibilityInfo.announceForAccessibility("Mila replied.");
         },
@@ -194,7 +209,9 @@ export function ConciergeScreen() {
           // The message stays on screen, marked, and the text returns to the
           // composer. Nothing she wrote is discarded (§7 of the checklist).
           setMessages((current) =>
-            current.map((m) => (m.id === pendingId ? { ...m, failed: true } : m)),
+            current.map((m) =>
+              m.id === pendingId ? { ...m, failed: true } : m,
+            ),
           );
           setDraft(message);
           // The photo goes back with the text. Re-picking it after a dropped
@@ -299,12 +316,15 @@ export function ConciergeScreen() {
 
         {/* The composer sits above the gesture bar or the button navigation bar,
             whichever the device has — never a hardcoded inset (§9). */}
-        <View className="gap-md" style={{ paddingBottom: insets.bottom }}>
+        <View className="gap-md" style={{ paddingBottom: insets.bottom - 16 }}>
           {/* Prefill only: a tap here never sends and never spends a credit.
               Shown only against an empty box, so a chip can never overwrite a
               question she has already started writing. */}
           {draft.trim().length === 0 ? (
-            <SuggestedActions anchored={Boolean(anchoredLook)} onSelect={setDraft} />
+            <SuggestedActions
+              anchored={Boolean(anchoredLook)}
+              onSelect={setDraft}
+            />
           ) : null}
 
           <Composer
