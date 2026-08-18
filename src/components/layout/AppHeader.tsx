@@ -4,22 +4,26 @@ import { Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { CreditsPill } from "@/components/ui/CreditsPill";
+import { Divider } from "@/components/ui/Divider";
 import { Icon } from "@/components/ui/Icon";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { images } from "@/constants/images";
 import { useCreditBalance, useCredits } from "@/hooks/use-credits";
+import { useProfile } from "@/hooks/use-profile";
 import { useThemeStore } from "@/stores/theme-store";
 import { useAppliedTheme } from "@/theme/theme";
 
 /**
- * Wordmark, balance, theme — on every signed-in page, as on the web.
+ * Wordmark, balance, theme, avatar — on every signed-in page, as on the web.
  *
  * Mounted once above the navigator in `app/_layout.tsx`, never by a screen. It
  * sources its own data rather than taking props: a global surface that each
  * screen had to feed would be a global surface each screen could forget to
  * feed, and the balance would silently differ by page.
  *
- * Deliberately three things. This sits above every screen in the app, and a
- * fourth control here is how a calm surface turns into a dashboard.
+ * Deliberately these four (§3.5) and no more. This sits above every screen in
+ * the app, and a fifth control here is how a calm surface turns into a
+ * dashboard.
  */
 export function AppHeader() {
   const insets = useSafeAreaInsets();
@@ -29,6 +33,11 @@ export function AppHeader() {
 
   const { isPending } = useCredits();
   const balance = useCreditBalance();
+
+  const { data: profile, isPending: profilePending } = useProfile();
+  // ponytail: first letter, same rule as the dossier monogram. A member with
+  // no name yet gets the brand's own initial rather than an empty circle.
+  const monogram = (profile?.full_name?.trim() || "M")[0].toUpperCase();
 
   return (
     // The header owns the notch. Everything below it is handed insets with the
@@ -72,8 +81,29 @@ export function AppHeader() {
               color="body"
             />
           </Pressable>
+
+          {/* The account entry, as the web's header avatar: everything the
+              membership drawer holds there lives behind /settings here. */}
+          {profilePending ? (
+            <Skeleton className="h-10 w-10 rounded-pill" />
+          ) : (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Your account, membership, and settings"
+              onPress={() => router.push("/settings")}
+              className="active:opacity-80 min-h-tap items-center justify-center"
+            >
+              <View className="h-10 w-10 items-center justify-center rounded-pill border border-border bg-surface">
+                <Text className="font-display text-sm text-ink">{monogram}</Text>
+              </View>
+            </Pressable>
+          )}
         </View>
       </View>
+
+      {/* The hairline the web header carries — the only thing separating a
+          scrolled screen from the wordmark above it. */}
+      <Divider />
     </View>
   );
 }
