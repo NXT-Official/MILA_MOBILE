@@ -29,8 +29,13 @@ export function EmptyState({
   className,
 }: EmptyStateProps) {
   return (
-    <View className={cn("items-center gap-md px-xl", className)}>
-      <Icon name={icon} size="lg" color="muted" />
+    <View
+      className={cn(
+        "items-center gap-md rounded-card border border-border bg-surface px-xl py-3xl dark:border-border/12",
+        className,
+      )}
+    >
+      <Icon name={icon} size="lg" color="accent" />
       <Text className="font-display text-h3 text-ink text-center">{title}</Text>
       <Text className="font-body text-base text-body text-center">{description}</Text>
       {actionLabel && onAction ? (
