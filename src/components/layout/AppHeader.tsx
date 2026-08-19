@@ -27,6 +27,20 @@ import { useAppliedTheme } from "@/theme/theme";
  * the app, and a fifth control here is how a calm surface turns into a
  * dashboard.
  */
+/**
+ * The one border every header control wears — `CreditsPill`'s glass chip, so
+ * balance, theme, Lens, and avatar read as a single row rather than four
+ * separate treatments. Only the diameter varies: 36 for the controls, 40 for
+ * the avatar, the same step the web header takes.
+ */
+const CHIP_SURFACE =
+  "rounded-pill border border-border/60 bg-surface/40 dark:border-white/10 dark:bg-white/5";
+
+/** The icon-only controls. The 44dp touch target stays on the Pressable. */
+const CHIP = `h-9 w-9 items-center justify-center ${CHIP_SURFACE}`;
+
+const AVATAR = `h-10 w-10 items-center justify-center ${CHIP_SURFACE}`;
+
 export function AppHeader() {
   const [accountOpen, setAccountOpen] = useState(false);
   const insets = useSafeAreaInsets();
@@ -77,13 +91,15 @@ export function AppHeader() {
             accessibilityRole="button"
             accessibilityLabel={`Switch to ${nextTheme} theme`}
             onPress={() => setPreference(nextTheme)}
-            className="active:opacity-60 h-tap w-tap items-center justify-center"
+            className="active:opacity-80 min-h-tap justify-center"
           >
-            <Icon
-              name={resolved === "dark" ? "light" : "dark"}
-              size="sm"
-              color="body"
-            />
+            <View className={CHIP}>
+              <Icon
+                name={resolved === "dark" ? "light" : "dark"}
+                size="sm"
+                color="body"
+              />
+            </View>
           </Pressable>
 
           {/* The web's header Lens chip, in the same slot. Icon-only: the
@@ -94,9 +110,11 @@ export function AppHeader() {
             accessibilityRole="button"
             accessibilityLabel="Open the Studio Lens"
             onPress={() => openLens(true)}
-            className="active:opacity-60 h-tap w-tap items-center justify-center"
+            className="active:opacity-80 min-h-tap justify-center"
           >
-            <Icon name="camera" size="sm" color="body" />
+            <View className={CHIP}>
+              <Icon name="camera" size="sm" color="body" />
+            </View>
           </Pressable>
 
           {/* The account entry, as the web's header avatar: it opens the same
@@ -110,7 +128,7 @@ export function AppHeader() {
               onPress={() => setAccountOpen(true)}
               className="active:opacity-80 min-h-tap items-center justify-center"
             >
-              <View className="h-10 w-10 items-center justify-center rounded-pill border border-border bg-surface">
+              <View className={AVATAR}>
                 <Text className="font-display text-sm text-ink">
                   {monogram}
                 </Text>
