@@ -25,7 +25,9 @@ import {
 import { AppHeader } from "@/components/layout/AppHeader";
 import { useAppDestination } from "@/features/auth/hooks/use-app-destination";
 import { useAuthListener } from "@/features/auth/hooks/use-auth-listener";
+import { LensSheet } from "@/features/lens/components/LensSheet";
 import { queryClient } from "@/services/query-client";
+import { useLensStore } from "@/stores/lens-store";
 import { useOnboardingStore } from "@/stores/onboarding-store";
 import { useThemeStore } from "@/stores/theme-store";
 import { ThemeProvider } from "@/theme/theme-provider";
@@ -50,6 +52,8 @@ function RootNavigator() {
   // preferences, location, or the review. Web latches `wasCompleteAtLoad` in its
   // onboarding layout against exactly this.
   const onboardingActive = useOnboardingStore((s) => s.active);
+  const lensOpen = useLensStore((s) => s.open);
+  const setLensOpen = useLensStore((s) => s.setOpen);
 
   useEffect(() => {
     if (ready) SplashScreen.hideAsync();
@@ -79,8 +83,8 @@ function RootNavigator() {
     !suspended &&
     (destination === "/onboarding/welcome" || onboardingActive);
 
-  const showHeader =
-    !signedOut && !suspended && !onboarding && !isFullBleed(pathname);
+  const inApp = !signedOut && !suspended && !onboarding;
+  const showHeader = inApp && !isFullBleed(pathname);
 
   return (
     // The header sits above the navigator, so it survives every push and every
@@ -113,7 +117,7 @@ function RootNavigator() {
             <Stack.Screen name="onboarding" />
           </Stack.Protected>
 
-          <Stack.Protected guard={!signedOut && !suspended && !onboarding}>
+          <Stack.Protected guard={inApp}>
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="membership/index" />
             <Stack.Screen name="history/index" />
@@ -147,6 +151,13 @@ function RootNavigator() {
           </Stack.Protected>
         </Stack>
       </SafeAreaInsetsContext.Provider>
+
+      {/* One mount, above the navigator, so the tab and the header's Lens
+          control open the same sheet — and it is not clipped by whichever
+          screen happens to be on top. */}
+      {inApp ? (
+        <LensSheet visible={lensOpen} onClose={() => setLensOpen(false)} />
+      ) : null}
     </View>
   );
 }

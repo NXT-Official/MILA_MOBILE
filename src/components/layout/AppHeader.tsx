@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { images } from "@/constants/images";
 import { useCreditBalance, useCredits } from "@/hooks/use-credits";
 import { useProfile } from "@/hooks/use-profile";
+import { useLensStore } from "@/stores/lens-store";
 import { useThemeStore } from "@/stores/theme-store";
 import { useAppliedTheme } from "@/theme/theme";
 
@@ -31,6 +32,7 @@ export function AppHeader() {
   const insets = useSafeAreaInsets();
   const { resolved } = useAppliedTheme();
   const setPreference = useThemeStore((s) => s.setPreference);
+  const openLens = useLensStore((s) => s.setOpen);
   const nextTheme = resolved === "dark" ? "light" : "dark";
 
   const { isPending } = useCredits();
@@ -84,6 +86,19 @@ export function AppHeader() {
             />
           </Pressable>
 
+          {/* The web's header Lens chip, in the same slot. Icon-only: the
+              label costs ~70dp the 360dp header does not have once the wordmark,
+              balance, theme, and avatar are placed. The sheet it opens is
+              mounted at the root, so this works on the screens with no tab bar. */}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Open the Studio Lens"
+            onPress={() => openLens(true)}
+            className="active:opacity-60 h-tap w-tap items-center justify-center"
+          >
+            <Icon name="camera" size="sm" color="body" />
+          </Pressable>
+
           {/* The account entry, as the web's header avatar: it opens the same
               membership drawer content, presented as a sheet. */}
           {profilePending ? (
@@ -105,7 +120,10 @@ export function AppHeader() {
         </View>
       </View>
 
-      <AccountSheet visible={accountOpen} onClose={() => setAccountOpen(false)} />
+      <AccountSheet
+        visible={accountOpen}
+        onClose={() => setAccountOpen(false)}
+      />
     </View>
   );
 }
