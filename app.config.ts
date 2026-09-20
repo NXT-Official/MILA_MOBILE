@@ -146,6 +146,20 @@ const config: ExpoConfig = {
         isIosBackgroundLocationEnabled: false,
       },
     ],
+    [
+      // Uploads debug symbols at build time so a native stack trace resolves
+      // to real source rather than addresses — `Sentry.init` itself lives in
+      // `services/crash-reporting.ts` and is a no-op without a DSN, but the
+      // symbol upload needs org/project regardless of whether reporting is
+      // enabled at runtime. Absent env vars mean the plugin just skips the
+      // upload rather than failing the build, so a contributor without
+      // Sentry credentials can still build locally.
+      "@sentry/react-native/expo",
+      {
+        organization: process.env.SENTRY_ORG,
+        project: process.env.SENTRY_PROJECT,
+      },
+    ],
   ],
 
   experiments: {

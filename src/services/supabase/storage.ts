@@ -7,6 +7,8 @@ import { supabase } from "./client";
 
 const BUCKET = "outfits";
 const POSTS_BUCKET = "posts";
+const PROFILE_PHOTOS_BUCKET = "profile-photos";
+const PROFILE_PHOTO_SIGNED_URL_TTL_SECONDS = 300;
 
 /** Bytes, not a Blob — see `uploadOutfitImage` for why. */
 async function readBytes(uri: string): Promise<Uint8Array> {
@@ -110,4 +112,40 @@ export async function uploadPostImage(
   if (error) throw error;
 
   return path;
+}
+
+/**
+ * The consented selfie the AI photo-edit pipeline composites onto — separate
+ * from `posts` and `outfits`, and private like `posts`: `profile-photos` has
+ * no public URL, so a caller wanting to display it needs
+ * `getSignedProfilePhotoUrl` below. Same `${userId}/` RLS prefix as every
+ * other bucket here.
+ */
+export async function uploadProfilePhoto(userId: string, uri: string): Promise<string> {
+  const path = `${userId}/${randomUUID()}.jpg`;
+  const bytes = await readBytes(uri);
+
+  const { error } = await supabase.storage.from(PROFILE_PHOTOS_BUCKET).upload(path, bytes, {
+    contentType: "image/jpeg",
+    // A fresh selfie always gets a fresh path — the caller deletes the old
+    // one only after the profile row's write to it succeeds (see
+    // `saveConsentedProfilePhoto`), so there is never a path to collide with.
+    upsert: false,
+  });
+  if (error) throw error;
+
+  return path;
+}
+
+/** Best-effort cleanup of a replaced or removed selfie — never blocks the caller. */
+export async function removeProfilePhoto(storagePath: string): Promise<void> {
+  await supabase.storage.from(PROFILE_PHOTOS_BUCKET).remove([storagePath]);
+}
+
+export async function getSignedProfilePhotoUrl(storagePath: string): Promise<string> {
+  const { data, error } = await supabase.storage
+    .from(PROFILE_PHOTOS_BUCKET)
+    .createSignedUrl(storagePath, PROFILE_PHOTO_SIGNED_URL_TTL_SECONDS);
+  if (error || !data?.signedUrl) throw error ?? new Error("The photo could not be loaded.");
+  return data.signedUrl;
 }

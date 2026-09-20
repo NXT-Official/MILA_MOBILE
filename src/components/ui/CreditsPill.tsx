@@ -13,7 +13,7 @@ export function CreditsPill({
   onPress: () => void;
 }) {
   if (loading) {
-    return <Skeleton className="h-9 w-[72px] rounded-pill" />;
+    return <Skeleton className="h-9 w-18 rounded-pill" />;
   }
 
   const known = balance !== null;

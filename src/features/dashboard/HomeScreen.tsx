@@ -32,6 +32,7 @@ import { HubSheet } from "./components/HubSheet";
 import { LookActions } from "./components/LookActions";
 import { LookDetail } from "@/components/ui/LookDetail";
 import { OutfitVisual, type OutfitVisualState } from "./components/OutfitVisual";
+import { SelfiePhotoWidget } from "./components/SelfiePhotoWidget";
 import { VibePicker, VibeSheet } from "./components/VibePicker";
 import { useGenerateLook } from "./hooks/use-generate-look";
 import { useLookImage } from "./hooks/use-look-image";
@@ -202,6 +203,8 @@ export function HomeScreen() {
           />
 
           <VibePicker onPress={() => setVibeSheetOpen(true)} />
+
+          <SelfiePhotoWidget hasConsent={Boolean(profile?.photo_consent_at)} />
 
           <View className="gap-md">
             <GenerateButton

@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  verify:
+    name: Typecheck, lint, test, doctor
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      # 22.x to match .nvmrc and package.json's engines field - a CI run on a
+      # different major version is not testing what local dev or EAS Build
+      # actually run.
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      # The lockfile is committed and kept in sync with package.json, so
+      # npm ci is the right choice here: it fails fast on drift instead of
+      # silently re-resolving, which is exactly what CI should catch.
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npx tsc --noEmit --pretty false
+
+      - name: Lint
+        run: npx expo lint
+
+      - name: Test
+        run: npx jest --ci
+
+      - name: Expo doctor
+        run: npx expo-doctor

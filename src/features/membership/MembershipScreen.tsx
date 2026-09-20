@@ -23,11 +23,13 @@ import { PlanCard } from "./components/PlanCard";
  * Paddle webhook — the system of record (§9). Nothing here decides access, and
  * there is no optimistic state anywhere, so there is nothing to roll back.
  *
- * **No checkout.** Purchase, cancel, and resume are gated on Appendix D.1
- * (Paddle hosted checkout vs. native IAP), which is still an open product
- * decision. Until it is recorded there is deliberately no purchase affordance
- * at all — not even a disabled one, which would advertise something the app
- * cannot do and would have to be unpicked if the answer is IAP.
+ * **No checkout, permanently.** Appendix D.1 (Paddle hosted checkout vs.
+ * native IAP) is decided: Paddle stays web-only. Purchase, cancel, and resume
+ * live exclusively on the web app, and mobile shows entitlement status
+ * read-only. This is not a stopgap pending App Store/Play Store IAP review —
+ * there is no purchase affordance here at all, not even a disabled one, and
+ * none is planned. A disabled or "coming soon" CTA would advertise a mobile
+ * checkout that is not coming.
  */
 export function MembershipScreen() {
   const plans = useSubscriptionPlans();

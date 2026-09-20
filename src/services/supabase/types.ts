@@ -1,46 +1,65 @@
-export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[];
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.5";
   };
   public: {
     Tables: {
-      ad_events: {
+      ai_spend_log: {
         Row: {
-          ad_type: string;
+          completion_tokens: number | null;
+          cost_usd: number | null;
           created_at: string;
-          event: string;
           id: string;
           metadata: Json | null;
-          placement: string | null;
-          reward_amount: number | null;
-          reward_type: string | null;
-          user_id: string;
+          model: string;
+          prompt_tokens: number | null;
+          provider: string;
+          total_tokens: number | null;
+          user_id: string | null;
         };
         Insert: {
-          ad_type: string;
+          completion_tokens?: number | null;
+          cost_usd?: number | null;
           created_at?: string;
-          event: string;
           id?: string;
           metadata?: Json | null;
-          placement?: string | null;
-          reward_amount?: number | null;
-          reward_type?: string | null;
-          user_id: string;
+          model: string;
+          prompt_tokens?: number | null;
+          provider: string;
+          total_tokens?: number | null;
+          user_id?: string | null;
         };
         Update: {
-          ad_type?: string;
+          completion_tokens?: number | null;
+          cost_usd?: number | null;
           created_at?: string;
-          event?: string;
           id?: string;
           metadata?: Json | null;
-          placement?: string | null;
-          reward_amount?: number | null;
-          reward_type?: string | null;
-          user_id?: string;
+          model?: string;
+          prompt_tokens?: number | null;
+          provider?: string;
+          total_tokens?: number | null;
+          user_id?: string | null;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "ai_spend_log_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       brands: {
         Row: {
@@ -48,6 +67,7 @@ export type Database = {
           commission_rate: number | null;
           created_at: string;
           id: string;
+          is_verified_seller: boolean;
           logo_url: string | null;
           name: string;
           status: string;
@@ -59,6 +79,7 @@ export type Database = {
           commission_rate?: number | null;
           created_at?: string;
           id?: string;
+          is_verified_seller?: boolean;
           logo_url?: string | null;
           name: string;
           status?: string;
@@ -70,6 +91,7 @@ export type Database = {
           commission_rate?: number | null;
           created_at?: string;
           id?: string;
+          is_verified_seller?: boolean;
           logo_url?: string | null;
           name?: string;
           status?: string;
@@ -278,50 +300,82 @@ export type Database = {
           image_url_front?: string;
           user_id?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "posts_generated_look_id_fkey";
+            columns: ["generated_look_id"];
+            isOneToOne: false;
+            referencedRelation: "outfits";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       products: {
         Row: {
           affiliate_link: string;
+          available_regions: string[];
           body_shapes: string[];
           brand_id: string;
           category: string;
           currency: string;
           date_added: string;
           description: string | null;
+          discount_percent: number | null;
           id: string;
           image_url: string | null;
+          in_stock: boolean;
+          last_verified_at: string | null;
           price: number;
+          rating: number | null;
           seasonal_palettes: string[];
+          shipping_info: string | null;
           title: string;
+          units_sold: number | null;
+          verification_status: string;
         };
         Insert: {
           affiliate_link: string;
+          available_regions?: string[];
           body_shapes?: string[];
           brand_id: string;
           category: string;
           currency?: string;
           date_added?: string;
           description?: string | null;
+          discount_percent?: number | null;
           id?: string;
           image_url?: string | null;
+          in_stock?: boolean;
+          last_verified_at?: string | null;
           price?: number;
+          rating?: number | null;
           seasonal_palettes?: string[];
+          shipping_info?: string | null;
           title: string;
+          units_sold?: number | null;
+          verification_status?: string;
         };
         Update: {
           affiliate_link?: string;
+          available_regions?: string[];
           body_shapes?: string[];
           brand_id?: string;
           category?: string;
           currency?: string;
           date_added?: string;
           description?: string | null;
+          discount_percent?: number | null;
           id?: string;
           image_url?: string | null;
+          in_stock?: boolean;
+          last_verified_at?: string | null;
           price?: number;
+          rating?: number | null;
           seasonal_palettes?: string[];
+          shipping_info?: string | null;
           title?: string;
+          units_sold?: number | null;
+          verification_status?: string;
         };
         Relationships: [
           {
@@ -341,16 +395,27 @@ export type Database = {
           color_season: string | null;
           created_at: string;
           default_location: string | null;
+          delivery_country: string | null;
           face_shape: string | null;
           full_name: string | null;
+          gender: string | null;
+          hair_length: string | null;
           hair_type: string | null;
+          height_cm: number | null;
           id: string;
+          makeup_preference: string;
           paddle_customer_id: string | null;
+          photo_consent_at: string | null;
+          profile_photo_path: string | null;
+          shopping_preferences: Json;
+          skin_depth: string | null;
           skin_undertone: string | null;
           style_goals: string[];
+          styling_constraints: Json;
           suspended: boolean;
           updated_at: string;
           username: string | null;
+          weight_kg: number | null;
         };
         Insert: {
           beauty_preferences?: Json;
@@ -359,16 +424,27 @@ export type Database = {
           color_season?: string | null;
           created_at?: string;
           default_location?: string | null;
+          delivery_country?: string | null;
           face_shape?: string | null;
           full_name?: string | null;
+          gender?: string | null;
+          hair_length?: string | null;
           hair_type?: string | null;
+          height_cm?: number | null;
           id: string;
+          makeup_preference?: string;
           paddle_customer_id?: string | null;
+          photo_consent_at?: string | null;
+          profile_photo_path?: string | null;
+          shopping_preferences?: Json;
+          skin_depth?: string | null;
           skin_undertone?: string | null;
           style_goals?: string[];
+          styling_constraints?: Json;
           suspended?: boolean;
           updated_at?: string;
           username?: string | null;
+          weight_kg?: number | null;
         };
         Update: {
           beauty_preferences?: Json;
@@ -377,16 +453,27 @@ export type Database = {
           color_season?: string | null;
           created_at?: string;
           default_location?: string | null;
+          delivery_country?: string | null;
           face_shape?: string | null;
           full_name?: string | null;
+          gender?: string | null;
+          hair_length?: string | null;
           hair_type?: string | null;
+          height_cm?: number | null;
           id?: string;
+          makeup_preference?: string;
           paddle_customer_id?: string | null;
+          photo_consent_at?: string | null;
+          profile_photo_path?: string | null;
+          shopping_preferences?: Json;
+          skin_depth?: string | null;
           skin_undertone?: string | null;
           style_goals?: string[];
+          styling_constraints?: Json;
           suspended?: boolean;
           updated_at?: string;
           username?: string | null;
+          weight_kg?: number | null;
         };
         Relationships: [];
       };
@@ -399,7 +486,7 @@ export type Database = {
           metadata: Json | null;
           product_id: string;
           status: string;
-          user_id: string;
+          user_id: string | null;
         };
         Insert: {
           amount_cents: number;
@@ -409,7 +496,7 @@ export type Database = {
           metadata?: Json | null;
           product_id: string;
           status?: string;
-          user_id: string;
+          user_id?: string | null;
         };
         Update: {
           amount_cents?: number;
@@ -419,7 +506,93 @@ export type Database = {
           metadata?: Json | null;
           product_id?: string;
           status?: string;
+          user_id?: string | null;
+        };
+        Relationships: [];
+      };
+      rate_limit_buckets: {
+        Row: {
+          count: number;
+          expires_at: string | null;
+          key: string;
+          window_start: string;
+        };
+        Insert: {
+          count?: number;
+          expires_at?: string | null;
+          key: string;
+          window_start: string;
+        };
+        Update: {
+          count?: number;
+          expires_at?: string | null;
+          key?: string;
+          window_start?: string;
+        };
+        Relationships: [];
+      };
+      saved_palettes: {
+        Row: {
+          created_at: string;
+          id: string;
+          palette: Json;
+          style_vibe: string;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          palette: Json;
+          style_vibe: string;
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          palette?: Json;
+          style_vibe?: string;
           user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "saved_palettes_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      staff_audit_log: {
+        Row: {
+          action: string;
+          actor_user_id: string;
+          created_at: string;
+          id: string;
+          metadata: Json;
+          target_id: string | null;
+          target_type: string;
+          target_user_id: string | null;
+        };
+        Insert: {
+          action: string;
+          actor_user_id: string;
+          created_at?: string;
+          id?: string;
+          metadata?: Json;
+          target_id?: string | null;
+          target_type: string;
+          target_user_id?: string | null;
+        };
+        Update: {
+          action?: string;
+          actor_user_id?: string;
+          created_at?: string;
+          id?: string;
+          metadata?: Json;
+          target_id?: string | null;
+          target_type?: string;
+          target_user_id?: string | null;
         };
         Relationships: [];
       };
@@ -563,7 +736,6 @@ export type Database = {
       };
       user_entitlements: {
         Row: {
-          ads_removed: boolean;
           ai_credits: number;
           created_at: string;
           credits_reset_at: string | null;
@@ -573,7 +745,6 @@ export type Database = {
           user_id: string;
         };
         Insert: {
-          ads_removed?: boolean;
           ai_credits?: number;
           created_at?: string;
           credits_reset_at?: string | null;
@@ -583,7 +754,6 @@ export type Database = {
           user_id: string;
         };
         Update: {
-          ads_removed?: boolean;
           ai_credits?: number;
           created_at?: string;
           credits_reset_at?: string | null;
@@ -623,89 +793,6 @@ export type Database = {
           },
         ];
       };
-      saved_palettes: {
-        Row: {
-          created_at: string;
-          id: string;
-          palette: Json;
-          style_vibe: string;
-          user_id: string;
-        };
-        Insert: {
-          created_at?: string;
-          id?: string;
-          palette: Json;
-          style_vibe: string;
-          user_id: string;
-        };
-        Update: {
-          created_at?: string;
-          id?: string;
-          palette?: Json;
-          style_vibe?: string;
-          user_id?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: "saved_palettes_user_id_fkey";
-            columns: ["user_id"];
-            isOneToOne: false;
-            referencedRelation: "profiles";
-            referencedColumns: ["id"];
-          },
-        ];
-      };
-      rate_limit_buckets: {
-        Row: {
-          count: number;
-          key: string;
-          window_start: string;
-        };
-        Insert: {
-          count?: number;
-          key: string;
-          window_start: string;
-        };
-        Update: {
-          count?: number;
-          key?: string;
-          window_start?: string;
-        };
-        Relationships: [];
-      };
-      staff_audit_log: {
-        Row: {
-          action: string;
-          actor_user_id: string;
-          created_at: string;
-          id: string;
-          metadata: Json;
-          target_id: string | null;
-          target_type: string;
-          target_user_id: string | null;
-        };
-        Insert: {
-          action: string;
-          actor_user_id: string;
-          created_at?: string;
-          id?: string;
-          metadata?: Json;
-          target_id?: string | null;
-          target_type: string;
-          target_user_id?: string | null;
-        };
-        Update: {
-          action?: string;
-          actor_user_id?: string;
-          created_at?: string;
-          id?: string;
-          metadata?: Json;
-          target_id?: string | null;
-          target_type?: string;
-          target_user_id?: string | null;
-        };
-        Relationships: [];
-      };
       user_roles: {
         Row: {
           created_at: string;
@@ -734,10 +821,10 @@ export type Database = {
     Functions: {
       check_rate_limit: {
         Args: {
+          _cost?: number;
           _key: string;
           _limit: number;
           _window_seconds: number;
-          _cost?: number;
         };
         Returns: {
           allowed: boolean;
@@ -747,21 +834,18 @@ export type Database = {
         }[];
       };
       consume_ai_credit: {
-        Args: {
-          _user_id: string;
-          _daily_allowance: number;
-        };
+        Args: { _daily_allowance: number; _user_id: string };
         Returns: {
           allowed: boolean;
           remaining: number;
         }[];
       };
+      derive_username: {
+        Args: { desired: string; email: string };
+        Returns: string;
+      };
       grant_ai_credits: {
-        Args: {
-          _user_id: string;
-          _daily_allowance: number;
-          _amount: number;
-        };
+        Args: { _amount: number; _daily_allowance: number; _user_id: string };
         Returns: number;
       };
       has_role: {
@@ -800,7 +884,10 @@ export type Database = {
 
 type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">;
 
-type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">];
+type DefaultSchema = DatabaseWithoutInternals[Extract<
+  keyof Database,
+  "public"
+>];
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
@@ -821,8 +908,10 @@ export type Tables<
     }
     ? R
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
-    ? (DefaultSchema["Tables"] & DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
         Row: infer R;
       }
       ? R
@@ -895,7 +984,8 @@ export type Enums<
 
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
-    keyof DefaultSchema["CompositeTypes"] | { schema: keyof DatabaseWithoutInternals },
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
   CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals;
   }

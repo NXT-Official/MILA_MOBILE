@@ -8,18 +8,21 @@
       "developmentClient": true,
       "distribution": "internal",
       "channel": "development",
+      "node": "22.13.0",
       "env": { "APP_VARIANT": "development" },
       "android": { "buildType": "apk" }
     },
     "preview": {
       "distribution": "internal",
       "channel": "preview",
+      "node": "22.13.0",
       "env": { "APP_VARIANT": "preview" },
       "android": { "buildType": "apk" }
     },
     "production": {
       "channel": "production",
       "autoIncrement": true,
+      "node": "22.13.0",
       "env": { "APP_VARIANT": "production" },
       "android": { "buildType": "app-bundle" }
     }

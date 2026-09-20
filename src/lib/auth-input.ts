@@ -52,3 +52,16 @@ export type SignupFormValues = z.infer<typeof SignupForm>;
 
 export const ResetRequest = z.object({ email }).strict();
 export type ResetRequestValues = z.infer<typeof ResetRequest>;
+
+/**
+ * `confirmPassword` never leaves the device — Supabase only ever sees
+ * `password`. The refine lives here rather than inline in the screen so the
+ * mismatch message stays next to the rest of the auth copy.
+ */
+export const NewPasswordForm = z
+  .object({ password, confirmPassword: password })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords do not match.",
+    path: ["confirmPassword"],
+  });
+export type NewPasswordFormValues = z.infer<typeof NewPasswordForm>;

@@ -9,6 +9,7 @@ import { Inter_600SemiBold } from "@expo-google-fonts/inter/600SemiBold";
 import { PlayfairDisplay_700Bold } from "@expo-google-fonts/playfair-display/700Bold";
 import { PlayfairDisplay_800ExtraBold } from "@expo-google-fonts/playfair-display/800ExtraBold";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
+import * as Sentry from "@sentry/react-native";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { useFonts } from "expo-font";
 import { Stack, usePathname } from "expo-router";
@@ -26,6 +27,10 @@ import { AppHeader } from "@/components/layout/AppHeader";
 import { useAppDestination } from "@/features/auth/hooks/use-app-destination";
 import { useAuthListener } from "@/features/auth/hooks/use-auth-listener";
 import { LensSheet } from "@/features/lens/components/LensSheet";
+// Imported for its side effect only, and as early as this module allows:
+// `Sentry.init` needs to run before anything else in the tree can throw, so a
+// crash during font loading or session resolution below is still reported.
+import "@/services/crash-reporting";
 import { queryClient } from "@/services/query-client";
 import { useLensStore } from "@/stores/lens-store";
 import { useOnboardingStore } from "@/stores/onboarding-store";
@@ -77,13 +82,15 @@ function RootNavigator() {
   }
 
   const signedOut = destination === "/login";
+  const recovery = destination === "/reset-password";
   const suspended = destination === "/suspended";
   const onboarding =
     !signedOut &&
+    !recovery &&
     !suspended &&
     (destination === "/onboarding/welcome" || onboardingActive);
 
-  const inApp = !signedOut && !suspended && !onboarding;
+  const inApp = !signedOut && !recovery && !suspended && !onboarding;
   const showHeader = inApp && !isFullBleed(pathname);
 
   return (
@@ -105,6 +112,15 @@ function RootNavigator() {
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Protected guard={signedOut}>
             <Stack.Screen name="(auth)" />
+          </Stack.Protected>
+
+          {/* Reachable regardless of session state: the recovery link Supabase
+          emails signs the member into a temporary session, which would
+          otherwise satisfy `inApp` (or even `onboarding`) and race her into
+          the app before she has set a new password. `recovery` is latched
+          ahead of that session existing — see `resolveDestination`. */}
+          <Stack.Protected guard={recovery}>
+            <Stack.Screen name="reset-password" />
           </Stack.Protected>
 
           <Stack.Protected guard={suspended}>
@@ -137,16 +153,22 @@ function RootNavigator() {
               options={{ presentation: "fullScreenModal" }}
             />
             <Stack.Screen name="profile/[userId]" />
-            {/* Full-screen so the camera is not letterboxed by the tab bar (§4). */}
+            {/* Full-screen so the camera is not letterboxed by the tab bar (§4).
+            `gestureEnabled: false` because DualCaptureScreen's own back
+            handling only wires Android's hardware button (`BackHandler`) —
+            iOS's edge-swipe-to-pop is a separate gesture recognizer that
+            keeps running underneath unless the screen option turns it off,
+            and a swipe here would pop the modal past the discard-confirmation
+            it is supposed to gate. */}
             <Stack.Screen
               name="lens-capture"
-              options={{ presentation: "fullScreenModal" }}
+              options={{ presentation: "fullScreenModal", gestureEnabled: false }}
             />
             {/* Same reason, and the dual capture also owns the back gesture while a
             shot is in hand — see DualCaptureScreen. */}
             <Stack.Screen
               name="publish"
-              options={{ presentation: "fullScreenModal" }}
+              options={{ presentation: "fullScreenModal", gestureEnabled: false }}
             />
           </Stack.Protected>
         </Stack>
@@ -176,7 +198,11 @@ function isFullBleed(pathname: string): boolean {
   );
 }
 
-export default function RootLayout() {
+// `Sentry.wrap` adds an error boundary and touch-event breadcrumbs around the
+// whole tree at no cost when reporting is disabled — `enabled: false` (no
+// DSN) makes the wrapped client a no-op, so this is safe on every developer
+// machine and every build that has not been given a DSN.
+function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
     PlayfairDisplay_700Bold,
     PlayfairDisplay_800ExtraBold,
@@ -206,3 +232,5 @@ export default function RootLayout() {
     </GestureHandlerRootView>
   );
 }
+
+export default Sentry.wrap(RootLayout);

@@ -4,13 +4,20 @@
 > [`docs/mobile-architecture.md`](../mobile-architecture.md) — §7 credit model, §9 payment
 > integration, §15 Phase 9, Appendix D.1.
 
-> ### Blocked by a product decision
+> ### Superseded by a final product decision — mobile checkout will not be built
 >
-> **Appendix D.1 — Paddle web checkout vs. native IAP.** Apple and Google generally require their own
-> in-app purchase systems for digital content consumed inside an app; a Paddle web checkout may be
-> rejected at review. **Do not begin this phase, and do not submit a build containing it, before that
-> decision is recorded.** The architecture isolates the change to the checkout step and one webhook
-> source, so deciding late is bounded — but discovering it at review is a rejected binary.
+> **Appendix D.1 — Paddle web checkout vs. native IAP — is decided.** Paddle stays web-only,
+> permanently. Mobile shows entitlement status read-only — plan, renewal/end date, and credits — and
+> never gets a purchase, cancel, or resume affordance. `MembershipScreen` and `PlanCard` already ship
+> the decided version.
+>
+> Everything below this notice describes the checkout implementation that was **planned** before the
+> decision and is kept as the historical record of what was considered — the rationale for why a Paddle
+> web checkout risked App Store/Play Store rejection is still the correct rationale, it is just no
+> longer a question this phase resolves by building around it. **Tasks 3, 5, 6, 8, 9, 11, and 12 below,
+> and the Paddle-sandbox checkout items in the Testing Checklist, do not apply to mobile and will not be
+> implemented here.** Nothing in this phase should be started on the strength of the old "blocked,
+> pending decision" framing; the decision has been made and it is "no."
 
 ## Goal
 
@@ -40,8 +47,8 @@ it does. She always knows which state she is in and when it changes.
 
 ## Not Included
 
-- Native in-app purchase. If Appendix D.1 lands on IAP, the checkout step and one webhook source
-  change; **everything else in this phase stays**
+- Native in-app purchase. Appendix D.1 is decided against it — Paddle stays web-only, permanently —
+  so this is not a pending branch; native IAP will not be added to mobile
 - Any client-side entitlement calculation
 - Promo codes, trials, or plan management beyond cancel and resume
 - Invoice history or receipts
@@ -68,7 +75,9 @@ it does. She always knows which state she is in and when it changes.
 
 Ordered. Each task is one commit.
 
-1. **Confirm Appendix D.1 is decided and recorded.** If it is not, stop — this phase is blocked.
+1. ~~Confirm Appendix D.1 is decided and recorded.~~ **Decided: Paddle stays web-only,
+   permanently.** The checkout-implementation tasks below (3, 5, 6, 8, 9, 11, 12) are historical
+   record of the plan that predates this decision and do not apply to mobile.
 2. **Copy `lib/subscription-plans.ts` and `constants/subscriptions.ts` verbatim** — price formatting,
    interval labels, and `IN_FORCE_SUBSCRIPTION_STATUSES`.
 3. **Write `services/api/billing.ts`** — `getCheckoutUrl`, `syncPaddlePurchase`,
@@ -195,5 +204,6 @@ Users can purchase and access membership features:
 - Sandbox purchase, cancel, and resume are exercised end to end on a real device
 - **Entitlement always comes from Supabase**, never from a device signal
 - No payment state is computed, cached optimistically, or trusted client-side
-- Appendix D.1 is decided and recorded before any store submission
+- Appendix D.1 is decided and recorded: Paddle stays web-only, permanently — nothing further needed
+  here before store submission on this point
 - Phase 00–08 gates still pass, and §17 of the architecture doc passes

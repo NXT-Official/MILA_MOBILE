@@ -2,6 +2,11 @@ import { assertWritableColumns } from "@/lib/profile-columns";
 import { deriveColorMetrics } from "@/lib/profile-color";
 import { supabase } from "@/services/supabase/client";
 import {
+  getSignedProfilePhotoUrl,
+  removeProfilePhoto,
+  uploadProfilePhoto,
+} from "@/services/supabase/storage";
+import {
   PROFILE_READ_COLUMNS,
   type DashboardProfile,
   type Json,
@@ -27,6 +32,11 @@ const EMPTY_PROFILE: DashboardProfile = {
   default_location: null,
   style_goals: [],
   suspended: false,
+  photo_consent_at: null,
+  profile_photo_path: null,
+  skin_depth: null,
+  height_cm: null,
+  weight_kg: null,
 };
 
 type ProfileRow = {
@@ -41,6 +51,11 @@ type ProfileRow = {
   default_location: string | null;
   style_goals: string[] | null;
   suspended: boolean;
+  photo_consent_at: string | null;
+  profile_photo_path: string | null;
+  skin_depth: string | null;
+  height_cm: number | null;
+  weight_kg: number | null;
 };
 
 function normalizeFirstWord(v: unknown): string | null {
@@ -78,6 +93,11 @@ function buildDashboardProfile(data: ProfileRow | null): DashboardProfile {
     default_location: data.default_location ?? null,
     style_goals: data.style_goals ?? [],
     suspended: data.suspended === true,
+    photo_consent_at: data.photo_consent_at ?? null,
+    profile_photo_path: data.profile_photo_path ?? null,
+    skin_depth: data.skin_depth ?? null,
+    height_cm: data.height_cm ?? null,
+    weight_kg: data.weight_kg ?? null,
   };
 }
 
@@ -107,6 +127,9 @@ export type StyleProfileUpdate = {
   beauty_preferences?: Json;
   default_location?: string | null;
   style_goals?: string[];
+  skin_depth?: string | null;
+  height_cm?: number | null;
+  weight_kg?: number | null;
 };
 
 export async function updateStyleProfile(
@@ -121,4 +144,58 @@ export async function updateStyleProfile(
     .eq("id", userId);
 
   if (error) throw error;
+}
+
+async function currentProfilePhotoPath(userId: string): Promise<string | null> {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("profile_photo_path")
+    .eq("id", userId)
+    .maybeSingle();
+  if (error) throw error;
+  return data?.profile_photo_path ?? null;
+}
+
+/**
+ * The same consent onboarding's colour scan and Style Profile already set —
+ * saving here is a shortcut to it, not a separate flag. "Create My Look"
+ * checks `photo_consent_at` before its AI photo-edit step, so this is picked
+ * up on the member's next generation with no other change needed.
+ *
+ * Upload-then-swap, not swap-then-upload: the previous photo stays live and
+ * usable until the new one is confirmed written to the profile row, and is
+ * only removed after — a failed write leaves her with the old photo intact
+ * rather than no photo at all.
+ */
+export async function saveConsentedProfilePhoto(userId: string, uri: string): Promise<void> {
+  const previousPath = await currentProfilePhotoPath(userId);
+  const storagePath = await uploadProfilePhoto(userId, uri);
+
+  const payload = { profile_photo_path: storagePath, photo_consent_at: new Date().toISOString() };
+  assertWritableColumns(payload);
+  const { error } = await supabase.from("profiles").update(payload).eq("id", userId);
+  if (error) {
+    await removeProfilePhoto(storagePath);
+    throw error;
+  }
+
+  if (previousPath) await removeProfilePhoto(previousPath);
+}
+
+export async function deleteMyProfilePhoto(userId: string): Promise<void> {
+  const previousPath = await currentProfilePhotoPath(userId);
+
+  const payload = { profile_photo_path: null, photo_consent_at: null };
+  assertWritableColumns(payload);
+  const { error } = await supabase.from("profiles").update(payload).eq("id", userId);
+  if (error) throw error;
+
+  if (previousPath) await removeProfilePhoto(previousPath);
+}
+
+/** A signed thumbnail URL for the currently consented photo, or `null` if none. */
+export async function fetchProfilePhotoUrl(userId: string): Promise<string | null> {
+  const path = await currentProfilePhotoPath(userId);
+  if (!path) return null;
+  return getSignedProfilePhotoUrl(path);
 }

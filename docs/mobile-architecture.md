@@ -1329,12 +1329,21 @@ Look generation is 5–15s; image generation up to 75s. On a phone that is an et
 
 ## 9. Payment Integration
 
-> **Store-policy note, stated once.** Apple and Google generally require their own in-app purchase
-> systems for digital content consumed inside an app. A Paddle web checkout may be rejected at
-> review. The stack specifies Paddle, so this section builds Paddle; the migration path to native
-> IAP is documented at the end of this section, and the decision is recorded in
-> [Appendix D](#appendix-d--open-decisions). Nothing below has to be rebuilt if IAP is added later —
-> only the checkout step and one webhook source change.
+> **Superseded — Appendix D.1 is decided, and the decision is "no."** Paddle stays web-only,
+> permanently. Mobile does not implement checkout, does not open a Paddle-hosted session, and does
+> not carry `custom_data.user_id` through a `mila://checkout-return` redirect — none of it. Mobile's
+> only involvement with payment is **read-only entitlement display**: current plan, renewal or end
+> date, and credit balance, sourced the normal way from `subscriptions` and `user_entitlements` (see
+> [Appendix D](#appendix-d--open-decisions), item 1). `MembershipScreen` and `PlanCard` in the shipped
+> app already reflect this — there is no purchase, cancel, or resume UI anywhere in the mobile client.
+>
+> Everything below in this section — the sequence diagram, the `POST /billing/checkout-url` endpoint,
+> `services/checkout.ts`, and the membership screens' cancel/resume affordances — describes the mobile
+> checkout implementation that was **planned before the decision**. It is kept as the historical
+> record of what was considered and why (the store-policy rejection risk below is real and is
+> precisely why the decision came out the way it did) but **none of it should be built**. The "If IAP
+> becomes mandatory" table at the end of this section is, likewise, no longer a live migration path —
+> native IAP was the alternative Paddle-web-only was decided against.
 
 ### Flow
 
@@ -2735,8 +2744,10 @@ from a failed build or a store rejection.
 - Entitlements: Associated Domains for Universal Links, Push Notifications
 - Capabilities to enable in the Apple Developer portal
 - Bundle identifier, team id, provisioning approach
-- App Store review considerations — chiefly the IAP decision in
-  [Appendix D](#appendix-d--open-decisions)
+- App Store review considerations. The one that used to dominate this list — the IAP decision in
+  [Appendix D](#appendix-d--open-decisions) item 1 — is resolved: Paddle stays web-only,
+  permanently, so there is no in-app checkout for a reviewer to flag. What remains here is the
+  ordinary review surface (permission strings, entitlements, capabilities) below
 - Any iOS-only native module
 
 Writing the iOS README during Android development is cheap and is the single most effective thing
@@ -2757,8 +2768,8 @@ that keeps iOS from becoming a discovery project.
 | Shadows               | `elevation` only — `shadow*` props are ignored                                 | `shadowColor/Opacity/Radius/Offset`              |
 | Ripple                | `android_ripple` on `Pressable`                                                | `opacity` press feedback                         |
 | Storage               | Keystore via SecureStore                                                       | Keychain via SecureStore                         |
-| Payments              | Play Billing policy                                                            | App Store IAP policy — stricter review           |
-| Back-gesture conflict | Sheets must consume back before the navigator                                  | N/A                                              |
+| Payments              | N/A — no mobile checkout on either platform (Appendix D.1: Paddle is web-only, permanently) | N/A — same                        |
+| Back-gesture conflict | Sheets must consume back before the navigator                                  | Edge-swipe-to-pop — `gestureEnabled: false` on capture/publish screens, since only Android's hardware back is wired in-screen |
 
 ### Android specifics
 
@@ -2780,8 +2791,9 @@ that keeps iOS from becoming a discovery project.
 - No Android-only API called outside a `.android.ts` file.
 - No hardcoded 24dp status-bar assumptions — always `insets.top`.
 - Layouts verified at 320pt width (SE) and with a Dynamic Island.
-- **Do not ship an IAP-less paid flow to App Review without a decision on
-  [Appendix D](#appendix-d--open-decisions) item 1.**
+- [Appendix D](#appendix-d--open-decisions) item 1 is decided: there is no paid flow on mobile to
+  submit to App Review in the first place. Membership is read-only entitlement display; nothing
+  here triggers the IAP-policy review risk this bullet used to guard against.
 
 ### Responsive rules
 
@@ -2963,12 +2975,15 @@ changes an architectural decision.
   [§4](#the-session-gate) should be expressed against the generated route types rather than
   hand-written string literals, so a renamed route fails `tsc` instead of failing at runtime.
 
-### Still open — unchanged from Appendix D
+### Still open — unchanged from Appendix D, except D.1
 
-[Appendix D](#appendix-d--open-decisions) items 1–6 remain product decisions, not engineering ones.
-Two of them now have a scheduling consequence, recorded in [§15](#15-mila-mobile-implementation-phases):
-**D.1 (Paddle vs. IAP) blocks Phase 9 and any store submission**, and **D.2 (`DEFAULT_AI_CREDITS = 0`)
-must be resolved or worked around before Phase 4 can be demonstrated to anyone.**
+[Appendix D](#appendix-d--open-decisions) items 2–6 remain product decisions, not engineering ones.
+**D.1 (Paddle vs. IAP) is now decided: Paddle stays web-only, permanently.** Mobile displays
+entitlement read-only and never ships checkout, cancel, or resume; it is no longer a Phase 9/11
+blocker or a store-submission risk (see the updated item 1 in [Appendix D](#appendix-d--open-decisions)).
+One of the rest now has a scheduling consequence, recorded in
+[§15](#15-mila-mobile-implementation-phases): **D.2 (`DEFAULT_AI_CREDITS = 0`) must be resolved or
+worked around before Phase 4 can be demonstrated to anyone.**
 
 ---
 
@@ -3803,19 +3818,26 @@ from inside the app.
 
 ### Phase 9 — Membership and Payments
 
-**Goal.** Paid features work correctly, and the device is never believed about payment.
+**Goal.** ~~Paid features work correctly, and the device is never believed about payment.~~
+**Decided scope: read-only membership status, and the device is never believed about payment.**
 
-> **Blocked by [Appendix D.1](#appendix-d--open-decisions).** Apple and Google generally require
-> their own in-app purchase systems for digital content consumed in an app; a Paddle web checkout may
-> be rejected at review. Do not begin this phase, and do not submit a build containing it, before
-> that decision is recorded.
+> **[Appendix D.1](#appendix-d--open-decisions) is decided: Paddle stays web-only, permanently.**
+> This is no longer "blocked pending a decision" — the decision is in, and it is that mobile does not
+> build a checkout. Everything below that describes checkout, cancel, resume, or the Paddle sandbox
+> flow (the "Paddle hosted checkout" and "Manage membership: … cancel, resume" bullets, the
+> `services/checkout.ts` / `CancelSheet` / `ResumeSheet` files, and their testing-checklist rows) is
+> the historical record of the plan considered before the decision and **is not to be built**. What
+> mobile actually ships for this phase: plan cards, current plan/renewal/end-date display, and the
+> credits meter — all read-only, sourced from `subscription_plans`, `subscriptions`, and
+> `user_entitlements` exactly as the rest of this section already specifies for reads.
 
 **Ships:**
 
 - Plan cards from `subscription_plans` (active, non-archived), single column, ordered
-- Paddle hosted checkout in a system browser via `expo-web-browser`
-- Post-checkout sync, then invalidate, then re-check after 5 seconds
-- Manage membership: current plan, renewal or end date, cancel, resume
+- ~~Paddle hosted checkout in a system browser via `expo-web-browser`~~ — not built; checkout is
+  web-only (Appendix D.1)
+- ~~Post-checkout sync, then invalidate, then re-check after 5 seconds~~ — not built, same reason
+- Manage membership: current plan, renewal or end date — **read-only**; ~~cancel, resume~~ are web-only
 - Credits meter
 
 **Files created:**
@@ -3925,11 +3947,14 @@ Phase 4 lands with a test that fails without the fix.
 - [ ] `Info.plist` usage strings present in `app.config.ts` for camera, photo library, location, and
       Face ID if biometrics ships
 - [ ] Safe areas verified at 320pt and with a Dynamic Island; no hardcoded 24dp status bar
-- [ ] Swipe-back enabled everywhere except capture and checkout
-- [ ] HEIC transcoding path present in `camera.ios.ts`
+- [ ] Swipe-back enabled everywhere except capture (`lens-capture`, `publish` —
+      `gestureEnabled: false`, since only Android's hardware back is wired in-screen). There is no
+      checkout screen to exempt: Appendix D.1 keeps checkout web-only
+- [ ] HEIC transcoding path present in `camera.ios.tsx` (via `prepareUpload`'s JPEG re-encode)
 - [ ] Associated Domains configured for Universal Links
 - [ ] `src/platform/ios/README.md` complete
-- [ ] [Appendix D.1](#appendix-d--open-decisions) decided before any App Store submission
+- [x] [Appendix D.1](#appendix-d--open-decisions) decided: Paddle stays web-only, permanently —
+      satisfied, nothing further needed here before App Store submission
 
 **Definition of done:**
 
@@ -3956,7 +3981,7 @@ flowchart LR
   P6 --> P10
   P7 --> P10
   P9 --> P10
-  D1{{"D.1 IAP decision"}} -.->|blocks| P9
+  D1{{"D.1 decided: Paddle web-only"}} -.->|"no longer blocks"| P9
   D2{{"D.2 free credits"}} -.->|blocks demo| P4
 ```
 
@@ -4315,7 +4340,7 @@ construction — that is defence in depth, not a convention.
 | 8     | Lens: camera abstraction, capture, analyse, result                                                                                                                              | 1, 5                |
 | 9     | Feed: dual capture, publish, tagging, hotspots, member profile                                                                                                                  | 8                   |
 | 10    | Concierge chat + look anchoring                                                                                                                                                 | 5                   |
-| 11    | Membership: plans, checkout, cancel, resume                                                                                                                                     | 5, **Appendix D.1** |
+| 11    | Membership: plans, entitlement display (read-only — no checkout/cancel/resume, per decided **Appendix D.1**)                                                                    | 5                   |
 | 12    | Settings: account, location, privacy, data export, delete, support                                                                                                              | 11                  |
 | 13    | Push notifications, offline cache, EAS Update channels                                                                                                                          | 5–12                |
 | 14    | iOS parity pass, accessibility audit, low-end device testing                                                                                                                    | all                 |
@@ -4330,11 +4355,14 @@ scaffolding; everything after it is expansion. Get there fast and put it on a re
 
 These need a product answer, not an engineering one. Each blocks or reshapes real work.
 
-1. **Paddle web checkout vs. native IAP.** _Blocks phase 11 and any store submission._ Apple and
-   Google generally require IAP for digital goods consumed in-app; a Paddle checkout may be
-   rejected. The architecture isolates the change to the checkout step and one webhook source, so
-   the cost of deciding late is bounded — but the cost of discovering it at review is a rejected
-   binary.
+1. ~~**Paddle web checkout vs. native IAP.**~~ **Decided — Paddle stays web-only, permanently.**
+   Apple and Google generally require IAP for digital goods consumed in-app, which is exactly the
+   rejection risk that made this an open question; the answer is not to attempt IAP or a Paddle
+   checkout inside the app at all. Mobile shows entitlement status **read-only** — plan, renewal or
+   end date, credits — sourced the normal way from `subscriptions` and `user_entitlements`. There is
+   no purchase, cancel, or resume affordance on mobile, in this phase or any later one; that flow
+   lives exclusively on the web app. This is no longer a phase-11 blocker, and it is no longer a
+   store-submission risk, because there is no mobile checkout surface for a reviewer to reject.
 
 2. **`DEFAULT_AI_CREDITS = 0`.** An unsubscribed member currently has no free daily allowance, so a
    fresh install hits the paywall on the very first "Compose today's look". On mobile that is the

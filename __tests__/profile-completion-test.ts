@@ -1,4 +1,11 @@
-import { BODIES, FACE_SHAPES, HAIR_TYPES, SEASONS, UNDERTONES } from "@/constants/style-profile";
+import {
+  BODIES,
+  FACE_SHAPES,
+  HAIR_TYPES,
+  SEASONS,
+  SKIN_DEPTHS,
+  UNDERTONES,
+} from "@/constants/style-profile";
 import { normalizeBeautyPreferences } from "@/lib/beauty-preferences";
 import { deriveColorMetrics } from "@/lib/profile-color";
 import {
@@ -25,6 +32,7 @@ const complete: StyleProfileRow = {
   body_type: "Hourglass",
   face_shape: "Oval",
   hair_type: "Wavy",
+  skin_depth: "Medium",
   color_profile: { season: "Autumn", subSeason: "Autumn True" },
 };
 
@@ -44,6 +52,7 @@ describe("isStyleProfileComplete", () => {
     "body_type",
     "face_shape",
     "hair_type",
+    "skin_depth",
   ] as const)("requires %s", (field) => {
     expect(isStyleProfileComplete({ ...complete, [field]: null })).toBe(false);
   });
@@ -73,6 +82,7 @@ describe("isStyleProfileComplete", () => {
     ["body_type", "hourglass"],
     ["face_shape", "oval"],
     ["hair_type", "wavy"],
+    ["skin_depth", "medium"],
   ] as const)("rejects %s outside the taxonomy (%s)", (field, value) => {
     expect(isStyleProfileComplete({ ...complete, [field]: value })).toBe(false);
   });
@@ -93,6 +103,9 @@ describe("isStyleProfileComplete", () => {
     for (const hair_type of HAIR_TYPES) {
       expect(isStyleProfileComplete({ ...complete, hair_type })).toBe(true);
     }
+    for (const skin_depth of SKIN_DEPTHS) {
+      expect(isStyleProfileComplete({ ...complete, skin_depth })).toBe(true);
+    }
   });
 
   it("takes the base season, never the sub-season, from a dashboard profile", () => {
@@ -105,6 +118,7 @@ describe("isStyleProfileComplete", () => {
       body_type: "Hourglass",
       face_shape: "Oval",
       hair_type: "Wavy",
+      skin_depth: "Medium",
       color_profile: { season: "Autumn" },
     });
     expect(row?.color_season).toBe("Autumn");
@@ -196,11 +210,16 @@ const FULL: DashboardProfile = {
   full_name: "Test Member",
   face_shape: "Oval",
   hair_type: "Wavy",
+  skin_depth: "Fair",
   beauty_preferences: ["Minimalist"],
   color_profile: { season: "Spring" },
   default_location: "paris",
   style_goals: [],
   suspended: false,
+  photo_consent_at: null,
+  profile_photo_path: null,
+  height_cm: null,
+  weight_kg: null,
 };
 
 describe("dossierCompletion", () => {

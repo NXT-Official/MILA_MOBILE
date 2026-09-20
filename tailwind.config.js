@@ -75,6 +75,8 @@ module.exports = {
         99: "0.99",
       },
       spacing: {
+        // 72px sits between Tailwind's default 16 (64px) and 20 (80px) steps.
+        18: "72px",
         xs: "4px",
         sm: "8px",
         md: "12px",

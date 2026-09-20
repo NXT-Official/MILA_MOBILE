@@ -121,3 +121,20 @@ export async function requestPasswordReset(email: string): Promise<void> {
     throw new ApiError("INTERNAL", "Mila couldn't send that email. Please try again.", 500);
   }
 }
+
+/**
+ * Completes the reset started by `requestPasswordReset`. Only callable once
+ * the reset-password screen has already exchanged the recovery deep link's
+ * tokens for a session via `setSession` — this just updates that session's
+ * password, same as any other authenticated `updateUser` call.
+ */
+export async function updatePassword(password: string): Promise<void> {
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) {
+    throw new ApiError(
+      "INTERNAL",
+      "Mila couldn't update your password. Please request a new reset link.",
+      500,
+    );
+  }
+}

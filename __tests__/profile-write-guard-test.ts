@@ -42,6 +42,12 @@ describe("assertWritableColumns", () => {
   it("keeps the permitted list in step with §7", () => {
     // Adding a column here without a line in the architecture doc's §7 table is
     // how a client quietly acquires a write it was never granted.
+    //
+    // `photo_consent_at` and `profile_photo_path` were added for the selfie
+    // widget (ported from the web dashboard); `skin_depth`, `height_cm`, and
+    // `weight_kg` for the matching onboarding steps — confirmed live against
+    // the database that `authenticated` already holds UPDATE on all five,
+    // same as every other column here.
     expect([...PROFILE_WRITABLE_COLUMNS].sort()).toEqual(
       [
         "beauty_preferences",
@@ -52,10 +58,15 @@ describe("assertWritableColumns", () => {
         "face_shape",
         "full_name",
         "hair_type",
+        "height_cm",
+        "photo_consent_at",
+        "profile_photo_path",
+        "skin_depth",
         "skin_undertone",
         "style_goals",
         "updated_at",
         "username",
+        "weight_kg",
       ].sort(),
     );
     expect(PROFILE_WRITABLE_COLUMNS).not.toContain("suspended");

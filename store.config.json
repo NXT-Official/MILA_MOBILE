@@ -1,0 +1,19 @@
+{
+  "configVersion": 0,
+  "apple": {
+    "copyright": "PLACEHOLDER 2026 Mila Inc.",
+    "info": {
+      "en-US": {
+        "title": "PLACEHOLDER: Mila",
+        "subtitle": "PLACEHOLDER: subtitle",
+        "description": "PLACEHOLDER — this is scaffolding, not marketing copy. Replace with the real App Store description before any submission. Max 4000 characters.",
+        "keywords": ["placeholder", "replace-before-submission"],
+        "releaseNotes": "PLACEHOLDER — replace with real release notes for this version.",
+        "promoText": "PLACEHOLDER — short promotional tagline, replace before submission.",
+        "marketingUrl": "https://PLACEHOLDER.example.com",
+        "supportUrl": "https://PLACEHOLDER.example.com/support",
+        "privacyPolicyUrl": "https://PLACEHOLDER.example.com/privacy"
+      }
+    }
+  }
+}

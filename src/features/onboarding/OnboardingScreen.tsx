@@ -11,6 +11,7 @@ import {
   BODY_OPTIONS,
   FACE_SHAPE_OPTIONS,
   HAIR_TYPE_OPTIONS,
+  SKIN_DEPTH_OPTIONS,
   type DetailedColorProfile as StudioDossier,
   type MatrixOption,
 } from "@/constants/style-profile";
@@ -26,6 +27,7 @@ import { BeautyPreferences } from "./steps/BeautyPreferences";
 import { ColorPath } from "./steps/ColorPath";
 import { ColorResult } from "./steps/ColorResult";
 import { Location } from "./steps/Location";
+import { Measurements } from "./steps/Measurements";
 import { Review } from "./steps/Review";
 import { SingleSelect } from "./steps/SingleSelect";
 import { Welcome } from "./steps/Welcome";
@@ -37,6 +39,13 @@ import { Welcome } from "./steps/Welcome";
  */
 
 const SELECT_STEPS = {
+  "skin-depth": {
+    field: "skin_depth",
+    options: SKIN_DEPTH_OPTIONS,
+    guidance:
+      "How light or deep your skin tone is, separate from your undertone (warm/cool/neutral). This helps Mila put your own face in generated looks accurately.",
+    requiredMessage: "Select a skin depth to continue.",
+  },
   "body-type": {
     field: "body_type",
     options: BODY_OPTIONS,
@@ -61,7 +70,7 @@ const SELECT_STEPS = {
 } as const satisfies Record<
   string,
   {
-    field: "body_type" | "face_shape" | "hair_type";
+    field: "skin_depth" | "body_type" | "face_shape" | "hair_type";
     options: MatrixOption[];
     guidance: string;
     requiredMessage: string;
@@ -211,6 +220,22 @@ export function OnboardingScreen({ rawStep }: { rawStep: string | undefined }) {
         onBack={() => goBack(step)}
         onSaved={() => goNext(step)}
         save={(value) => autoSave.save({ [selectStep.field]: value })}
+        saveState={autoSave.state}
+        onRetrySave={autoSave.retry}
+        saving={autoSave.saving}
+      />
+    );
+  }
+
+  if (step === "measurements") {
+    return (
+      <Measurements
+        heightCm={profile?.height_cm ?? null}
+        weightKg={profile?.weight_kg ?? null}
+        onBack={() => goBack("measurements")}
+        onSaved={() => goNext("measurements")}
+        onSkip={() => goNext("measurements")}
+        save={(payload) => autoSave.save(payload)}
         saveState={autoSave.state}
         onRetrySave={autoSave.retry}
         saving={autoSave.saving}

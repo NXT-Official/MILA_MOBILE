@@ -41,6 +41,14 @@ function Row({
   );
 }
 
+function formatMeasurements(heightCm: number | null, weightKg: number | null): string {
+  if (heightCm == null && weightKg == null) return "Not set — optional";
+  const parts: string[] = [];
+  if (heightCm != null) parts.push(`${heightCm} cm`);
+  if (weightKg != null) parts.push(`${weightKg} kg`);
+  return parts.join(" · ");
+}
+
 export function Review({
   profile,
   dossier,
@@ -68,7 +76,13 @@ export function Review({
       step: "color-result",
     },
     { title: "Skin undertone", value: profile.skin_undertone ?? "Not set", step: "color-result" },
+    { title: "Skin depth", value: profile.skin_depth ?? "Not set", step: "skin-depth" },
     { title: "Body silhouette", value: profile.body_type ?? "Not set", step: "body-type" },
+    {
+      title: "Measurements",
+      value: formatMeasurements(profile.height_cm, profile.weight_kg),
+      step: "measurements",
+    },
     { title: "Face shape", value: profile.face_shape ?? "Not set", step: "face-shape" },
     { title: "Hair type", value: profile.hair_type ?? "Not set", step: "hair-type" },
     {

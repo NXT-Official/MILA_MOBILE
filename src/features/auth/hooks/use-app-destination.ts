@@ -16,6 +16,7 @@ export { resolveDestination, type Destination };
 export function useAppDestination(): { ready: boolean; destination: Destination } {
   const session = useAuthStore((s) => s.session);
   const authLoading = useAuthStore((s) => s.loading);
+  const recovery = useAuthStore((s) => s.recovery);
   const { data: profile, isPending, isError } = useProfile();
 
   const hasSession = Boolean(session);
@@ -23,6 +24,7 @@ export function useAppDestination(): { ready: boolean; destination: Destination 
 
   const destination = resolveDestination({
     hasSession,
+    recovery,
     suspended: profile?.suspended === true,
     // A failed profile read must not strand her on a blank screen; treat it as
     // incomplete so onboarding can re-fetch and recover.

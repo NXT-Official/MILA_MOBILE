@@ -9,7 +9,7 @@ import { resolveDestination } from "@/lib/auth-destination";
  * every combination is pinned — not just the happy path.
  */
 describe("resolveDestination", () => {
-  const base = { hasSession: true, suspended: false, profileComplete: true };
+  const base = { hasSession: true, suspended: false, profileComplete: true, recovery: false };
 
   it("sends a signed-out visitor to login", () => {
     expect(resolveDestination({ ...base, hasSession: false })).toBe("/login");
@@ -19,11 +19,26 @@ describe("resolveDestination", () => {
     // Suspension and completeness are unknowable without a session; they must
     // never leak a destination.
     expect(
-      resolveDestination({ hasSession: false, suspended: true, profileComplete: false }),
+      resolveDestination({ hasSession: false, suspended: true, profileComplete: false, recovery: false }),
     ).toBe("/login");
     expect(
-      resolveDestination({ hasSession: false, suspended: true, profileComplete: true }),
+      resolveDestination({ hasSession: false, suspended: true, profileComplete: true, recovery: false }),
     ).toBe("/login");
+  });
+
+  it("sends a recovery deep link to the reset-password screen", () => {
+    expect(resolveDestination({ ...base, recovery: true })).toBe("/reset-password");
+  });
+
+  it("prefers recovery over every other state, even with no session yet", () => {
+    // The reset-password screen itself calls setSession — recovery must hold
+    // before that session exists, or the gate never lets her reach it.
+    expect(
+      resolveDestination({ hasSession: false, suspended: true, profileComplete: false, recovery: true }),
+    ).toBe("/reset-password");
+    expect(
+      resolveDestination({ hasSession: true, suspended: true, profileComplete: false, recovery: true }),
+    ).toBe("/reset-password");
   });
 
   it("sends a suspended member to the block screen", () => {
@@ -32,7 +47,12 @@ describe("resolveDestination", () => {
 
   it("blocks a suspended member even when onboarding is incomplete", () => {
     expect(
-      resolveDestination({ hasSession: true, suspended: true, profileComplete: false }),
+      resolveDestination({
+        hasSession: true,
+        suspended: true,
+        profileComplete: false,
+        recovery: false,
+      }),
     ).toBe("/suspended");
   });
 
@@ -46,17 +66,19 @@ describe("resolveDestination", () => {
     expect(resolveDestination(base)).toBe("/");
   });
 
-  it("covers all eight input combinations", () => {
+  it("covers all sixteen input combinations", () => {
     const seen = new Set<string>();
     for (const hasSession of [true, false]) {
       for (const suspended of [true, false]) {
         for (const profileComplete of [true, false]) {
-          seen.add(resolveDestination({ hasSession, suspended, profileComplete }));
+          for (const recovery of [true, false]) {
+            seen.add(resolveDestination({ hasSession, suspended, profileComplete, recovery }));
+          }
         }
       }
     }
     expect(seen).toEqual(
-      new Set(["/login", "/suspended", "/onboarding/welcome", "/"]),
+      new Set(["/login", "/reset-password", "/suspended", "/onboarding/welcome", "/"]),
     );
   });
 });

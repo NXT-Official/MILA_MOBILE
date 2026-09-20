@@ -4,8 +4,16 @@
  * beside its query, mobile declares it in `types/` because `services/` owns I/O.
  * Nothing below this line may be rewritten — step order, reachability, and the
  * resume point are the contract between the two clients.
+ *
+ * NOT YET FULLY IN STEP: the web has since added `gender`, `hair-length`,
+ * `makeup-preference`, `shopping-preferences`, and `styling-constraints`
+ * steps (pre-dating this port) that mobile does not have yet — a separate,
+ * larger backlog item. Only `skin-depth` and `measurements` are ported here,
+ * in the same relative position the web places them in (immediately before
+ * and after `body-type`), since those two are self-contained and do not
+ * depend on the missing `gender` step existing first.
  */
-import { UNDERTONES, SEASONS, BODIES, FACE_SHAPES, HAIR_TYPES } from "@/constants/style-profile";
+import { UNDERTONES, SEASONS, BODIES, FACE_SHAPES, HAIR_TYPES, SKIN_DEPTHS } from "@/constants/style-profile";
 import { isNonEmptyColorProfile } from "@/lib/style-profile/completion";
 import type { DashboardProfile } from "@/types/models";
 
@@ -13,7 +21,9 @@ export type OnboardingStepId =
   | "welcome"
   | "color-path"
   | "color-result"
+  | "skin-depth"
   | "body-type"
+  | "measurements"
   | "face-shape"
   | "hair-type"
   | "beauty-preferences"
@@ -42,9 +52,22 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
     shortTitle: "Color result",
   },
   {
+    id: "skin-depth",
+    title: "Skin depth",
+    shortTitle: "Skin depth",
+    description: "How light or deep your skin tone is — separate from your undertone.",
+  },
+  {
     id: "body-type",
     title: "Body silhouette",
     shortTitle: "Silhouette",
+  },
+  {
+    id: "measurements",
+    title: "Body measurements",
+    shortTitle: "Measurements",
+    description: "Optional — helps Mila describe fit and proportion in your looks.",
+    optional: true,
   },
   {
     id: "face-shape",
@@ -94,6 +117,7 @@ type ProfileSnapshot = Pick<
   | "body_type"
   | "face_shape"
   | "hair_type"
+  | "skin_depth"
 >;
 
 export function hasColorProfile(profile: ProfileSnapshot | null | undefined): boolean {
@@ -117,6 +141,10 @@ export function hasHairType(profile: ProfileSnapshot | null | undefined): boolea
   return !!profile && (HAIR_TYPES as readonly string[]).includes(profile.hair_type ?? "");
 }
 
+export function hasSkinDepth(profile: ProfileSnapshot | null | undefined): boolean {
+  return !!profile && (SKIN_DEPTHS as readonly string[]).includes(profile.skin_depth ?? "");
+}
+
 export function isOnboardingStepComplete(
   step: OnboardingStepId,
   profile: ProfileSnapshot | null | undefined,
@@ -128,8 +156,12 @@ export function isOnboardingStepComplete(
       return true;
     case "color-result":
       return hasColorProfile(profile);
+    case "skin-depth":
+      return hasSkinDepth(profile);
     case "body-type":
       return hasBodyType(profile);
+    case "measurements":
+      return true;
     case "face-shape":
       return hasFaceShape(profile);
     case "hair-type":
@@ -140,6 +172,7 @@ export function isOnboardingStepComplete(
     case "review":
       return (
         hasColorProfile(profile) &&
+        hasSkinDepth(profile) &&
         hasBodyType(profile) &&
         hasFaceShape(profile) &&
         hasHairType(profile)
@@ -161,6 +194,7 @@ export function getFirstIncompleteOnboardingStep(
 ): OnboardingStepId {
   if (isBlankProfile(profile)) return "welcome";
   if (!hasColorProfile(profile)) return "color-path";
+  if (!hasSkinDepth(profile)) return "skin-depth";
   if (!hasBodyType(profile)) return "body-type";
   if (!hasFaceShape(profile)) return "face-shape";
   if (!hasHairType(profile)) return "hair-type";

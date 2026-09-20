@@ -19,9 +19,13 @@ import type { SubscriptionPlan } from "@/services/supabase/plans";
  * index in the database. This renders whatever the row says and does not
  * re-check it: a second client-side rule is a second thing to disagree with.
  *
- * There is no purchase button. Checkout is gated on Appendix D.1, and a
- * disabled CTA is a worse answer than a plain statement of what the plan
- * includes — it advertises a thing the app cannot yet do.
+ * There is no purchase button, and there will not be one. Appendix D.1
+ * (Paddle hosted checkout vs. native IAP) is decided: Paddle stays web-only,
+ * permanently — checkout, cancellation, and resume are web-only flows, and
+ * mobile only ever displays what the row already says. A disabled CTA would
+ * be a worse answer than this plain statement of what the plan includes — it
+ * would advertise a mobile purchase path that this app does not, and will
+ * not, have.
  */
 export function PlanCard({
   plan,

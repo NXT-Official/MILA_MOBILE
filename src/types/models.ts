@@ -42,6 +42,20 @@ export type DashboardProfile = {
   /** Up to `STYLE_GOAL_LIMIT`; the server folds these into the daily-look brief. */
   style_goals: string[];
   suspended: boolean;
+  /**
+   * Set together by `saveConsentedProfilePhoto` (web's own naming) — a
+   * consented selfie the AI photo-edit pipeline composites onto instead of a
+   * generic model. `photo_consent_at` is the gate the web dashboard checks
+   * before attempting that edit; `profile_photo_path` is the storage object it
+   * reads, private to `${id}/` under the `profile-photos` bucket.
+   */
+  photo_consent_at: string | null;
+  profile_photo_path: string | null;
+  /** Separate from `skin_undertone` (warm/cool/neutral) — how light or deep the skin reads. */
+  skin_depth: string | null;
+  /** Optional. Stored in metric regardless of the unit the member entered in. */
+  height_cm: number | null;
+  weight_kg: number | null;
 };
 
 /**
@@ -94,6 +108,11 @@ export const PROFILE_WRITABLE_COLUMNS = [
   "default_location",
   "style_goals",
   "updated_at",
+  "photo_consent_at",
+  "profile_photo_path",
+  "skin_depth",
+  "height_cm",
+  "weight_kg",
 ] as const;
 
 /**
@@ -102,4 +121,4 @@ export const PROFILE_WRITABLE_COLUMNS = [
  * into a payload by a `select("*")`.
  */
 export const PROFILE_READ_COLUMNS =
-  "body_type,color_season,skin_undertone,full_name,color_profile,face_shape,hair_type,beauty_preferences,default_location,style_goals,suspended";
+  "body_type,color_season,skin_undertone,full_name,color_profile,face_shape,hair_type,beauty_preferences,default_location,style_goals,suspended,photo_consent_at,profile_photo_path,skin_depth,height_cm,weight_kg";

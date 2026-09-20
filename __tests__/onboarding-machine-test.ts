@@ -39,6 +39,11 @@ const BLANK: DashboardProfile = {
   default_location: null,
   style_goals: [],
   suspended: false,
+  photo_consent_at: null,
+  profile_photo_path: null,
+  skin_depth: null,
+  height_cm: null,
+  weight_kg: null,
 };
 
 const withColor: DashboardProfile = {
@@ -48,17 +53,20 @@ const withColor: DashboardProfile = {
   color_season: "Autumn True",
   color_profile: { season: "Autumn" },
 };
-const withBody: DashboardProfile = { ...withColor, body_type: "Hourglass" };
+const withSkinDepth: DashboardProfile = { ...withColor, skin_depth: "Medium" };
+const withBody: DashboardProfile = { ...withSkinDepth, body_type: "Hourglass" };
 const withFace: DashboardProfile = { ...withBody, face_shape: "Oval" };
 const withHair: DashboardProfile = { ...withFace, hair_type: "Wavy" };
 
 describe("step order", () => {
-  it("is the nine steps in the documented order", () => {
+  it("is the eleven steps in the documented order", () => {
     expect(ONBOARDING_STEP_IDS).toEqual([
       "welcome",
       "color-path",
       "color-result",
+      "skin-depth",
       "body-type",
+      "measurements",
       "face-shape",
       "hair-type",
       "beauty-preferences",
@@ -67,12 +75,12 @@ describe("step order", () => {
     ]);
   });
 
-  it("counts eight steps, never welcome", () => {
-    expect(COUNTED_STEPS).toHaveLength(8);
+  it("counts ten steps, never welcome", () => {
+    expect(COUNTED_STEPS).toHaveLength(10);
     expect(COUNTED_STEPS.map((s) => s.id)).not.toContain("welcome");
   });
 
-  it("reads 'Step 1 of 8' on the first counted step", () => {
+  it("reads 'Step 1 of 10' on the first counted step", () => {
     expect(getOnboardingStepIndex("color-path") + 1).toBe(1);
     expect(getOnboardingStepIndex("review") + 1).toBe(COUNTED_STEPS.length);
   });
@@ -81,8 +89,9 @@ describe("step order", () => {
     expect(getOnboardingStepIndex("welcome")).toBe(-1);
   });
 
-  it("marks exactly beauty-preferences and location optional", () => {
+  it("marks exactly measurements, beauty-preferences, and location optional", () => {
     expect(ONBOARDING_STEPS.filter((s) => s.optional).map((s) => s.id)).toEqual([
+      "measurements",
       "beauty-preferences",
       "location",
     ]);
@@ -120,8 +129,14 @@ describe("next / previous", () => {
 });
 
 describe("isOnboardingStepComplete", () => {
-  it("treats welcome, color-path, and both optional steps as always complete", () => {
-    for (const id of ["welcome", "color-path", "beauty-preferences", "location"] as const) {
+  it("treats welcome, color-path, and all three optional steps as always complete", () => {
+    for (const id of [
+      "welcome",
+      "color-path",
+      "measurements",
+      "beauty-preferences",
+      "location",
+    ] as const) {
       expect(isOnboardingStepComplete(id, BLANK)).toBe(true);
     }
   });
@@ -129,7 +144,9 @@ describe("isOnboardingStepComplete", () => {
   it("gates each answer step on its own field", () => {
     expect(isOnboardingStepComplete("color-result", BLANK)).toBe(false);
     expect(isOnboardingStepComplete("color-result", withColor)).toBe(true);
-    expect(isOnboardingStepComplete("body-type", withColor)).toBe(false);
+    expect(isOnboardingStepComplete("skin-depth", withColor)).toBe(false);
+    expect(isOnboardingStepComplete("skin-depth", withSkinDepth)).toBe(true);
+    expect(isOnboardingStepComplete("body-type", withSkinDepth)).toBe(false);
     expect(isOnboardingStepComplete("body-type", withBody)).toBe(true);
     expect(isOnboardingStepComplete("face-shape", withBody)).toBe(false);
     expect(isOnboardingStepComplete("face-shape", withFace)).toBe(true);
@@ -137,7 +154,7 @@ describe("isOnboardingStepComplete", () => {
     expect(isOnboardingStepComplete("hair-type", withHair)).toBe(true);
   });
 
-  it("gates review on all four required answers", () => {
+  it("gates review on all five required answers", () => {
     expect(isOnboardingStepComplete("review", withFace)).toBe(false);
     expect(isOnboardingStepComplete("review", withHair)).toBe(true);
   });
@@ -155,7 +172,8 @@ describe("isOnboardingStepComplete", () => {
 describe("getFirstIncompleteOnboardingStep", () => {
   it.each([
     [BLANK, "welcome"],
-    [withColor, "body-type"],
+    [withColor, "skin-depth"],
+    [withSkinDepth, "body-type"],
     [withBody, "face-shape"],
     [withFace, "hair-type"],
     [withHair, "beauty-preferences"],
@@ -189,10 +207,11 @@ describe("isOnboardingStepReachable", () => {
   });
 
   it("does not block on an incomplete OPTIONAL step", () => {
-    // beauty-preferences and location are skippable; requiring them would make
-    // "I'll do this later" a dead end.
+    // measurements, beauty-preferences, and location are skippable; requiring
+    // them would make "I'll do this later" a dead end.
     expect(isOnboardingStepReachable("review", withHair)).toBe(true);
     expect(isOnboardingStepReachable("location", withHair)).toBe(true);
+    expect(isOnboardingStepReachable("face-shape", withBody)).toBe(true);
   });
 
   it("lets a member walk back to any step she has already answered", () => {
@@ -209,7 +228,7 @@ describe("resolveStep", () => {
 
   it("redirects a deep link past an incomplete step to the resume point", () => {
     expect(resolveStep("review", BLANK)).toEqual({ step: "welcome", redirected: true });
-    expect(resolveStep("hair-type", withColor)).toEqual({ step: "body-type", redirected: true });
+    expect(resolveStep("hair-type", withColor)).toEqual({ step: "skin-depth", redirected: true });
   });
 
   it("redirects when no step was requested at all", () => {
@@ -217,7 +236,7 @@ describe("resolveStep", () => {
   });
 
   it("never returns an unreachable step, for any step against any profile", () => {
-    const profiles = [BLANK, withColor, withBody, withFace, withHair];
+    const profiles = [BLANK, withColor, withSkinDepth, withBody, withFace, withHair];
     const requests: (OnboardingStepId | undefined)[] = [...ONBOARDING_STEP_IDS, undefined];
     for (const profile of profiles) {
       for (const requested of requests) {

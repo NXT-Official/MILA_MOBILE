@@ -6,6 +6,7 @@ import {
   requestPasswordReset,
   signIn,
   signUp,
+  updatePassword,
   type SignInInput,
   type SignUpInput,
 } from "@/services/api/auth";
@@ -26,6 +27,13 @@ export function useSignUp() {
 
 export function usePasswordReset() {
   return useMutation({ mutationFn: (email: string) => requestPasswordReset(email), retry: false });
+}
+
+export function useUpdatePassword() {
+  return useMutation({
+    mutationFn: (password: string) => updatePassword(password),
+    retry: false,
+  });
 }
 
 /**

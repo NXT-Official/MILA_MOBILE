@@ -12,13 +12,23 @@ type AuthState = {
   session: Session | null;
   /** True until the first `getSession()` resolves — the splash waits on this. */
   loading: boolean;
+  /**
+   * Latched by the reset-password screen when it recognises a recovery deep
+   * link, before `setSession` runs — see `resolveDestination`. Cleared once
+   * the new password is saved (or the member backs out), letting the launch
+   * gate resolve normally again.
+   */
+  recovery: boolean;
   setSession: (session: Session | null) => void;
+  setRecovery: (recovery: boolean) => void;
 };
 
 export const useAuthStore = create<AuthState>((set) => ({
   session: null,
   loading: true,
+  recovery: false,
   setSession: (session) => set({ session, loading: false }),
+  setRecovery: (recovery) => set({ recovery }),
 }));
 
 export const useSession = () => useAuthStore((s) => s.session);

@@ -1,12 +1,30 @@
-import { UNDERTONES, SEASONS, BODIES, FACE_SHAPES, HAIR_TYPES } from "@/constants/style-profile";
+import {
+  UNDERTONES,
+  SEASONS,
+  BODIES,
+  FACE_SHAPES,
+  HAIR_TYPES,
+  SKIN_DEPTHS,
+} from "@/constants/style-profile";
 import type { DashboardProfile } from "@/types/models";
 
+/**
+ * `skin_depth` joined the required set in the same web commit that added the
+ * `skin-depth` onboarding step (Appendix A) — the launch gate and the step
+ * machine's own `review` completeness check (`constants/steps.ts`) must agree
+ * on what "required" means, or a member could reach the dashboard on a later
+ * login having never seen a step the step machine still calls required.
+ * `gender` and `hair_length` are also required on the web now, but mobile has
+ * neither step yet (§ note in `constants/steps.ts`) — adding them here without
+ * the steps to set them would lock every member out of completion entirely.
+ */
 export interface StyleProfileRow {
   skin_undertone: string | null;
   color_season: string | null;
   body_type: string | null;
   face_shape: string | null;
   hair_type: string | null;
+  skin_depth: string | null;
   color_profile: unknown;
 }
 
@@ -23,6 +41,7 @@ export function toStyleProfileRow(
     body_type: profile.body_type,
     face_shape: profile.face_shape,
     hair_type: profile.hair_type,
+    skin_depth: profile.skin_depth,
     color_profile: profile.color_profile,
   };
 }
@@ -41,6 +60,7 @@ export function isStyleProfileComplete(profile: StyleProfileRow | null | undefin
     (BODIES as readonly string[]).includes(profile.body_type ?? "") &&
     (FACE_SHAPES as readonly string[]).includes(profile.face_shape ?? "") &&
     (HAIR_TYPES as readonly string[]).includes(profile.hair_type ?? "") &&
+    (SKIN_DEPTHS as readonly string[]).includes(profile.skin_depth ?? "") &&
     isNonEmptyColorProfile(profile.color_profile)
   );
 }

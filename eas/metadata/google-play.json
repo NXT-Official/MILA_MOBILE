@@ -1,0 +1,10 @@
+{
+  "_note": "PLACEHOLDER SCAFFOLDING, not real marketing copy. EAS's `eas metadata` command (see store.config.json at the repo root) only manages Apple App Store listings as of this eas-cli version — it has no Google Play equivalent. This file is a manual reference for entering the same information into Play Console (Grow > Store presence > Main store listing) or a future `fastlane supply`-style pipeline; nothing currently reads it automatically. Google Play has no 'keywords' field — ASO there comes from the title/short description/full description text itself, which is why 'keywords' below is a research note rather than a submitted field.",
+  "en-US": {
+    "title": "PLACEHOLDER: Mila (max 30 characters on Play Console)",
+    "shortDescription": "PLACEHOLDER — short description, max 80 characters. Replace before submission.",
+    "fullDescription": "PLACEHOLDER — this is scaffolding, not marketing copy. Replace with the real Play Store description before any submission. Max 4000 characters.",
+    "keywords": ["placeholder", "replace-before-submission"],
+    "privacyPolicyUrl": "https://PLACEHOLDER.example.com/privacy"
+  }
+}
