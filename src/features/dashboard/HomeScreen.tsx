@@ -412,7 +412,7 @@ export function HomeScreen() {
               />
             ) : null}
 
-            {look && canRenderVisual ? (
+            {look && canRenderVisual && (sheetImage || sheetAttempted || styleSheet.isPending) ? (
               <View className="gap-md">
                 <LookVisual
                   state={sheetState}
