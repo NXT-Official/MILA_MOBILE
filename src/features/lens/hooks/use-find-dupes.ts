@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRef } from "react";
 
 import { queryKeys } from "@/constants/query-keys";
+import { useProfile } from "@/hooks/use-profile";
 import { findDupes, type DupeHuntResult } from "@/services/api/items";
 import type { CapturedPhoto } from "@/services/camera";
 import { uploadOutfitImage } from "@/services/supabase/storage";
@@ -20,6 +21,7 @@ import { useAuthStore } from "@/stores/auth-store";
  */
 export function useFindDupes() {
   const userId = useAuthStore((s) => s.session?.user.id ?? null);
+  const { data: profile } = useProfile();
   const queryClient = useQueryClient();
 
   /** A retry after a failed hunt re-uses the upload — same file, same bytes. */
@@ -35,7 +37,8 @@ export function useFindDupes() {
           : await uploadOutfitImage(userId, photo.uri);
       uploaded.current = { localUri: photo.uri, imageUrl };
 
-      return findDupes({ imageUrl });
+      // Same `region` the web sends — the server ranks with it.
+      return findDupes({ imageUrl, region: profile?.delivery_country || undefined });
     },
 
     // On settle, not on success: the server charges before the provider call

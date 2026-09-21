@@ -57,6 +57,8 @@ export type DupeHuntResult = {
 export function findDupes(input: {
   imageUrl: string;
   maxResults?: number;
+  /** ISO 3166-1 alpha-2 from the profile's delivery country — the web sends it on this call. */
+  region?: string;
 }): Promise<DupeHuntResult> {
   return api.post<DupeHuntResult>("/dupes/find", input, { timeoutMs: TIMEOUTS.analysis });
 }
@@ -69,6 +71,8 @@ export function findDupes(input: {
 export function findSimilarItems(input: {
   attributes: ClothingAttributes;
   maxResults?: number;
+  /** ISO 3166-1 alpha-2 from the profile's delivery country — the web sends it on this call. */
+  region?: string;
 }): Promise<DupeMatch[]> {
   return api.post<DupeMatch[]>("/dupes/similar", input, { timeoutMs: TIMEOUTS.default });
 }

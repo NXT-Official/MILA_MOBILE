@@ -6,6 +6,7 @@ import { Icon } from "@/components/ui/Icon";
 import { Sheet } from "@/components/ui/Sheet";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { queryKeys } from "@/constants/query-keys";
+import { useProfile } from "@/hooks/use-profile";
 import { sourceUrlHost, type PostItem } from "@/lib/outfit-items";
 import { findSimilarItems } from "@/services/api/items";
 
@@ -31,12 +32,19 @@ export function GarmentDetailSheet({
   item: PostItem | null;
   onClose: () => void;
 }) {
+  const { data: profile } = useProfile();
   const { data: similar, isPending } = useQuery({
     queryKey: queryKeys.similarItems(item?.id ?? ""),
     enabled: Boolean(item),
     staleTime: MATCH_CACHE_MS,
     gcTime: MATCH_CACHE_MS,
-    queryFn: () => findSimilarItems({ attributes: (item as PostItem).attributes }),
+    // `region` matches the web's call — the server ranks with it, and without
+    // it the same garment returns different matches on phone and web.
+    queryFn: () =>
+      findSimilarItems({
+        attributes: (item as PostItem).attributes,
+        region: profile?.delivery_country || undefined,
+      }),
   });
 
   return (
