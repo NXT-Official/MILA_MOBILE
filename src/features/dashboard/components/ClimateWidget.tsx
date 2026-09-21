@@ -63,7 +63,7 @@ export function ClimateWidget({
             {weather ? (
               <View className="flex-1 gap-xs">
                 <Text className="font-body-medium text-base text-ink">
-                  {weather.tempC}°C {weather.label}
+                  {weather.label}
                 </Text>
                 <Text className="font-body-semibold text-label tracking-label uppercase text-muted">
                   {weather.location}

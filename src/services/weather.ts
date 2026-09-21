@@ -54,11 +54,18 @@ export async function fetchHubWeather(hubId: string): Promise<ClimateState> {
   }
 
   const tempC = Math.round(current.temperature_2m);
-  const weather = climateForWeatherCode(current.weather_code, current.wind_speed_10m ?? 0);
+  const windKph = Math.round(current.wind_speed_10m ?? 0);
+  const weather = climateForWeatherCode(current.weather_code, windKph);
+  // The web's label composition, verbatim: temperature first, and the wind
+  // called out in words. This string is not decoration — it is what the
+  // generate payload's `weather` carries, and the prompt's "Verbal summary"
+  // line reads the whole thing.
+  const windy = windKph >= 25 ? " & Windy" : "";
 
   return {
-    label: weather.description,
+    label: `${tempC}°C ${weather.description}${windy}`,
     location: hub.city,
+    country: hub.country,
     icon: weather.icon,
     tempC,
     tempF: Math.round((tempC * 9) / 5 + 32),
