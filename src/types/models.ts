@@ -36,6 +36,21 @@ export type DashboardProfile = {
   full_name: string | null;
   face_shape: string | null;
   hair_type: string | null;
+  /**
+   * Required on the web since the gender step landed. `"Male"` is the one
+   * selection that makes a member makeup-ineligible — the same test the
+   * server's `computeMakeupEligibility` and the web's review step run.
+   */
+  gender: string | null;
+  /** Required on the web since the hair-length step landed. */
+  hair_length: string | null;
+  /** One of `MAKEUP_PREFERENCES`; `"none"` is an explicit opt-out, not a missing answer. */
+  makeup_preference: string | null;
+  /** Tag arrays written by the optional shopping/styling steps; folded into the brief server-side. */
+  shopping_preferences: Json | null;
+  styling_constraints: Json | null;
+  /** ISO 3166-1 alpha-2. Sent as `region` on catalog calls so picks match the member's market. */
+  delivery_country: string | null;
   beauty_preferences: Json | null;
   color_profile: Json | null;
   default_location: string | null;
@@ -104,6 +119,12 @@ export const PROFILE_WRITABLE_COLUMNS = [
   "color_profile",
   "face_shape",
   "hair_type",
+  "gender",
+  "hair_length",
+  "makeup_preference",
+  "shopping_preferences",
+  "styling_constraints",
+  "delivery_country",
   "beauty_preferences",
   "default_location",
   "style_goals",
@@ -121,4 +142,4 @@ export const PROFILE_WRITABLE_COLUMNS = [
  * into a payload by a `select("*")`.
  */
 export const PROFILE_READ_COLUMNS =
-  "body_type,color_season,skin_undertone,full_name,color_profile,face_shape,hair_type,beauty_preferences,default_location,style_goals,suspended,photo_consent_at,profile_photo_path,skin_depth,height_cm,weight_kg";
+  "body_type,color_season,skin_undertone,full_name,color_profile,face_shape,hair_type,gender,hair_length,makeup_preference,shopping_preferences,styling_constraints,delivery_country,beauty_preferences,default_location,style_goals,suspended,photo_consent_at,profile_photo_path,skin_depth,height_cm,weight_kg";

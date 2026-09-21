@@ -1,6 +1,8 @@
 import {
   BODIES,
   FACE_SHAPES,
+  GENDERS,
+  HAIR_LENGTHS,
   HAIR_TYPES,
   SEASONS,
   SKIN_DEPTHS,
@@ -9,13 +11,11 @@ import {
 import { normalizeBeautyPreferences } from "@/lib/beauty-preferences";
 import { deriveColorMetrics } from "@/lib/profile-color";
 import {
-  dossierCompletion,
   isNonEmptyColorProfile,
   isStyleProfileComplete,
   toStyleProfileRow,
   type StyleProfileRow,
 } from "@/lib/style-profile/completion";
-import type { DashboardProfile } from "@/types/models";
 
 /**
  * `isStyleProfileComplete()` is the onboarding exit gate and the launch gate.
@@ -32,6 +32,8 @@ const complete: StyleProfileRow = {
   body_type: "Hourglass",
   face_shape: "Oval",
   hair_type: "Wavy",
+  hair_length: "Medium",
+  gender: "Female",
   skin_depth: "Medium",
   color_profile: { season: "Autumn", subSeason: "Autumn True" },
 };
@@ -52,6 +54,8 @@ describe("isStyleProfileComplete", () => {
     "body_type",
     "face_shape",
     "hair_type",
+    "hair_length",
+    "gender",
     "skin_depth",
   ] as const)("requires %s", (field) => {
     expect(isStyleProfileComplete({ ...complete, [field]: null })).toBe(false);
@@ -82,6 +86,8 @@ describe("isStyleProfileComplete", () => {
     ["body_type", "hourglass"],
     ["face_shape", "oval"],
     ["hair_type", "wavy"],
+    ["hair_length", "medium"],
+    ["gender", "female"],
     ["skin_depth", "medium"],
   ] as const)("rejects %s outside the taxonomy (%s)", (field, value) => {
     expect(isStyleProfileComplete({ ...complete, [field]: value })).toBe(false);
@@ -103,6 +109,12 @@ describe("isStyleProfileComplete", () => {
     for (const hair_type of HAIR_TYPES) {
       expect(isStyleProfileComplete({ ...complete, hair_type })).toBe(true);
     }
+    for (const hair_length of HAIR_LENGTHS) {
+      expect(isStyleProfileComplete({ ...complete, hair_length })).toBe(true);
+    }
+    for (const gender of GENDERS) {
+      expect(isStyleProfileComplete({ ...complete, gender })).toBe(true);
+    }
     for (const skin_depth of SKIN_DEPTHS) {
       expect(isStyleProfileComplete({ ...complete, skin_depth })).toBe(true);
     }
@@ -118,6 +130,8 @@ describe("isStyleProfileComplete", () => {
       body_type: "Hourglass",
       face_shape: "Oval",
       hair_type: "Wavy",
+      hair_length: "Medium",
+      gender: "Female",
       skin_depth: "Medium",
       color_profile: { season: "Autumn" },
     });
@@ -195,64 +209,3 @@ describe("normalizeBeautyPreferences", () => {
   });
 });
 
-/**
- * `dossierCompletion()` measures the optional depth, not the gate — a member
- * only reaches the dashboard with the required six already in hand. These pin
- * the COPIED implementation against the web's, including that it validates
- * against the taxonomy lists rather than merely checking for truthiness.
- */
-
-const FULL: DashboardProfile = {
-  body_type: "Hourglass",
-  color_season: "Spring Light",
-  color_season_base: "Spring",
-  skin_undertone: "Warm",
-  full_name: "Test Member",
-  face_shape: "Oval",
-  hair_type: "Wavy",
-  skin_depth: "Fair",
-  beauty_preferences: ["Minimalist"],
-  color_profile: { season: "Spring" },
-  default_location: "paris",
-  style_goals: [],
-  suspended: false,
-  photo_consent_at: null,
-  profile_photo_path: null,
-  height_cm: null,
-  weight_kg: null,
-};
-
-describe("dossierCompletion", () => {
-  it("reads 100% with nothing missing when every signal is filled", () => {
-    expect(dossierCompletion(FULL)).toEqual({
-      filled: 8,
-      total: 8,
-      percent: 100,
-      missing: [],
-    });
-  });
-
-  it("leaves only the optional signals once onboarding's gate is passed", () => {
-    const result = dossierCompletion({ ...FULL, beauty_preferences: [], default_location: null });
-    expect(result.missing).toEqual(["Beauty preferences", "Home city"]);
-    expect(result.percent).toBe(75);
-    // The required six are still complete, so the app still lets her generate.
-    expect(isStyleProfileComplete(toStyleProfileRow(FULL))).toBe(true);
-  });
-
-  it("names every signal for an empty profile", () => {
-    const result = dossierCompletion(null);
-    expect(result.percent).toBe(0);
-    expect(result.missing).toHaveLength(8);
-  });
-
-  it("does not count an off-taxonomy value as filled", () => {
-    const result = dossierCompletion({ ...FULL, body_type: "Trapezoid", face_shape: "" });
-    expect(result.missing).toEqual(["Body silhouette", "Face shape"]);
-    expect(result.percent).toBe(75);
-  });
-
-  it("does not accept a whitespace-only home city", () => {
-    expect(dossierCompletion({ ...FULL, default_location: "   " }).missing).toEqual(["Home city"]);
-  });
-});

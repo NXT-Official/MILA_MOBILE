@@ -27,12 +27,27 @@ export function undertoneForSeason(season: string): string {
   return (["Spring", "Autumn"] as string[]).includes(season) ? "Warm" : "Cool";
 }
 
-export function nextStep(step: OnboardingStepId): OnboardingStepId | null {
+export function nextStep(
+  step: OnboardingStepId,
+  profile?: { gender?: string | null } | null,
+): OnboardingStepId | null {
+  // The web's `SELECT_STEPS["hair-length"].next` is conditional: makeup-
+  // ineligible members skip `makeup-preference` entirely rather than seeing it
+  // and being bounced. Mirrored here so the sequence is the same whether she
+  // taps Continue or deep-links ahead.
+  if (step === "hair-length" && profile?.gender === "Male") return "beauty-preferences";
   const index = ONBOARDING_STEPS.findIndex((s) => s.id === step);
   return ONBOARDING_STEPS[index + 1]?.id ?? null;
 }
 
-export function previousStep(step: OnboardingStepId): OnboardingStepId | null {
+export function previousStep(
+  step: OnboardingStepId,
+  profile?: { gender?: string | null } | null,
+): OnboardingStepId | null {
+  // The web's `BeautyPreferencesStep.onBack` — same skip, walked backwards.
+  // Without this, Back from `beauty-preferences` on a no-stack deep link lands
+  // on `makeup-preference`, which redirects straight forward again.
+  if (step === "beauty-preferences" && profile?.gender === "Male") return "hair-length";
   const index = ONBOARDING_STEPS.findIndex((s) => s.id === step);
   return index > 0 ? ONBOARDING_STEPS[index - 1].id : null;
 }

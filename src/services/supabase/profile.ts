@@ -27,6 +27,12 @@ const EMPTY_PROFILE: DashboardProfile = {
   full_name: null,
   face_shape: null,
   hair_type: null,
+  gender: null,
+  hair_length: null,
+  makeup_preference: null,
+  shopping_preferences: null,
+  styling_constraints: null,
+  delivery_country: null,
   beauty_preferences: null,
   color_profile: null,
   default_location: null,
@@ -47,6 +53,12 @@ type ProfileRow = {
   color_profile: Json | null;
   face_shape: string | null;
   hair_type: string | null;
+  gender: string | null;
+  hair_length: string | null;
+  makeup_preference: string | null;
+  shopping_preferences: Json;
+  styling_constraints: Json;
+  delivery_country: string | null;
   beauty_preferences: Json;
   default_location: string | null;
   style_goals: string[] | null;
@@ -88,6 +100,12 @@ function buildDashboardProfile(data: ProfileRow | null): DashboardProfile {
     full_name: data.full_name ?? null,
     face_shape: faceShape,
     hair_type: hairType,
+    gender: data.gender ?? null,
+    hair_length: data.hair_length ?? null,
+    makeup_preference: data.makeup_preference ?? null,
+    shopping_preferences: data.shopping_preferences ?? null,
+    styling_constraints: data.styling_constraints ?? null,
+    delivery_country: data.delivery_country ?? null,
     beauty_preferences: data.beauty_preferences ?? null,
     color_profile: data.color_profile ?? null,
     default_location: data.default_location ?? null,
@@ -124,6 +142,13 @@ export type StyleProfileUpdate = {
   body_type?: string | null;
   face_shape?: string | null;
   hair_type?: string | null;
+  gender?: string | null;
+  hair_length?: string | null;
+  /** NOT NULL with a default in the schema — the column never holds null. */
+  makeup_preference?: string;
+  shopping_preferences?: Json;
+  styling_constraints?: Json;
+  delivery_country?: string | null;
   beauty_preferences?: Json;
   default_location?: string | null;
   style_goals?: string[];

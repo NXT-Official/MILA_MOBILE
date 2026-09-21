@@ -10,13 +10,19 @@ import {
 import {
   BODY_OPTIONS,
   FACE_SHAPE_OPTIONS,
+  GENDER_OPTIONS,
+  HAIR_LENGTH_OPTIONS,
   HAIR_TYPE_OPTIONS,
+  MAKEUP_PREFERENCE_OPTIONS,
+  SHOPPING_PREFERENCE_TAGS,
   SKIN_DEPTH_OPTIONS,
+  STYLING_CONSTRAINT_TAGS,
   type DetailedColorProfile as StudioDossier,
   type MatrixOption,
 } from "@/constants/style-profile";
 import { isStyleProfileComplete, toStyleProfileRow } from "@/lib/style-profile/completion";
 import { normalizeBeautyPreferences } from "@/lib/beauty-preferences";
+import { tagList } from "@/lib/profile-tags";
 import { normalizeStoredProfile } from "@/lib/style-profile/studio-dossier";
 import { useOnboardingStore } from "@/stores/onboarding-store";
 import type { Json } from "@/types/models";
@@ -30,6 +36,7 @@ import { Location } from "./steps/Location";
 import { Measurements } from "./steps/Measurements";
 import { Review } from "./steps/Review";
 import { SingleSelect } from "./steps/SingleSelect";
+import { TagSelect } from "./steps/TagSelect";
 import { Welcome } from "./steps/Welcome";
 
 /**
@@ -39,6 +46,13 @@ import { Welcome } from "./steps/Welcome";
  */
 
 const SELECT_STEPS = {
+  gender: {
+    field: "gender",
+    options: GENDER_OPTIONS,
+    guidance:
+      "Mila only includes makeup guidance and shopping links for makeup-eligible selections. This never gets inferred — you choose it, and you can change it any time.",
+    requiredMessage: "Select an option to continue.",
+  },
   "skin-depth": {
     field: "skin_depth",
     options: SKIN_DEPTH_OPTIONS,
@@ -67,10 +81,31 @@ const SELECT_STEPS = {
       "This shapes the silhouette of every hair direction Mila composes, from styling to product suggestions.",
     requiredMessage: "Select a hair type to continue.",
   },
+  "hair-length": {
+    field: "hair_length",
+    options: HAIR_LENGTH_OPTIONS,
+    guidance:
+      "Mila only recommends hairstyles achievable at this length — no extensions, no added length assumed.",
+    requiredMessage: "Select a hair length to continue.",
+  },
+  "makeup-preference": {
+    field: "makeup_preference",
+    options: MAKEUP_PREFERENCE_OPTIONS,
+    guidance:
+      "How much makeup guidance do you want in your daily look? You can change this any time from Style Profile.",
+    requiredMessage: "Select an option to continue.",
+  },
 } as const satisfies Record<
   string,
   {
-    field: "skin_depth" | "body_type" | "face_shape" | "hair_type";
+    field:
+      | "gender"
+      | "skin_depth"
+      | "body_type"
+      | "face_shape"
+      | "hair_type"
+      | "hair_length"
+      | "makeup_preference";
     options: MatrixOption[];
     guidance: string;
     requiredMessage: string;
@@ -105,6 +140,19 @@ export function OnboardingScreen({ rawStep }: { rawStep: string | undefined }) {
   useEffect(() => {
     enterOnboarding();
   }, [enterOnboarding]);
+
+  /**
+   * The web's makeup skip, as an effect rather than a render guard alone: a
+   * deep link into `/onboarding/makeup-preference` on a makeup-ineligible
+   * profile must land on the step the sequence would have taken her to, not on
+   * a screen that renders nothing. `replace` keeps Back honest — the skipped
+   * step never enters the stack.
+   */
+  useEffect(() => {
+    if (step === "makeup-preference" && profile?.gender === "Male") {
+      goTo("beauty-preferences", { replace: true });
+    }
+  }, [step, profile?.gender, goTo]);
 
   const [completing, setCompleting] = useState(false);
   const [completionError, setCompletionError] = useState<string | null>(null);
@@ -208,7 +256,7 @@ export function OnboardingScreen({ rawStep }: { rawStep: string | undefined }) {
     );
   }
 
-  if (selectStep) {
+  if (selectStep && !(step === "makeup-preference" && profile?.gender === "Male")) {
     return (
       <SingleSelect
         key={step}
@@ -266,6 +314,44 @@ export function OnboardingScreen({ rawStep }: { rawStep: string | undefined }) {
         onSaved={() => goNext("location")}
         onSkip={() => goNext("location")}
         save={(hubId) => autoSave.save({ default_location: hubId })}
+        saveState={autoSave.state}
+        onRetrySave={autoSave.retry}
+        saving={autoSave.saving}
+      />
+    );
+  }
+
+  if (step === "shopping-preferences") {
+    return (
+      <TagSelect
+        step="shopping-preferences"
+        tags={SHOPPING_PREFERENCE_TAGS}
+        value={tagList(profile?.shopping_preferences)}
+        guidance="Select any style, fit, coverage, color, footwear, sizing, or budget preferences Mila should factor into shopping recommendations. This step is optional."
+        emptyHint="No shopping preferences selected — Mila will recommend without a bias, and you can add these any time from Style Profile."
+        onBack={() => goBack("shopping-preferences")}
+        onSaved={() => goNext("shopping-preferences")}
+        onSkip={() => goNext("shopping-preferences")}
+        save={(tags) => autoSave.save({ shopping_preferences: tags })}
+        saveState={autoSave.state}
+        onRetrySave={autoSave.retry}
+        saving={autoSave.saving}
+      />
+    );
+  }
+
+  if (step === "styling-constraints") {
+    return (
+      <TagSelect
+        step="styling-constraints"
+        tags={STYLING_CONSTRAINT_TAGS}
+        value={tagList(profile?.styling_constraints)}
+        guidance="Select any prep-time limits, tools, or other constraints Mila should respect when recommending hairstyles and outfits. This step is optional."
+        emptyHint="No styling constraints selected — Mila will assume no special constraints, and you can add these any time from Style Profile."
+        onBack={() => goBack("styling-constraints")}
+        onSaved={() => goNext("styling-constraints")}
+        onSkip={() => goNext("styling-constraints")}
+        save={(tags) => autoSave.save({ styling_constraints: tags })}
         saveState={autoSave.state}
         onRetrySave={autoSave.retry}
         saving={autoSave.saving}

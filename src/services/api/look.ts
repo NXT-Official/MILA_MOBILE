@@ -7,11 +7,12 @@ import { api, TIMEOUTS } from "./client";
 export type { DailyLook } from "@/types/look";
 
 /**
- * The daily look pipeline. Two calls, and the **order is the billing**:
+ * The daily look pipeline. Three calls, and the **order is the billing**:
  *
- *   /look/generate  charges 1 credit and sets `look_image_pending`
- *   /look/image     claims that flag, so the first visual is free
- *   saveDailyLook   free, and direct through RLS — see services/supabase/outfits
+ *   /look/generate      charges 1 credit and sets `look_image_pending`
+ *   /look/style-sheet   claims that flag, so the first visual is free
+ *   /look/photo-preview same claim — the optional portrait edit
+ *   saveDailyLook       free, and direct through RLS — see services/supabase/outfits
  *
  * Do not reorder them and do not merge them (§6). Prompts, Zod schemas, rate
  * limits, and refund predicates are server-side and shared with the web — this
@@ -33,6 +34,18 @@ export type GenerateLookInput = {
   lat?: number;
   lon?: number;
   vibe: Vibe;
+  /**
+   * When present, more specific than the vibe and takes priority for
+   * occasion-appropriateness server-side. The web sends all three only when
+   * the member filled them in.
+   */
+  agenda?: string;
+  dressCode?: string;
+  indoorOutdoor?: "Indoor" | "Outdoor" | "Mixed";
+  /** IANA zone, e.g. `Asia/Manila` — lets the server reason about "today". */
+  timezone?: string;
+  /** ISO 3166-1 alpha-2 from the profile's delivery country; omitted when unknown. */
+  region?: string;
 };
 
 export function generateDailyLook(input: GenerateLookInput): Promise<DailyLook> {
@@ -40,24 +53,38 @@ export function generateDailyLook(input: GenerateLookInput): Promise<DailyLook> 
 }
 
 /**
- * `imageDataUri` is null when the provider returned nothing. That is not an
- * exception — the server has already re-marked the pending flag or refunded the
- * credit, and the caller's job is to keep the written look on screen and offer
- * a retry. Partial success is a first-class state (§8).
+ * The identity-locked 5-view style sheet — the primary visual, rendered from
+ * the member's consented selfie. `mode: "unavailable"` covers both "no
+ * consented photo on file" and a failed QA check: both are a **successful
+ * response** the caller answers with copy and a retry, never an exception.
  */
-export type LookImageResult = {
-  imageDataUri: string | null;
-  imageGenerationError?: string;
-};
+export type StyleSheetResult =
+  | { imageDataUri: string; mode: "style_sheet" }
+  | { imageDataUri: null; mode: "unavailable"; reason: string };
 
-export function regenerateOutfitImage(look: DailyLook): Promise<LookImageResult> {
-  return api.post<LookImageResult>("/look/image", look, { timeoutMs: TIMEOUTS.lookImage });
+export function generateStyleSheetPreview(outfit: DailyLook): Promise<StyleSheetResult> {
+  return api.post<StyleSheetResult>("/look/style-sheet", { outfit }, { timeoutMs: TIMEOUTS.lookVisual });
+}
+
+/**
+ * The single-photo edit preview — the member's own selfie with the outfit
+ * composited on. The optional secondary visual beside the style sheet. Same
+ * partial-result contract as the style sheet.
+ */
+export type PhotoPreviewResult =
+  | { imageDataUri: string; mode: "photo_edit" }
+  | { imageDataUri: null; mode: "unavailable"; reason: string };
+
+export function generatePhotoPreview(outfit: DailyLook): Promise<PhotoPreviewResult> {
+  return api.post<PhotoPreviewResult>("/look/photo-preview", { outfit }, {
+    timeoutMs: TIMEOUTS.lookVisual,
+  });
 }
 
 export type SaveLookInput = DailyLook & {
   imageDataUri: string;
   weather: string;
   vibe: Vibe;
+  /** Which pipeline produced the saved visual — written into the row. */
+  previewMode: "style_sheet" | "photo_edit";
 };
-
-

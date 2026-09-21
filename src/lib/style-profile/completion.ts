@@ -4,26 +4,19 @@ import {
   BODIES,
   FACE_SHAPES,
   HAIR_TYPES,
+  GENDERS,
+  HAIR_LENGTHS,
   SKIN_DEPTHS,
 } from "@/constants/style-profile";
-import type { DashboardProfile } from "@/types/models";
 
-/**
- * `skin_depth` joined the required set in the same web commit that added the
- * `skin-depth` onboarding step (Appendix A) — the launch gate and the step
- * machine's own `review` completeness check (`constants/steps.ts`) must agree
- * on what "required" means, or a member could reach the dashboard on a later
- * login having never seen a step the step machine still calls required.
- * `gender` and `hair_length` are also required on the web now, but mobile has
- * neither step yet (§ note in `constants/steps.ts`) — adding them here without
- * the steps to set them would lock every member out of completion entirely.
- */
 export interface StyleProfileRow {
   skin_undertone: string | null;
   color_season: string | null;
   body_type: string | null;
   face_shape: string | null;
   hair_type: string | null;
+  hair_length: string | null;
+  gender: string | null;
   skin_depth: string | null;
   color_profile: unknown;
 }
@@ -41,6 +34,8 @@ export function toStyleProfileRow(
     body_type: profile.body_type,
     face_shape: profile.face_shape,
     hair_type: profile.hair_type,
+    hair_length: profile.hair_length,
+    gender: profile.gender,
     skin_depth: profile.skin_depth,
     color_profile: profile.color_profile,
   };
@@ -60,43 +55,9 @@ export function isStyleProfileComplete(profile: StyleProfileRow | null | undefin
     (BODIES as readonly string[]).includes(profile.body_type ?? "") &&
     (FACE_SHAPES as readonly string[]).includes(profile.face_shape ?? "") &&
     (HAIR_TYPES as readonly string[]).includes(profile.hair_type ?? "") &&
+    (HAIR_LENGTHS as readonly string[]).includes(profile.hair_length ?? "") &&
+    (GENDERS as readonly string[]).includes(profile.gender ?? "") &&
     (SKIN_DEPTHS as readonly string[]).includes(profile.skin_depth ?? "") &&
     isNonEmptyColorProfile(profile.color_profile)
   );
-}
-
-export interface DossierCompletion {
-  filled: number;
-  total: number;
-  percent: number;
-  missing: string[];
-}
-
-/**
- * Progress across every signal Mila styles from — the six the onboarding gate
- * requires plus the two optional ones it lets you skip. Members only reach the
- * dashboard with the required six in hand, so in practice this measures how
- * much of the optional depth is still missing.
- */
-export function dossierCompletion(profile: DashboardProfile | null | undefined): DossierCompletion {
-  const beautyPrefs = profile?.beauty_preferences;
-  const signals: Array<[label: string, filled: boolean]> = [
-    ["Color season", (SEASONS as readonly string[]).includes(profile?.color_season_base ?? "")],
-    ["Skin undertone", (UNDERTONES as readonly string[]).includes(profile?.skin_undertone ?? "")],
-    ["Body silhouette", (BODIES as readonly string[]).includes(profile?.body_type ?? "")],
-    ["Face shape", (FACE_SHAPES as readonly string[]).includes(profile?.face_shape ?? "")],
-    ["Hair texture", (HAIR_TYPES as readonly string[]).includes(profile?.hair_type ?? "")],
-    ["Color analysis", isNonEmptyColorProfile(profile?.color_profile)],
-    ["Beauty preferences", Array.isArray(beautyPrefs) && beautyPrefs.length > 0],
-    ["Home city", !!profile?.default_location?.trim()],
-  ];
-
-  const missing = signals.filter(([, filled]) => !filled).map(([label]) => label);
-  const filled = signals.length - missing.length;
-  return {
-    filled,
-    total: signals.length,
-    percent: Math.round((filled / signals.length) * 100),
-    missing,
-  };
 }

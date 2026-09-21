@@ -70,6 +70,13 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     if (refreshed.session) return request<T>(path, { ...init, retryOn401: false });
   }
 
+  // Cloudflare (524) and generic proxy (504) timeouts arrive as HTML, not JSON.
+  // Map them to TIMEOUT so the UI shows "took longer than expected" rather than
+  // a misleading "something went wrong".
+  if (res.status === 524 || res.status === 504) {
+    throw new ApiError("TIMEOUT", "That took longer than expected.", res.status);
+  }
+
   if (!res.ok) {
     const payload = await res.json().catch(() => null);
     throw new ApiError(
@@ -92,11 +99,19 @@ export const api = {
 /**
  * Per-endpoint timeouts. The image call alone budgets 75s server-side, so a 30s
  * default would abort a request that was going to succeed.
+ *
+ * `lookVisual` covers the style-sheet and photo-preview pipelines, which retry
+ * a failed QA check up to 3 times before answering — a single attempt already
+ * budgets 75s provider-side, so the 90s `lookImage` budget would abort retries
+ * that were going to succeed. Worst case is ~3 × (render + QA) plus overhead;
+ * 300s is that ceiling with headroom, and a partial result still comes back
+ * well before it in every ordinary case.
  */
 export const TIMEOUTS = {
   default: 30_000,
-  generateLook: 60_000,
+  generateLook: 120_000,
   lookImage: 90_000,
+  lookVisual: 300_000,
   analysis: 60_000,
   concierge: 45_000,
 } as const;

@@ -1,16 +1,22 @@
 import { File, Paths } from "expo-file-system";
 import * as Sharing from "expo-sharing";
 
+import { dataUriMimeType, dataUriToBytes } from "@/utils/data-uri";
+
 import type { FilesService } from "./types";
 
 /**
  * `SharingOptions.UTI` wants a Uniform Type Identifier, not a MIME type — the
  * two vocabularies don't overlap. This is the one mapping the app currently
- * needs (the privacy screen's JSON export); `public.data` is the generic
- * fallback UTI and is always valid, so an unrecognised MIME type degrades to
- * "some data" rather than throwing.
+ * needs (the privacy screen's JSON export, and the style sheet's JPG);
+ * `public.data` is the generic fallback UTI and is always valid, so an
+ * unrecognised MIME type degrades to "some data" rather than throwing.
  */
-const MIME_TO_UTI: Record<string, string> = { "application/json": "public.json" };
+const MIME_TO_UTI: Record<string, string> = {
+  "application/json": "public.json",
+  "image/jpeg": "public.jpeg",
+  "image/png": "public.png",
+};
 
 export const files: FilesService = {
   async saveAndShare({ filename, mimeType, contents }) {
@@ -42,6 +48,27 @@ export const files: FilesService = {
     // Mail, Save to Files) has already read or copied what it needed, so the
     // temp file can be removed immediately rather than left for the OS to
     // reclaim under storage pressure.
+    file.delete();
+
+    return "shared";
+  },
+
+  async saveAndShareImage({ filename, dataUri }) {
+    if (!(await Sharing.isAvailableAsync())) return "cancelled";
+
+    const mimeType = dataUriMimeType(dataUri) ?? "image/jpeg";
+
+    // Same directory choice as the text path, for the same reason: the sheet
+    // can be re-presented, and a cached file can be evicted between the two.
+    const file = new File(Paths.document, filename);
+    file.create({ overwrite: true });
+    file.write(dataUriToBytes(dataUri));
+
+    await Sharing.shareAsync(file.uri, {
+      mimeType,
+      UTI: MIME_TO_UTI[mimeType] ?? "public.data",
+    });
+
     file.delete();
 
     return "shared";

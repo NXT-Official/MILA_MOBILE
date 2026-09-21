@@ -7,6 +7,7 @@ import { HUBS } from "@/constants/climate";
 import type { OnboardingStepId } from "@/constants/steps";
 import type { DetailedColorProfile as StudioDossier } from "@/constants/style-profile";
 import { normalizeBeautyPreferences } from "@/lib/beauty-preferences";
+import { tagList } from "@/lib/profile-tags";
 import type { DashboardProfile } from "@/types/models";
 
 import { StepShell } from "../components/StepShell";
@@ -68,6 +69,9 @@ export function Review({
 }) {
   const hub = HUBS.find((h) => h.id === profile.default_location);
   const beautyPrefs = normalizeBeautyPreferences(profile.beauty_preferences);
+  const shoppingPrefs = tagList(profile.shopping_preferences);
+  const stylingConstraints = tagList(profile.styling_constraints);
+  const makeupEligible = profile.gender !== "Male";
 
   const rows: { title: string; value: string; step: OnboardingStepId }[] = [
     {
@@ -76,6 +80,7 @@ export function Review({
       step: "color-result",
     },
     { title: "Skin undertone", value: profile.skin_undertone ?? "Not set", step: "color-result" },
+    { title: "Gender", value: profile.gender ?? "Not set", step: "gender" },
     { title: "Skin depth", value: profile.skin_depth ?? "Not set", step: "skin-depth" },
     { title: "Body silhouette", value: profile.body_type ?? "Not set", step: "body-type" },
     {
@@ -85,6 +90,16 @@ export function Review({
     },
     { title: "Face shape", value: profile.face_shape ?? "Not set", step: "face-shape" },
     { title: "Hair type", value: profile.hair_type ?? "Not set", step: "hair-type" },
+    { title: "Hair length", value: profile.hair_length ?? "Not set", step: "hair-length" },
+    ...(makeupEligible
+      ? [
+          {
+            title: "Makeup preference",
+            value: profile.makeup_preference ?? "none",
+            step: "makeup-preference" as OnboardingStepId,
+          },
+        ]
+      : []),
     {
       title: "Beauty preferences",
       value: beautyPrefs.length > 0 ? beautyPrefs.join(", ") : "No preference selected",
@@ -94,6 +109,17 @@ export function Review({
       title: "Location",
       value: hub ? `${hub.city} — ${hub.tagline}` : "Not set",
       step: "location",
+    },
+    {
+      title: "Shopping preferences",
+      value: shoppingPrefs.length > 0 ? shoppingPrefs.join(", ") : "No preference selected",
+      step: "shopping-preferences",
+    },
+    {
+      title: "Styling constraints",
+      value:
+        stylingConstraints.length > 0 ? stylingConstraints.join(", ") : "No constraints selected",
+      step: "styling-constraints",
     },
   ];
 

@@ -48,6 +48,12 @@ describe("assertWritableColumns", () => {
     // `weight_kg` for the matching onboarding steps — confirmed live against
     // the database that `authenticated` already holds UPDATE on all five,
     // same as every other column here.
+    //
+    // `gender`, `hair_length`, `makeup_preference`, `shopping_preferences`,
+    // `styling_constraints`, and `delivery_country` came with the web's own
+    // `StyleProfileUpdatePayload` when the five missing onboarding steps were
+    // ported — the server's AI prompt reads the first three, so a client that
+    // could not write them could not complete onboarding at all.
     expect([...PROFILE_WRITABLE_COLUMNS].sort()).toEqual(
       [
         "beauty_preferences",
@@ -55,15 +61,21 @@ describe("assertWritableColumns", () => {
         "color_profile",
         "color_season",
         "default_location",
+        "delivery_country",
         "face_shape",
         "full_name",
+        "gender",
+        "hair_length",
         "hair_type",
         "height_cm",
+        "makeup_preference",
         "photo_consent_at",
         "profile_photo_path",
+        "shopping_preferences",
         "skin_depth",
         "skin_undertone",
         "style_goals",
+        "styling_constraints",
         "updated_at",
         "username",
         "weight_kg",

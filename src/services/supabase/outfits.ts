@@ -84,6 +84,21 @@ export type SaveDailyLookInput = {
   hair: Json;
   makeup: Json;
   vibe_alignment_score: number;
+  forecastRetrievedAt: string | null;
+  /** Ids of the hydrated picks shown with this look; the saved row keeps them for re-opening. */
+  productIds: string[];
+  previewMode: "style_sheet" | "photo_edit";
+  /**
+   * Snapshot of the eligibility inputs active at save time. The web reads these
+   * server-side inside `saveOutfitToHistory`; mobile saves direct, so the
+   * caller supplies them — from the same profile row the generate call was
+   * built from. A later profile change must never rewrite what this saved look
+   * actually showed.
+   */
+  gender: string | null;
+  makeupEnabled: boolean;
+  hairLength: string | null;
+  photoConsentVersion: string | null;
 };
 
 /**
@@ -109,6 +124,9 @@ export async function saveDailyLook(
     .insert({
       user_id: userId,
       image_url: publicUrl,
+      // Key-for-key the web's row. `makeup` is nullable — the server omits the
+      // section entirely for makeup-ineligible members, and history renders
+      // the absence rather than inventing one.
       analysis_result: {
         type: "daily_look",
         weather: input.weather,
@@ -117,6 +135,13 @@ export async function saveDailyLook(
         outfit: input.outfit,
         hair: input.hair,
         makeup: input.makeup,
+        forecastRetrievedAt: input.forecastRetrievedAt,
+        productIds: input.productIds,
+        previewMode: input.previewMode,
+        gender: input.gender,
+        makeupEnabled: input.makeupEnabled,
+        hairLength: input.hairLength,
+        photoConsentVersion: input.photoConsentVersion,
       },
       match_score: null,
     })

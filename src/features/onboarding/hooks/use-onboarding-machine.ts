@@ -66,7 +66,7 @@ export function useOnboardingMachine(rawStep: string | undefined) {
     refetch,
     goTo,
     goNext: (from: OnboardingStepId) => {
-      const to = nextStep(from);
+      const to = nextStep(from, profile);
       if (to) goTo(to);
     },
     goBack: (from: OnboardingStepId) => {
@@ -77,7 +77,7 @@ export function useOnboardingMachine(rawStep: string | undefined) {
         return;
       }
       // Nothing to pop: she arrived by deep link or by the resume redirect.
-      const to = previousStep(from);
+      const to = previousStep(from, profile);
       if (to) goTo(to, { replace: true });
     },
   };

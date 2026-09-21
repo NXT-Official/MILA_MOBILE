@@ -13,6 +13,7 @@ import {
   CloudOff,
   CloudRain,
   Coins,
+  Download,
   ExternalLink,
   Eye,
   EyeOff,
@@ -120,6 +121,8 @@ export const icons = {
   edit: Pencil,
   trash: Trash2,
   add: Plus,
+  /** The style sheet's download control. */
+  download: Download,
   // Concierge
   send: Send,
   /** Opens the conversation list. The web's header glyph, kept verbatim so the

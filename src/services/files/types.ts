@@ -15,4 +15,15 @@ export interface FilesService {
     mimeType: string;
     contents: string;
   }): Promise<"shared" | "cancelled">;
+
+  /**
+   * Writes an image and hands it to the same flow — the mobile answer to the
+   * web's "Download style sheet" link, where the browser's download is the
+   * share sheet's "Save to Photos" / "Save to Files".
+   *
+   * `dataUri` is the pipeline's own `data:image/…;base64,…` string, decoded
+   * with the same `utils/data-uri` helper the storage upload uses — one
+   * decoder, one set of failure modes.
+   */
+  saveAndShareImage(opts: { filename: string; dataUri: string }): Promise<"shared" | "cancelled">;
 }

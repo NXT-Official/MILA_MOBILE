@@ -9,9 +9,16 @@ import { hubById } from "@/services/weather";
 import { useAuthStore } from "@/stores/auth-store";
 import type { DailyLook } from "@/types/look";
 
+/** The optional agenda fields the hero form collects, when the member fills them in. */
+export type LookAgenda = {
+  agenda?: string;
+  dressCode?: string;
+  indoorOutdoor?: "Indoor" | "Outdoor" | "Mixed";
+};
+
 /**
  * `POST /look/generate` — **1 credit**, charged server-side, which also sets
- * `look_image_pending` so the first visual is free. The image is a separate
+ * `look_image_pending` so the first visual is free. The visual is a separate
  * call and must stay separate: the accounting depends on the sequence (§6).
  *
  * No retry. A retried credit-charging call is a double charge, and the query
@@ -23,8 +30,8 @@ export function useGenerateLook() {
   const { data: profile } = useProfile();
   const queryClient = useQueryClient();
 
-  return useMutation<DailyLook, unknown, { weather: ClimateState; vibe: Vibe }>({
-    mutationFn: ({ weather, vibe }) => {
+  return useMutation<DailyLook, unknown, { weather: ClimateState; vibe: Vibe } & LookAgenda>({
+    mutationFn: ({ weather, vibe, agenda, dressCode, indoorOutdoor }) => {
       // The sub-season is the more precise input and is what the web's
       // normalised profile sends; the base family is the fallback for a legacy
       // row whose analysis only ever wrote the column.
@@ -44,7 +51,9 @@ export function useGenerateLook() {
         skinUndertone: profile.skin_undertone ?? undefined,
         faceShape: profile.face_shape ?? undefined,
         hairType: profile.hair_type ?? undefined,
-        weather: weather.label,
+        // The same composed summary the web sends — the label alone loses the
+        // city, and the prompt's "Verbal summary" line reads the whole string.
+        weather: `${weather.label} (in ${weather.location})`,
         tempC: weather.tempC,
         tempF: weather.tempF,
         condition: weather.condition,
@@ -52,6 +61,10 @@ export function useGenerateLook() {
         lat: hub?.lat,
         lon: hub?.lon,
         vibe,
+        agenda: agenda?.trim() || undefined,
+        dressCode: dressCode?.trim() || undefined,
+        indoorOutdoor,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       });
     },
 

@@ -1,6 +1,8 @@
 import { File, Paths } from "expo-file-system";
 import * as Sharing from "expo-sharing";
 
+import { dataUriMimeType, dataUriToBytes } from "@/utils/data-uri";
+
 import type { FilesService } from "./types";
 
 export const files: FilesService = {
@@ -24,6 +26,20 @@ export const files: FilesService = {
     // The file is deliberately left in the cache: the receiving app may still
     // be reading it when this resolves, and Android reclaims the directory
     // under storage pressure anyway.
+    return "shared";
+  },
+
+  async saveAndShareImage({ filename, dataUri }) {
+    if (!(await Sharing.isAvailableAsync())) return "cancelled";
+
+    const mimeType = dataUriMimeType(dataUri) ?? "image/jpeg";
+
+    const file = new File(Paths.cache, filename);
+    file.create({ overwrite: true });
+    file.write(dataUriToBytes(dataUri));
+
+    await Sharing.shareAsync(file.uri, { mimeType, dialogTitle: filename });
+
     return "shared";
   },
 };

@@ -1,6 +1,6 @@
 import { router } from "expo-router";
 import { useState } from "react";
-import { AccessibilityInfo, View } from "react-native";
+import { AccessibilityInfo, Text, View } from "react-native";
 
 import { KeepAwake } from "@/components/feedback/KeepAwake";
 import { PaywallSheet } from "@/components/feedback/PaywallSheet";
@@ -8,6 +8,11 @@ import { Screen } from "@/components/layout/Screen";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { ConfirmSheet } from "@/components/ui/ConfirmSheet";
+import { EmptyMediaState } from "@/components/ui/EmptyMediaState";
+import { Icon } from "@/components/ui/Icon";
+import { LookDetail } from "@/components/ui/LookDetail";
+import { Skeleton } from "@/components/ui/Skeleton";
+import { queryKeys } from "@/constants/query-keys";
 import { useCountdown } from "@/hooks/use-countdown";
 import { useHaptics } from "@/hooks/use-haptics";
 import { useNetworkStatus } from "@/hooks/use-network-status";
@@ -15,37 +20,48 @@ import { useProfile } from "@/hooks/use-profile";
 import { lookSections } from "@/lib/outfit-history";
 import { toSeasonId } from "@/lib/season-id";
 import { isStyleProfileComplete, toStyleProfileRow } from "@/lib/style-profile/completion";
-import { queryKeys } from "@/constants/query-keys";
 import { formatRetryAfter, resolveApiFailure } from "@/services/api/client";
+import { files } from "@/services/files";
 import { useAuthStore } from "@/stores/auth-store";
+import { useConciergeStore } from "@/stores/concierge-store";
 import { useVibeStore } from "@/stores/vibe-store";
-import { useQueryClient } from "@tanstack/react-query";
 import type { DailyLook } from "@/types/look";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { ClimateWidget } from "./components/ClimateWidget";
 import { DailyPaletteGenerator } from "./components/DailyPaletteGenerator";
-import { DossierCompletionCard } from "./components/DossierCompletionCard";
 import { GenerateButton, resolveBlockedReason } from "./components/GenerateButton";
 import { Greeting } from "./components/Greeting";
 import { HeroCard } from "./components/HeroCard";
 import { HubSheet } from "./components/HubSheet";
 import { LookActions } from "./components/LookActions";
-import { LookDetail } from "@/components/ui/LookDetail";
-import { OutfitVisual, type OutfitVisualState } from "./components/OutfitVisual";
+import { LookVisual, type LookVisualState } from "./components/LookVisual";
 import { SelfiePhotoWidget } from "./components/SelfiePhotoWidget";
+import { ShopThisLookGrid } from "./components/ShopThisLookGrid";
+import { EMPTY_TODAY_PLAN, TodayPlanFields, type TodayPlan } from "./components/TodayPlanFields";
 import { VibePicker, VibeSheet } from "./components/VibePicker";
 import { useGenerateLook } from "./hooks/use-generate-look";
-import { useLookImage } from "./hooks/use-look-image";
+import { usePhotoPreview } from "./hooks/use-photo-preview";
 import { useSaveLook } from "./hooks/use-save-look";
+import { useStyleSheet } from "./hooks/use-style-sheet";
 import { useWeather } from "./hooks/use-weather";
+
+/** The web's filename slug, verbatim: `mila-<headline>.jpg`. */
+function headlineSlug(headline: string): string {
+  return headline.toLowerCase().replace(/\s+/g, "-");
+}
 
 /**
  * The screen the product is judged on.
  *
- * The two AI calls stay separate and in order: `/look/generate` charges a credit
- * and sets `look_image_pending`, then `/look/image` claims that flag so the
- * first visual is free (§6). The screen never awaits the second — the written
- * look is the product and renders as soon as it lands.
+ * The two AI calls stay separate and in order: `/look/generate` charges a
+ * credit and sets `look_image_pending`, then the style sheet claims that flag
+ * so the first visual is free (§6). The screen never awaits the visual — the
+ * written look is the product and renders as soon as it lands.
+ *
+ * There is no stock-model fallback anymore: a visual requires a consented
+ * photo, because the identity-locked style sheet is the only auto-generated
+ * image. Without consent the media slot says so and the CTA is the whole flow.
  */
 export function HomeScreen() {
   const [hubSheetOpen, setHubSheetOpen] = useState(false);
@@ -53,18 +69,24 @@ export function HomeScreen() {
   const [hubAutoLocate, setHubAutoLocate] = useState(false);
   const [vibeSheetOpen, setVibeSheetOpen] = useState(false);
   const [paywallOpen, setPaywallOpen] = useState(false);
-  const [regenerateOpen, setRegenerateOpen] = useState(false);
+  const [newVisualOpen, setNewVisualOpen] = useState(false);
   /** Epoch ms the server's rate limit lifts, or null. */
   const [rateLimitedUntil, setRateLimitedUntil] = useState<number | null>(null);
-  /** True once an image attempt has come back empty for the current look. */
-  const [imageAttempted, setImageAttempted] = useState(false);
+  const [plan, setPlan] = useState<TodayPlan>(EMPTY_TODAY_PLAN);
+
   /**
-   * The current visual, held here rather than read from `lookImage.data`.
-   * A mutation clears its data the moment it re-runs, so a *failed regeneration*
-   * would blank a visual the member already had — losing something she paid for
+   * The visuals, held here rather than read from the mutations. A mutation
+   * clears its data the moment it re-runs, so a *failed regeneration* would
+   * blank a visual the member already had — losing something she paid for
    * because the replacement did not arrive.
    */
-  const [imageUri, setImageUri] = useState<string | null>(null);
+  const [sheetImage, setSheetImage] = useState<string | null>(null);
+  const [sheetAttempted, setSheetAttempted] = useState(false);
+  /** The server's `unavailable` reason, or the thrown message — rendered under the slot. */
+  const [sheetDetail, setSheetDetail] = useState<string | null>(null);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [previewAttempted, setPreviewAttempted] = useState(false);
+  const [previewDetail, setPreviewDetail] = useState<string | null>(null);
 
   const userId = useAuthStore((s) => s.session?.user.id ?? null);
   const queryClient = useQueryClient();
@@ -73,9 +95,11 @@ export function HomeScreen() {
   const { online } = useNetworkStatus();
   const vibe = useVibeStore((s) => s.vibe);
   const haptics = useHaptics();
+  const anchorLook = useConciergeStore((s) => s.anchor);
 
   const generate = useGenerateLook();
-  const lookImage = useLookImage();
+  const styleSheet = useStyleSheet();
+  const photoPreview = usePhotoPreview();
   const save = useSaveLook();
 
   const rateLimitedFor = useCountdown(rateLimitedUntil);
@@ -89,7 +113,8 @@ export function HomeScreen() {
 
   const look = generate.data ?? null;
   const seasonId = toSeasonId(profile?.color_season);
-  const busy = generate.isPending || lookImage.isPending;
+  const canRenderVisual = Boolean(profile?.photo_consent_at);
+  const busy = generate.isPending || styleSheet.isPending || photoPreview.isPending;
 
   /**
    * Every failure lands here. `kind` decides the response, so a code that is not
@@ -114,44 +139,87 @@ export function HomeScreen() {
     }
   }
 
-  function requestImage(currentLook: DailyLook) {
-    setImageAttempted(true);
+  /** True when the failure has a surface of its own and the media slot should stay quiet. */
+  function ownsItsOwnSurface(error: unknown): boolean {
+    const kind = resolveApiFailure(error).kind;
+    return kind === "paywall" || kind === "rate-limited" || kind === "suspended" || kind === "auth";
+  }
+
+  function requestStyleSheet(currentLook: DailyLook) {
+    setSheetAttempted(true);
     // A new visual is a different look to save. Without this, the row keeps
     // saying "View in History" and offers no way to save the replacement.
     save.reset();
 
-    lookImage.mutate(currentLook, {
+    styleSheet.mutate(currentLook, {
       onSuccess: (result) => {
-        // A null URI is a successful response, not a throw — the server has
+        // `unavailable` is a successful response, not a throw — the server has
         // already re-marked the pending flag or refunded. The previous visual,
         // if there was one, stays exactly where it is.
-        if (result.imageDataUri) {
-          setImageUri(result.imageDataUri);
+        if (result.mode === "style_sheet") {
+          setSheetImage(result.imageDataUri);
+          setSheetDetail(null);
           haptics.success();
-          AccessibilityInfo.announceForAccessibility("Your look is ready.");
+          AccessibilityInfo.announceForAccessibility("Style sheet ready.");
+        } else {
+          setSheetDetail(result.reason);
         }
       },
-      onError: handleFailure,
+      onError: (error) => {
+        if (!ownsItsOwnSurface(error)) setSheetDetail(resolveApiFailure(error).message);
+        handleFailure(error);
+      },
+    });
+  }
+
+  function requestPhotoPreview(currentLook: DailyLook) {
+    if (photoPreview.isPending || generate.isPending) return;
+    setPreviewAttempted(true);
+    save.reset();
+
+    photoPreview.mutate(currentLook, {
+      onSuccess: (result) => {
+        if (result.mode === "photo_edit") {
+          setPreviewImage(result.imageDataUri);
+          setPreviewDetail(null);
+          haptics.success();
+          AccessibilityInfo.announceForAccessibility("Portrait preview ready.");
+        } else {
+          setPreviewDetail(result.reason);
+        }
+      },
+      onError: (error) => {
+        if (!ownsItsOwnSurface(error)) setPreviewDetail(resolveApiFailure(error).message);
+        handleFailure(error);
+      },
     });
   }
 
   function handleGenerate() {
     if (!weather.data) return;
     haptics.selection();
-    setImageAttempted(false);
-    setImageUri(null);
+    setSheetImage(null);
+    setSheetAttempted(false);
+    setSheetDetail(null);
+    setPreviewImage(null);
+    setPreviewAttempted(false);
+    setPreviewDetail(null);
     save.reset();
 
     generate.mutate(
-      { weather: weather.data, vibe },
+      {
+        weather: weather.data,
+        vibe,
+        agenda: plan.agenda,
+        dressCode: plan.dressCode,
+        indoorOutdoor: plan.indoorOutdoor || undefined,
+      },
       {
         onSuccess: (nextLook) => {
-          AccessibilityInfo.announceForAccessibility(
-            `${nextLook.outfit.headline}. Rendering the visual.`,
-          );
-          // Fired here, after the composition lands, and never awaited by the
-          // render path. The order is the billing.
-          requestImage(nextLook);
+          AccessibilityInfo.announceForAccessibility(`${nextLook.outfit.headline}.`);
+          // The web's rule, verbatim: a visual requires a consented photo —
+          // there is no stock-model fallback. No consent, no attempt.
+          if (profile?.photo_consent_at) requestStyleSheet(nextLook);
         },
         onError: handleFailure,
       },
@@ -159,9 +227,20 @@ export function HomeScreen() {
   }
 
   function handleSave() {
-    if (!look || !imageUri || !weather.data) return;
+    // The style sheet — when it rendered — is the richer artifact, so it is
+    // what gets saved.
+    const imageToSave = sheetImage ?? previewImage;
+    if (!look || !imageToSave || !weather.data) return;
     save.mutate(
-      { ...look, imageDataUri: imageUri, weather: weather.data.label, vibe },
+      {
+        ...look,
+        imageDataUri: imageToSave,
+        // The web's saved string, verbatim — `label (location)`, no "in",
+        // unlike the generate payload.
+        weather: `${weather.data.label} (${weather.data.location})`,
+        vibe,
+        previewMode: sheetImage ? "style_sheet" : "photo_edit",
+      },
       {
         onSuccess: () => haptics.success(),
         onError: handleFailure,
@@ -169,14 +248,35 @@ export function HomeScreen() {
     );
   }
 
-  const visualState = resolveVisualState({
-    look,
-    imageUri,
-    imageAttempted,
-    generating: generate.isPending,
-    rendering: lookImage.isPending,
-    generateError: generate.isError ? resolveApiFailure(generate.error) : null,
-  });
+  function handleDownload(imageDataUri: string, filename: string) {
+    // The decoder throws on anything that is not a base64 data URI — which is
+    // exactly right here: a share sheet handed a corrupt file is worse than a
+    // share sheet that never opened. The MIME comes from the URI itself, same
+    // as the storage upload.
+    void files.saveAndShareImage({ filename, dataUri: imageDataUri });
+  }
+
+  function handleAskConcierge() {
+    const saved = save.data;
+    if (!saved || !look) return;
+    anchorLook({ id: saved.id, imageUrl: saved.image_url, headline: look.outfit.headline });
+    router.push("/concierge");
+  }
+
+  const sheetState: LookVisualState = styleSheet.isPending
+    ? "loading"
+    : sheetImage
+      ? "ready"
+      : "failed";
+  const previewState: LookVisualState = photoPreview.isPending
+    ? "loading"
+    : previewImage
+      ? "ready"
+      : "failed";
+  // The paywall and the rate limit have their own surfaces; the slot should not
+  // also shout about them.
+  const generateError =
+    generate.isError && !ownsItsOwnSurface(generate.error) ? resolveApiFailure(generate.error) : null;
 
   return (
     <Screen scroll edges={{ top: true, bottom: false }}>
@@ -187,6 +287,30 @@ export function HomeScreen() {
             member needs to press the button lives inside the card with it. */}
         <HeroCard>
           <Greeting fullName={profile?.full_name} loading={profilePending} />
+
+          {/* The web's hero line: what Mila is styling for, and the way back to
+              change it. Absent entirely until the gender step has an answer. */}
+          {profile?.gender ? (
+            <Text className="font-body text-sm text-body">
+              Styling for {profile.gender}
+              {profile.gender !== "Male"
+                ? ` · Makeup: ${
+                    profile.makeup_preference && profile.makeup_preference !== "none"
+                      ? profile.makeup_preference
+                      : "off"
+                  }`
+                : ""}
+              {" · "}
+              <Text
+                accessibilityRole="link"
+                accessibilityLabel="Change your style profile"
+                onPress={() => router.push("/studio")}
+                className="underline"
+              >
+                Change
+              </Text>
+            </Text>
+          ) : null}
 
           <ClimateWidget
             weather={weather.data}
@@ -203,6 +327,8 @@ export function HomeScreen() {
           />
 
           <VibePicker onPress={() => setVibeSheetOpen(true)} />
+
+          <TodayPlanFields value={plan} onChange={setPlan} />
 
           <SelfiePhotoWidget hasConsent={Boolean(profile?.photo_consent_at)} />
 
@@ -237,13 +363,121 @@ export function HomeScreen() {
               </View>
             ) : null}
 
-            <OutfitVisual
-              state={visualState}
-              onRetry={handleGenerate}
-              // Free: the server re-marked the pending flag when the image came
-              // back empty, so this claims it rather than buying a second one.
-              onRetryImage={() => look && requestImage(look)}
-            />
+            {generate.isPending ? (
+              <View
+                accessible
+                accessibilityRole="progressbar"
+                accessibilityState={{ busy: true }}
+                accessibilityLabel="Composing your look"
+              >
+                <Skeleton className="aspect-[3/4] w-full rounded-card" />
+              </View>
+            ) : null}
+
+            {!look && !generate.isPending ? (
+              generateError ? (
+                <View className="items-center gap-md py-lg">
+                  <Icon name="alert" size="lg" color="muted" />
+                  <Text className="font-display text-h3 text-ink text-center">
+                    That didn&apos;t come together
+                  </Text>
+                  <Text
+                    accessibilityLiveRegion="assertive"
+                    className="font-body text-base text-body text-center"
+                  >
+                    {generateError.message}
+                  </Text>
+                  <Button label="Try again" variant="secondary" onPress={handleGenerate} />
+                </View>
+              ) : (
+                <View className="items-center gap-md py-lg">
+                  <Text
+                    accessibilityRole="header"
+                    className="font-display text-h2 tracking-heading text-ink text-center"
+                  >
+                    Set the mood. Mila will compose the rest.
+                  </Text>
+                  <Text className="font-body text-base text-body text-center">
+                    Each look is composed from first principles — tuned to your palette, body
+                    architecture, and the weather outside.
+                  </Text>
+                </View>
+              )
+            ) : null}
+
+            {look && !canRenderVisual ? (
+              <EmptyMediaState
+                aspect="video"
+                message="Add a consented photo above to generate your style sheet."
+              />
+            ) : null}
+
+            {look && canRenderVisual ? (
+              <View className="gap-md">
+                <LookVisual
+                  state={sheetState}
+                  imageDataUri={sheetImage}
+                  headline={look.outfit.headline}
+                  label="Identity-locked style sheet"
+                  loadingTitle="Building your style sheet…"
+                  loadingHint="Rendering your identity-locked 5-view turnaround."
+                  aspect="video"
+                  failedMessage="The outfit is ready, but the style sheet couldn't be generated."
+                  onRetry={() => requestStyleSheet(look)}
+                  retryDisabled={generate.isPending || styleSheet.isPending}
+                  onDownload={() =>
+                    sheetImage
+                      ? handleDownload(
+                          sheetImage,
+                          `mila-style-sheet-${headlineSlug(look.outfit.headline)}.jpg`,
+                        )
+                      : undefined
+                  }
+                />
+                {sheetDetail ? (
+                  <Text accessibilityLiveRegion="polite" className="font-body text-sm text-muted">
+                    {sheetDetail}
+                  </Text>
+                ) : null}
+
+                <Button
+                  label={previewImage ? "Regenerate portrait preview" : "Generate portrait preview"}
+                  variant="secondary"
+                  loading={photoPreview.isPending}
+                  disabled={generate.isPending}
+                  onPress={() => requestPhotoPreview(look)}
+                />
+
+                {previewImage || previewAttempted || photoPreview.isPending ? (
+                  <View className="gap-sm">
+                    <LookVisual
+                      state={previewState}
+                      imageDataUri={previewImage}
+                      headline={look.outfit.headline}
+                      label="AI-edited preview of your photo"
+                      onRetry={() => requestPhotoPreview(look)}
+                      retryDisabled={generate.isPending || photoPreview.isPending}
+                      onDownload={() =>
+                        previewImage
+                          ? handleDownload(
+                              previewImage,
+                              `mila-${headlineSlug(look.outfit.headline)}.jpg`,
+                            )
+                          : undefined
+                      }
+                    />
+                    {previewDetail ? (
+                      <Text
+                        accessibilityLiveRegion="polite"
+                        className="font-body text-sm text-muted"
+                      >
+                        {previewDetail}
+                      </Text>
+                    ) : null}
+                  </View>
+                ) : null}
+              </View>
+            ) : null}
 
             <LookDetail
               headline={look?.outfit.headline ?? null}
@@ -251,31 +485,27 @@ export function HomeScreen() {
               loading={generate.isPending}
             />
 
+            {look?.shoppable_picks ? <ShopThisLookGrid items={look.shoppable_picks} /> : null}
+
             {look ? (
               <LookActions
-                hasVisual={Boolean(imageUri)}
+                hasVisual={Boolean(sheetImage ?? previewImage)}
                 saved={save.isSuccess}
                 saving={save.isPending}
-                saveError={
-                  save.isError
-                    ? resolveApiFailure(save.error).message
-                    : // A regeneration that failed while a visual is already on
-                      // screen has no slot of its own to report into.
-                      lookImage.isError && imageUri
-                      ? resolveApiFailure(lookImage.error).message
-                      : null
-                }
+                saveError={save.isError ? resolveApiFailure(save.error).message : null}
+                canRenderVisual={canRenderVisual}
+                newVisualLoading={styleSheet.isPending}
+                canAskMila={save.isSuccess}
                 onSave={handleSave}
-                onRegenerate={() => setRegenerateOpen(true)}
-                regenerating={lookImage.isPending}
+                onNewVisual={() => setNewVisualOpen(true)}
+                onTryAnother={handleGenerate}
+                onAskConcierge={handleAskConcierge}
               />
             ) : null}
           </View>
         </HeroCard>
 
         {seasonId ? <DailyPaletteGenerator seasonId={seasonId} /> : null}
-
-        <DossierCompletionCard profile={profile} />
       </View>
 
       {/* Every sheet is mounted here, at the screen root — never inside
@@ -291,15 +521,15 @@ export function HomeScreen() {
       <VibeSheet visible={vibeSheetOpen} onClose={() => setVibeSheetOpen(false)} />
 
       <ConfirmSheet
-        visible={regenerateOpen}
-        onClose={() => setRegenerateOpen(false)}
-        title="Render a new visual?"
-        message="This composes a fresh image for the same look and uses 1 credit. The written look does not change."
+        visible={newVisualOpen}
+        onClose={() => setNewVisualOpen(false)}
+        title="Draw a new style sheet?"
+        message="This renders a fresh 5-view sheet for the same look and uses 1 credit. The written look does not change."
         confirmLabel="Use 1 credit"
-        loading={lookImage.isPending}
+        loading={styleSheet.isPending}
         onConfirm={() => {
-          setRegenerateOpen(false);
-          if (look) requestImage(look);
+          setNewVisualOpen(false);
+          if (look) requestStyleSheet(look);
         }}
       />
 
@@ -310,37 +540,8 @@ export function HomeScreen() {
           // Clear the failed mutation with the sheet, or the CTA stays in its
           // error state behind a paywall she has already dismissed.
           if (generate.isError) generate.reset();
-          if (lookImage.isError) lookImage.reset();
         }}
       />
     </Screen>
   );
-}
-
-/**
- * Pure, so the five-state slot can be reasoned about in one place instead of
- * across a chain of ternaries in the JSX.
- */
-function resolveVisualState(input: {
-  look: DailyLook | null;
-  imageUri: string | null;
-  imageAttempted: boolean;
-  generating: boolean;
-  rendering: boolean;
-  generateError: { kind: string; message: string } | null;
-}): OutfitVisualState {
-  if (input.generating) return { kind: "composing" };
-
-  // The paywall and the rate limit have their own surfaces; the slot should not
-  // also shout about them.
-  if (input.generateError && input.generateError.kind !== "paywall") {
-    return { kind: "failed", message: input.generateError.message };
-  }
-
-  if (!input.look) return { kind: "empty" };
-  if (input.rendering) return { kind: "rendering" };
-  if (input.imageUri) return { kind: "ready", imageUrl: input.imageUri };
-  if (input.imageAttempted) return { kind: "image-failed" };
-
-  return { kind: "rendering" };
 }
