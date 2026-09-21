@@ -44,9 +44,11 @@ import {
   Shirt,
   Snowflake,
   Sparkles,
+  Star,
   Sun,
   SwitchCamera,
   Trash2,
+  Truck,
   UserRound,
   Wand2,
   WifiOff,
@@ -123,6 +125,13 @@ export const icons = {
   add: Plus,
   /** The style sheet's download control. */
   download: Download,
+  /**
+   * The shop rows' two extra glyphs. `star` is the only icon in the app that is
+   * ever filled (`filled` prop) — the web fills the same star in its rating
+   * row; everything else stays line-work at 1.75.
+   */
+  star: Star,
+  truck: Truck,
   // Concierge
   send: Send,
   /** Opens the conversation list. The web's header glyph, kept verbatim so the
@@ -150,6 +159,13 @@ type IconProps = {
   rawColor?: string;
   /** Omit for decorative icons — they are hidden from assistive tech. */
   label?: string;
+  /**
+   * Fills the glyph instead of stroking it. Exactly one intended use: the
+   * rating `star`, which the web also fills (`strokeWidth={0}` + `fill`).
+   * Everything else in the registry is line-work — the 1.75 stroke is the
+   * identity both clients were designed around.
+   */
+  filled?: boolean;
 };
 
 /**
@@ -165,6 +181,7 @@ export function Icon({
   color = "ink",
   rawColor,
   label,
+  filled = false,
 }: IconProps) {
   const Glyph = icons[name];
   const resolved = useThemeColor(color);
@@ -172,8 +189,9 @@ export function Icon({
   return (
     <Glyph
       size={iconSizes[size]}
-      strokeWidth={iconDefaults.strokeWidth}
+      strokeWidth={filled ? 0 : iconDefaults.strokeWidth}
       color={rawColor ?? resolved}
+      fill={filled ? (rawColor ?? resolved) : "none"}
       accessibilityRole={label ? "image" : undefined}
       accessibilityLabel={label}
       accessibilityElementsHidden={!label}

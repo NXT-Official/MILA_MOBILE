@@ -37,6 +37,13 @@ export type DupeMatch = {
   description: string | null;
   match_score: number;
   match_reasons: string[];
+  verification_status: string;
+  last_verified_at: string | null;
+  rating: number | null;
+  units_sold: number | null;
+  shipping_info: string | null;
+  discount_percent: number | null;
+  is_verified_seller: boolean;
 };
 
 /**
