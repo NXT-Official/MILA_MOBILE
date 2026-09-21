@@ -1,18 +1,29 @@
 {
   "configVersion": 0,
   "apple": {
-    "copyright": "PLACEHOLDER 2026 Mila Inc.",
+    "copyright": "2026 Mila",
     "info": {
       "en-US": {
-        "title": "PLACEHOLDER: Mila",
-        "subtitle": "PLACEHOLDER: subtitle",
-        "description": "PLACEHOLDER — this is scaffolding, not marketing copy. Replace with the real App Store description before any submission. Max 4000 characters.",
-        "keywords": ["placeholder", "replace-before-submission"],
-        "releaseNotes": "PLACEHOLDER — replace with real release notes for this version.",
-        "promoText": "PLACEHOLDER — short promotional tagline, replace before submission.",
-        "marketingUrl": "https://PLACEHOLDER.example.com",
-        "supportUrl": "https://PLACEHOLDER.example.com/support",
-        "privacyPolicyUrl": "https://PLACEHOLDER.example.com/privacy"
+        "title": "Mila — Personal AI Stylist",
+        "subtitle": "Your digital style dossier",
+        "description": "Mila is a personal AI stylist. She reads your colouring, your silhouette, and the day ahead — then styles you for it.\n\nYOUR DIGITAL STYLE DOSSIER\nA short onboarding builds a profile Mila keeps and refines: seasonal palette and undertone, body and face shape, hair, and how you like to dress. Every recommendation she makes is drawn from it — specific to you, never generic inspiration.\n\nA LOOK FOR TODAY\nEvery morning, Mila composes a daily look around your colouring, your plans, and the weather where you are. You see the pieces, the palette, and the reasoning — so you know why it works before you wear it.\n\nSEE IT BEFORE YOU WEAR IT\nWith your consent, Mila renders an identity-locked style sheet showing the look on you, and a portrait preview of a single piece — so nothing is a guess.\n\nFIND THE DUPE\nPhotograph a piece you love, or spot one in the Feed, and the Dupe Hunter scans a vetted catalogue for close matches: real price, real seller, real shipping.\n\nASK MILA ANYTHING\nThe Concierge answers your styling questions, keeps the thread, and remembers the look you are asking about.\n\nA COMMUNITY OF CONSIDERED DRESSERS\nShare your looks in the Feed, tag the pieces in them, and find what looks like what you already own.\n\nMEMBERSHIP\nMila is free to begin — building your style profile costs nothing. Look generation uses credits, and membership plans include a monthly allotment.\n\nYOUR DATA STAYS YOURS\nPhotos are used only with your explicit consent, everything can be exported, and your account can be deleted from inside the app.",
+        "keywords": [
+          "outfit",
+          "wardrobe",
+          "dupe",
+          "color analysis",
+          "daily look",
+          "closet",
+          "shopping",
+          "fashion",
+          "beauty",
+          "ootd"
+        ],
+        "releaseNotes": "First release: your digital style dossier, daily looks styled to your colouring and the weather, the Dupe Hunter, and the Feed.",
+        "promoText": "Meet Mila — a personal AI stylist who reads your colouring, your silhouette, and the sky outside, then dresses you for the day.",
+        "marketingUrl": "https://mila-umber.vercel.app",
+        "supportUrl": "https://mila-umber.vercel.app",
+        "privacyPolicyUrl": "https://mila-umber.vercel.app/privacy"
       }
     }
   }

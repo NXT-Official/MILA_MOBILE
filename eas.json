@@ -16,14 +16,20 @@
       "distribution": "internal",
       "channel": "preview",
       "node": "22.13.0",
-      "env": { "APP_VARIANT": "preview" },
+      "env": {
+        "APP_VARIANT": "preview",
+        "EXPO_PUBLIC_API_BASE_URL": "https://mila-umber.vercel.app/api/v1"
+      },
       "android": { "buildType": "apk" }
     },
     "production": {
       "channel": "production",
       "autoIncrement": true,
       "node": "22.13.0",
-      "env": { "APP_VARIANT": "production" },
+      "env": {
+        "APP_VARIANT": "production",
+        "EXPO_PUBLIC_API_BASE_URL": "https://mila-umber.vercel.app/api/v1"
+      },
       "android": { "buildType": "app-bundle" }
     }
   },
