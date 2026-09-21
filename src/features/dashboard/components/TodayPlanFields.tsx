@@ -3,6 +3,7 @@ import { Pressable, Text, TextInput, View } from "react-native";
 
 import { Chip } from "@/components/ui/Chip";
 import { Icon } from "@/components/ui/Icon";
+import { useThemeColor } from "@/theme/tailwind";
 
 export type IndoorOutdoor = "Indoor" | "Outdoor" | "Mixed";
 
@@ -34,6 +35,7 @@ export function TodayPlanFields({
   onChange: (next: TodayPlan) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const placeholderColor = useThemeColor("muted");
 
   const summary = [value.agenda.trim(), value.dressCode.trim(), value.indoorOutdoor]
     .filter(Boolean)
@@ -73,7 +75,7 @@ export function TodayPlanFields({
               value={value.agenda}
               onChangeText={(next) => set("agenda", next)}
               placeholder="e.g. Client dinner at 7pm"
-              placeholderTextColor="#9A8F86"
+              placeholderTextColor={placeholderColor}
               maxLength={200}
               accessibilityLabel="Today's plan"
               className="min-h-tap rounded-pill border border-border bg-surface px-lg font-body text-sm text-ink dark:border-border/12"
@@ -86,7 +88,7 @@ export function TodayPlanFields({
               value={value.dressCode}
               onChangeText={(next) => set("dressCode", next)}
               placeholder="e.g. Smart casual"
-              placeholderTextColor="#9A8F86"
+              placeholderTextColor={placeholderColor}
               maxLength={80}
               accessibilityLabel="Dress code"
               className="min-h-tap rounded-pill border border-border bg-surface px-lg font-body text-sm text-ink dark:border-border/12"

@@ -87,8 +87,8 @@ function ProductCard({ item }: { item: ShoppablePick }) {
           }}
           className="mt-sm min-h-tap flex-row items-center justify-center gap-sm rounded-pill bg-ink px-lg py-sm active:opacity-90"
         >
-          <Text className="font-body-medium text-sm text-canvas">Shop</Text>
-          <Icon name="external" size="xs" rawColor="#FFFFFF" />
+          <Text className="font-body-medium text-sm text-on-ink">Shop</Text>
+          <Icon name="external" size="xs" color="onInk" />
         </Pressable>
       </View>
     </View>
