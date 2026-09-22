@@ -4,6 +4,12 @@
  * Playfair sets headings, editorial headings, outfit names, and the occasional
  * pulled quote. It never sets body copy, UI labels, buttons, forms, or
  * navigation. Inter sets everything else and never sets an h1.
+ *
+ * The enforced runtime source of the scale below is `tailwind.config.js`: its
+ * `fontFamily`/`fontSize` entries are what NativeWind compiles into every
+ * `font-display` / `text-h2` className the app renders. These mirrored objects
+ * serve the architecture spec and value-level consumers; where the two ever
+ * disagree, the config and the rendered classNames win.
  */
 export const fonts = {
   display: "PlayfairDisplay_700Bold",

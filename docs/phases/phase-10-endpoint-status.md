@@ -3,6 +3,12 @@
 > Output of Prompt 0 in [`phase-10-verification-prompts.md`](./phase-10-verification-prompts.md).
 > Re-run and replace this file whenever the adapter layer moves.
 
+> **Superseded as of 2026-09-23.** The `/api/v1` adapter layer now exists and is live at
+> `https://mila-umber.vercel.app/api/v1`. Every mobile caller in `src/services/api/` has a
+> matching web route, and the EAS preview/production `EXPO_PUBLIC_API_BASE_URL` points at it.
+> The result below is the historical Prompt 0 output, kept for the record; for the current
+> per-endpoint decision rule see [`phase-11-endpoint-classification.md`](./phase-11-endpoint-classification.md).
+
 ## Result: the `/api/v1` adapter layer does not exist
 
 No request was sent, because none could succeed. `EXPO_PUBLIC_API_BASE_URL` in `.env.local` is
