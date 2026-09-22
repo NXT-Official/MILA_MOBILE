@@ -6,9 +6,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AvatarInitial } from "@/components/media/AvatarInitial";
 import { RemoteImage } from "@/components/media/RemoteImage";
+import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
+import { Icon } from "@/components/ui/Icon";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { cn } from "@/utils/cn";
 import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
@@ -118,10 +120,31 @@ export function MemberProfileScreen({ userId }: { userId: string }) {
                   </Text>
                   {data.profile.verified ? <VerifiedBadge /> : null}
                 </View>
+                {data.profile.username ? (
+                  <Text numberOfLines={1} className="font-body text-sm text-muted">
+                    @{data.profile.username}
+                  </Text>
+                ) : null}
                 <Text className="font-body text-sm text-body">
                   {visibleCount} {visibleCount === 1 ? "look" : "looks"}
                 </Text>
               </View>
+            </View>
+
+            {/* The web header's facts, ported verbatim: Season · …,
+                Face · …, Hair · …, then the join date. Full-width rows rather
+                than tucked into the name column — §10 folds the web's
+                two-column header into one. */}
+            <View className="flex-row flex-wrap gap-sm">
+              <Badge label={`Season · ${data.profile.color_season ?? "Unset"}`} />
+              <Badge label={`Face · ${data.profile.face_shape ?? "—"}`} />
+              <Badge label={`Hair · ${data.profile.hair_type ?? "—"}`} />
+            </View>
+            <View className="flex-row items-center gap-xs">
+              <Icon name="calendar" size="xs" color="muted" />
+              <Text className="font-body text-micro tracking-label uppercase text-muted">
+                Joined {new Date(data.profile.created_at).toLocaleDateString()}
+              </Text>
             </View>
 
             {/* Own profile only — the server decides, and it is the only thing

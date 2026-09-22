@@ -74,10 +74,19 @@ export const MAX_CAPTION_LENGTH = 500;
 
 
 
+/**
+ * The server's profile payload, field-for-field with the web's
+ * `MemberProfileResponse.profile`: the season, face and hair rows the web's
+ * member header renders come from here, and `created_at` feeds its join date.
+ */
 export type MemberProfile = {
   id: string;
   full_name: string | null;
   username: string | null;
+  color_season: string | null;
+  face_shape: string | null;
+  hair_type: string | null;
+  created_at: string;
   verified: boolean;
 };
 

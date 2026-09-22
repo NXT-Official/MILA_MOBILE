@@ -4,6 +4,7 @@ import {
   ArrowRight,
   BadgeCheck,
   Bookmark,
+  CalendarDays,
   Camera,
   Check,
   ChevronDown,
@@ -116,6 +117,8 @@ export const icons = {
   flipCamera: SwitchCamera,
   // Feed
   verified: BadgeCheck,
+  /** The member profile's "Joined" line — the web's own CalendarDays glyph. */
+  calendar: CalendarDays,
   lock: Lock,
   imageOff: ImageOff,
   link: Link2,
