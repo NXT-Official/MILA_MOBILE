@@ -25,6 +25,8 @@ import { normalizeBeautyPreferences } from "@/lib/beauty-preferences";
 import { tagList } from "@/lib/profile-tags";
 import { normalizeStoredProfile } from "@/lib/style-profile/studio-dossier";
 import { useOnboardingStore } from "@/stores/onboarding-store";
+import { useUserId } from "@/stores/auth-store";
+import { trackEvent } from "@/services/supabase/analytics";
 import type { Json } from "@/types/models";
 
 import { useAutoSaveProfile } from "./hooks/use-auto-save-profile";
@@ -114,6 +116,7 @@ const SELECT_STEPS = {
 
 export function OnboardingScreen({ rawStep }: { rawStep: string | undefined }) {
   const router = useRouter();
+  const userId = useUserId();
 
   const { step, profile, loading, error, refetch, goTo, goNext, goBack } =
     useOnboardingMachine(rawStep);
@@ -202,6 +205,7 @@ export function OnboardingScreen({ rawStep }: { rawStep: string | undefined }) {
         return;
       }
 
+      if (userId) trackEvent(userId, "onboarding_completed");
       exitOnboarding();
       router.replace("/");
     } catch {

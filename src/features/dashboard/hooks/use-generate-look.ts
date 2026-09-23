@@ -5,6 +5,7 @@ import { queryKeys } from "@/constants/query-keys";
 import type { Vibe } from "@/constants/vibes";
 import { useProfile } from "@/hooks/use-profile";
 import { generateDailyLook } from "@/services/api/look";
+import { trackEvent } from "@/services/supabase/analytics";
 import { hubById } from "@/services/weather";
 import { useAuthStore } from "@/stores/auth-store";
 import type { DailyLook } from "@/types/look";
@@ -66,6 +67,10 @@ export function useGenerateLook() {
         indoorOutdoor,
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       });
+    },
+
+    onSuccess: (_data, { vibe }) => {
+      if (userId) trackEvent(userId, "look_generated", { vibe });
     },
 
     /**

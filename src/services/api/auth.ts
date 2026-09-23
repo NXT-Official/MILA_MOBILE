@@ -1,6 +1,7 @@
 import type { Session } from "@supabase/supabase-js";
 
 import { supabase } from "@/services/supabase/client";
+import { trackEvent } from "@/services/supabase/analytics";
 
 import { api, ApiError } from "./client";
 
@@ -68,6 +69,7 @@ export async function signUp(input: SignUpInput): Promise<Session> {
   if (TRANSPORT === "api") {
     const { session } = await api.post<{ session: Session }>("/auth/sign-up", input);
     await supabase.auth.setSession(session);
+    trackEvent(session.user.id, "signup_completed");
     return session;
   }
 
@@ -100,6 +102,7 @@ export async function signUp(input: SignUpInput): Promise<Session> {
     );
   }
 
+  trackEvent(data.session.user.id, "signup_completed");
   return data.session;
 }
 
