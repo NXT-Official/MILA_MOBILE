@@ -149,11 +149,14 @@ const config: ExpoConfig = {
     [
       // Uploads debug symbols at build time so a native stack trace resolves
       // to real source rather than addresses — `Sentry.init` itself lives in
-      // `services/crash-reporting.ts` and is a no-op without a DSN, but the
-      // symbol upload needs org/project regardless of whether reporting is
-      // enabled at runtime. Absent env vars mean the plugin just skips the
-      // upload rather than failing the build, so a contributor without
-      // Sentry credentials can still build locally.
+      // `services/crash-reporting.ts` and is a no-op without a DSN.
+      //
+      // The upload task does NOT skip itself when org/project are missing: it
+      // runs and fails the release build ("An organization ID or slug is
+      // required"). Until the client's Sentry project exists, every build
+      // profile therefore sets `SENTRY_DISABLE_AUTO_UPLOAD=true` (see
+      // eas.json); when the project is created, remove that flag and set
+      // SENTRY_AUTH_TOKEN alongside org/project — RELEASE-SETUP.md §4.
       "@sentry/react-native/expo",
       {
         organization: process.env.SENTRY_ORG,

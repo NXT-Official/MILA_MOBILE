@@ -9,7 +9,7 @@
       "distribution": "internal",
       "channel": "development",
       "node": "22.13.0",
-      "env": { "APP_VARIANT": "development" },
+      "env": { "APP_VARIANT": "development", "SENTRY_DISABLE_AUTO_UPLOAD": "true" },
       "android": { "buildType": "apk" }
     },
     "preview": {
@@ -18,7 +18,8 @@
       "node": "22.13.0",
       "env": {
         "APP_VARIANT": "preview",
-        "EXPO_PUBLIC_API_BASE_URL": "https://mila-umber.vercel.app/api/v1"
+        "EXPO_PUBLIC_API_BASE_URL": "https://mila-umber.vercel.app/api/v1",
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
       },
       "android": { "buildType": "apk" }
     },
@@ -28,7 +29,8 @@
       "node": "22.13.0",
       "env": {
         "APP_VARIANT": "production",
-        "EXPO_PUBLIC_API_BASE_URL": "https://mila-umber.vercel.app/api/v1"
+        "EXPO_PUBLIC_API_BASE_URL": "https://mila-umber.vercel.app/api/v1",
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
       },
       "android": { "buildType": "app-bundle" }
     }

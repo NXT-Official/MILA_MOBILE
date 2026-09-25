@@ -49,6 +49,12 @@ building against a different project). All three `eas.json` profiles target it.
 - Without `EXPO_PUBLIC_SENTRY_DSN`, `Sentry.init`'s `enabled` guard (in
   `src/services/crash-reporting.ts`) keeps reporting off — this is the correct
   state for local development, not something to work around.
+- Every `eas.json` profile currently sets `SENTRY_DISABLE_AUTO_UPLOAD=true`
+  because the SDK's build-time upload task fails the release build when no
+  org/project exists (it does not skip itself; the first Android build failed
+  on exactly this). When the Sentry project is created, remove that entry,
+  set `SENTRY_AUTH_TOKEN` (EAS secret or build env), and source-map/symbol
+  uploads resume — the same flag also gates the iOS upload script.
 
 ## 5. Legal — privacy policy and terms of service
 
