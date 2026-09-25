@@ -169,7 +169,9 @@ const config: ExpoConfig = {
 
   extra: {
     variant: VARIANT,
-    eas: { projectId: process.env.EAS_PROJECT_ID },
+    // Linked to the EAS project under the kurtgav account (`eas init`, Sep 23).
+    // The env override stays for anyone building against a different project.
+    eas: { projectId: process.env.EAS_PROJECT_ID ?? "8ee3d05d-b5a3-4670-8096-5eac1ac4e834" },
   },
 };
 
