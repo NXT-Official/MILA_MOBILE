@@ -8,8 +8,17 @@
       "developmentClient": true,
       "distribution": "internal",
       "node": "22.13.0",
-      "env": { "APP_VARIANT": "development", "SENTRY_DISABLE_AUTO_UPLOAD": "true" },
-      "android": { "buildType": "apk" }
+      "env": {
+        "APP_VARIANT": "development",
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://umjltztnniycvnsbxrmv.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable__V-O7ne3mY_JEbmZzwBktw_wb-ymUZ3",
+        "EXPO_PUBLIC_HCAPTCHA_SITEKEY": "baf6d09c-ea8c-4178-b34a-8b56e116d772",
+        "EXPO_PUBLIC_API_BASE_URL": "https://mila-umber.vercel.app/api/v1"
+      },
+      "android": {
+        "buildType": "apk"
+      }
     },
     "preview": {
       "distribution": "internal",
@@ -17,9 +26,14 @@
       "env": {
         "APP_VARIANT": "preview",
         "EXPO_PUBLIC_API_BASE_URL": "https://mila-umber.vercel.app/api/v1",
-        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://umjltztnniycvnsbxrmv.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable__V-O7ne3mY_JEbmZzwBktw_wb-ymUZ3",
+        "EXPO_PUBLIC_HCAPTCHA_SITEKEY": "baf6d09c-ea8c-4178-b34a-8b56e116d772"
       },
-      "android": { "buildType": "apk" }
+      "android": {
+        "buildType": "apk"
+      }
     },
     "production": {
       "autoIncrement": true,
@@ -27,9 +41,14 @@
       "env": {
         "APP_VARIANT": "production",
         "EXPO_PUBLIC_API_BASE_URL": "https://mila-umber.vercel.app/api/v1",
-        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://umjltztnniycvnsbxrmv.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable__V-O7ne3mY_JEbmZzwBktw_wb-ymUZ3",
+        "EXPO_PUBLIC_HCAPTCHA_SITEKEY": "baf6d09c-ea8c-4178-b34a-8b56e116d772"
       },
-      "android": { "buildType": "app-bundle" }
+      "android": {
+        "buildType": "app-bundle"
+      }
     }
   },
   "submit": {

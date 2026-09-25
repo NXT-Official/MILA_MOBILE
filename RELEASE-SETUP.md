@@ -10,6 +10,13 @@ Linked to `@kurtgav/mila-mobile`; the project ID lives in `app.config.ts`'s
 `extra.eas.projectId` (the `EAS_PROJECT_ID` env override remains for anyone
 building against a different project). All three `eas.json` profiles target it.
 
+Cloud builds never see `.env.local` (gitignored), so every profile's `env`
+block in `eas.json` carries the public `EXPO_PUBLIC_*` values
+(SUPABASE_URL / SUPABASE_PUBLISHABLE_KEY / HCAPTCHA_SITEKEY / API_BASE_URL) —
+they are public by design and ship inside the binary. Keep `eas.json` and
+`.env.local` in step when either changes; the first cloud build failed at
+launch with `Missing EXPO_PUBLIC_SUPABASE_URL` before this was set.
+
 ## 2. Apple — App Store Connect
 
 - An Apple Developer Program membership (Team ID) under the client's own
