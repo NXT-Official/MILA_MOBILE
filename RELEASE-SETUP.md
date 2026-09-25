@@ -4,14 +4,11 @@ Everything in this repo that a developer can finish alone is finished. What's
 left below all requires accounts, credentials, or copy that belong to the
 client — this file is the punch list, not a how-to for things already done.
 
-## 1. EAS project
+## 1. EAS project — done (2026-09-23)
 
-- Run `eas login`, then `eas init` from the repo root. This creates (or links)
-  the Expo project and writes the project ID back into `app.config.ts`'s
-  `extra.eas.projectId` read — populate `EAS_PROJECT_ID` in `.env.local` (see
-  `.env.example`) with the value `eas init` prints.
-- Confirm `eas.json`'s three build profiles (`development`, `preview`,
-  `production`) target the right Expo account/project once `eas init` has run.
+Linked to `@kurtgav/mila-mobile`; the project ID lives in `app.config.ts`'s
+`extra.eas.projectId` (the `EAS_PROJECT_ID` env override remains for anyone
+building against a different project). All three `eas.json` profiles target it.
 
 ## 2. Apple — App Store Connect
 
@@ -37,6 +34,9 @@ client — this file is the punch list, not a how-to for things already done.
   Play equivalent. `eas/metadata/google-play.json` is a placeholder reference
   for entering the same listing information by hand into Play Console (Grow >
   Store presence > Main store listing); it is not consumed by any command.
+- The production AAB is already built on EAS (versionCode 2, 2026-09-23) —
+  upload it to Play Console once the account exists, then append the Play App
+  Signing fingerprint to the web repo's assetlinks.json (see §6).
 
 ## 4. Sentry
 
@@ -52,33 +52,38 @@ client — this file is the punch list, not a how-to for things already done.
 
 ## 5. Legal — privacy policy and terms of service
 
-- Neither a privacy-policy page nor a terms-of-service page is published
-  anywhere yet. The app itself only has an in-app data-export and
-  account-deletion screen (`src/features/settings/PrivacyScreen.tsx` and
-  friends) — that is not a substitute for a hosted policy page, and both Apple
-  and Google require a live URL at submission time.
-- Once the client has hosted pages (on the marketing site or elsewhere), their
-  URLs go into `store.config.json`'s `privacyPolicyUrl` /
-  `eas/metadata/google-play.json`'s `privacyPolicyUrl`, and into the App Store
-  Connect / Play Console listing forms directly.
+- Pages are hosted at `https://mila-umber.vercel.app/privacy` and `/terms`,
+  and both store listings already point at the privacy URL. The page copy
+  still says "pending legal review" — final legal approval and copy are
+  client-owned.
+- If the pages move to a client-owned domain, update `store.config.json`'s
+  `privacyPolicyUrl` / `eas/metadata/google-play.json`'s `privacyPolicyUrl`
+  and the store listing forms to match.
 
 ## 6. Associated domains (deep linking)
 
-- Universal Links / the `apple-app-site-association` file are being hosted as
-  separate work in the MILA web repo, once the production domain is decided.
-- Once that domain is live, add `ios.associatedDomains` to `app.config.ts`
-  here, e.g. `["applinks:<real-domain>"]` — do not add a placeholder or
-  invented domain in the meantime; an `associatedDomains` entry pointing at a
-  domain that doesn't serve the AASA file fails silently rather than loudly,
-  which is worse than the feature simply not existing yet.
+- Android is live (2026-09-23): `MILA/public/.well-known/assetlinks.json`
+  serves `com.mila.app` with the EAS production signing certificate. After the
+  first Play upload, append the Play App Signing certificate fingerprint (Play
+  Console > App integrity) to the same file — Play re-signs the uploaded app,
+  and that is the certificate installed devices verify.
+- iOS still needs the `apple-app-site-association` file, which needs the Apple
+  Team ID from the Developer Program membership and the final production
+  domain. Once both exist, host the file and add `ios.associatedDomains` to
+  `app.config.ts`, e.g. `["applinks:<real-domain>"]` — no placeholder or
+  invented domain; an `associatedDomains` entry pointing at a domain that
+  doesn't serve the AASA file fails silently rather than loudly, which is
+  worse than the feature simply not existing yet.
 
 ## 7. First real build and submission
 
-Once the above are in place:
+Android production build is done (2026-09-23, versionCode 2):
+https://expo.dev/accounts/kurtgav/projects/mila-mobile/builds/b649e3d8-f06e-4e55-a61d-f5bcc91fbfb4
+
+Once the accounts above are in place:
 
 ```bash
 eas build --profile production --platform ios
-eas build --profile production --platform android
 eas submit --platform ios
-eas submit --platform android
+eas submit --platform android   # uploads the already-built AAB
 ```
