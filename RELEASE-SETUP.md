@@ -41,7 +41,8 @@ launch with `Missing EXPO_PUBLIC_SUPABASE_URL` before this was set.
   Play equivalent. `eas/metadata/google-play.json` is a placeholder reference
   for entering the same listing information by hand into Play Console (Grow >
   Store presence > Main store listing); it is not consumed by any command.
-- The production AAB is already built on EAS (versionCode 2, 2026-09-23) —
+- The production AAB is already built and verified on EAS (versionCode 4,
+  2026-09-26 — see §7) —
   upload it to Play Console once the account exists, then append the Play App
   Signing fingerprint to the web repo's assetlinks.json (see §6).
 
@@ -90,8 +91,15 @@ launch with `Missing EXPO_PUBLIC_SUPABASE_URL` before this was set.
 
 ## 7. First real build and submission
 
-Android production build is done (2026-09-23, versionCode 2):
-https://expo.dev/accounts/kurtgav/projects/mila-mobile/builds/b649e3d8-f06e-4e55-a61d-f5bcc91fbfb4
+Android production build is done and verified (2026-09-26, versionCode 4):
+https://expo.dev/accounts/kurtgav/projects/mila-mobile/builds/f6123d45-77d0-48ed-b0b7-24b4283db074
+
+Verified before hand-off: the AAB is signed and structurally complete; its JS
+bundle carries the live API URL and the Supabase project ref; and the same
+codebase's installable build (preview profile) was installed on an Android 16
+emulator — it boots, renders the full login screen including the hCaptcha
+widget, and logs no errors. Local copies of both artifacts live in
+`~/NXT Official/release-artifacts/`.
 
 Once the accounts above are in place:
 
