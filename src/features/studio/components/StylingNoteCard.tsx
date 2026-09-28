@@ -1,8 +1,13 @@
-import { Text, View } from "react-native";
+import { useState } from "react";
+import { Pressable, Text, View } from "react-native";
 
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import type { Directive } from "@/constants/style-profile";
+import { Icon } from "@/components/ui/Icon";
+import { Sheet } from "@/components/ui/Sheet";
+import type { Directive, DirectiveItem } from "@/constants/style-profile";
+
+import { ItemIllustration } from "./ItemIllustration";
 
 /**
  * One of Mila's styling notes — the named things to reach for, plus the caveat.
@@ -12,6 +17,10 @@ import type { Directive } from "@/constants/style-profile";
  * so the definition sits inline: the member who does not know what a peplum is
  * is exactly the member who should not have to discover a tap target to find
  * out.
+ *
+ * The tap still earns its keep — every row opens the same item at detail size,
+ * the drawing (or the colour, full width) with its full definition. That is the
+ * "example image" the styling notes ask for, without shipping photography.
  */
 export function StylingNoteCard({
   title,
@@ -31,6 +40,9 @@ export function StylingNoteCard({
   fallback?: string;
   action?: { label: string; onPress: () => void };
 }) {
+  /** The item whose detail sheet is open. One sheet per card, by identity. */
+  const [openItem, setOpenItem] = useState<DirectiveItem | null>(null);
+
   return (
     <Card className="gap-md">
       <Text accessibilityRole="header" className="font-display text-lg text-ink">
@@ -49,21 +61,35 @@ export function StylingNoteCard({
         <>
           <View className="gap-md">
             {directive.items.map((item) => (
-              <View key={item.term} className="flex-row gap-md">
-                {item.hex ? (
-                  <View
-                    accessibilityElementsHidden
-                    importantForAccessibility="no-hide-descendants"
-                    // Case 1 of the StyleSheet exceptions: the colour is data.
-                    style={{ backgroundColor: item.hex }}
-                    className="mt-xs h-lg w-lg rounded-pill border border-border dark:border-border/12"
-                  />
-                ) : null}
+              <Pressable
+                key={item.term}
+                accessibilityRole="button"
+                accessibilityLabel={`${item.term}. ${item.definition}`}
+                accessibilityHint="Opens this piece at detail size"
+                onPress={() => setOpenItem(item)}
+                className="active:opacity-80 min-h-tap flex-row items-center gap-md rounded-control"
+              >
+                {/* A fixed-width slot so every row's text starts on the same
+                    line, whichever visual sits in it. */}
+                <View className="w-3xl items-center">
+                  {item.hex ? (
+                    <View
+                      accessibilityElementsHidden
+                      importantForAccessibility="no-hide-descendants"
+                      // Case 1 of the StyleSheet exceptions: the colour is data.
+                      style={{ backgroundColor: item.hex }}
+                      className="h-xl w-xl rounded-pill border border-border dark:border-border/12"
+                    />
+                  ) : (
+                    <ItemIllustration term={item.term} />
+                  )}
+                </View>
                 <View className="flex-1 gap-xs">
                   <Text className="font-body-semibold text-sm text-ink">{item.term}</Text>
                   <Text className="font-body text-sm text-body">{item.definition}</Text>
                 </View>
-              </View>
+                <Icon name="chevronRight" size="sm" color="muted" />
+              </Pressable>
             ))}
           </View>
 
@@ -74,6 +100,32 @@ export function StylingNoteCard({
       )}
 
       {action ? <Button label={action.label} variant="ghost" onPress={action.onPress} /> : null}
+
+      <Sheet
+        visible={openItem !== null}
+        onClose={() => setOpenItem(null)}
+        title={openItem?.term ?? ""}
+        height="55%"
+      >
+        {openItem ? (
+          <View className="gap-lg">
+            <View className="items-center rounded-card border border-border bg-surface-alt px-lg py-xl dark:border-border/12">
+              {openItem.hex ? (
+                <View
+                  accessibilityElementsHidden
+                  importantForAccessibility="no-hide-descendants"
+                  // Case 1 again: resolved palette data, never styling.
+                  style={{ backgroundColor: openItem.hex }}
+                  className="h-3xl w-full rounded-control border border-border dark:border-border/12"
+                />
+              ) : (
+                <ItemIllustration term={openItem.term} size="lg" />
+              )}
+            </View>
+            <Text className="font-body text-base text-body">{openItem.definition}</Text>
+          </View>
+        ) : null}
+      </Sheet>
     </Card>
   );
 }
