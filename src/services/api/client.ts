@@ -100,6 +100,10 @@ export const api = {
  * Per-endpoint timeouts. The image call alone budgets 75s server-side, so a 30s
  * default would abort a request that was going to succeed.
  *
+ * `generateLook` covers two sequential deepseek calls server-side (inventory
+ * review, then outfit plan), each bounded at 75s — 150s worst case, so the old
+ * 120s budget could abort a generation that was going to succeed.
+ *
  * `lookVisual` covers the style-sheet and photo-preview pipelines, which retry
  * a failed QA check up to 3 times before answering — a single attempt already
  * budgets 75s provider-side, so the 90s `lookImage` budget would abort retries
@@ -109,7 +113,7 @@ export const api = {
  */
 export const TIMEOUTS = {
   default: 30_000,
-  generateLook: 120_000,
+  generateLook: 180_000,
   lookImage: 90_000,
   lookVisual: 300_000,
   analysis: 60_000,

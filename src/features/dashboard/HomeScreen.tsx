@@ -398,7 +398,7 @@ export function HomeScreen() {
                     Set the mood. Mila will compose the rest.
                   </Text>
                   <Text className="font-body text-base text-body text-center">
-                    Each look is composed from first principles — tuned to your palette, body
+                    Each look is composed from the live shop inventory — tuned to your palette, body
                     architecture, and the weather outside.
                   </Text>
                 </View>

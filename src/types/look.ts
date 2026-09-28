@@ -29,6 +29,13 @@ export type ShoppablePick = {
   verification_status: string;
   last_verified_at: string | null;
   rationale: string;
+  /**
+   * Which shelf this pick belongs on: "planned" = a piece of the composed
+   * outfit (what the style-sheet render actually wears); "similar" = an extra
+   * shoppable option beside the look. Absent on looks saved before the field
+   * existed — treat a missing value as "planned".
+   */
+  source?: "planned" | "similar";
 };
 
 export type DailyLook = {

@@ -61,7 +61,7 @@ function ProductCard({ item }: { item: ShoppablePick }) {
 
       <View className="flex-1 gap-xs p-md">
         <Text className="font-body text-micro tracking-label uppercase text-muted">
-          {item.category}
+          {item.source === "similar" ? `Similar · ${item.category}` : item.category}
         </Text>
         <Text className="font-display text-sm leading-snug text-ink" numberOfLines={2}>
           {item.title}
