@@ -47,6 +47,11 @@ export type DailyLook = {
    * inventing one.
    */
   makeup: LookMakeup | null;
+  /**
+   * 1–10 for a freshly generated look — the server's schema requires it. A
+   * *saved* row can still carry none; that shape is `SavedLookSnapshot` in
+   * `lib/outfit-history.ts`.
+   */
   vibe_alignment_score: number;
   /**
    * Real product rows, hydrated server-side. Absent (not empty) when the

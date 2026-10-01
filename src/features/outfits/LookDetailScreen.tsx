@@ -13,7 +13,7 @@ import { LoadingState } from "@/components/ui/LoadingState";
 import { LookDetail } from "@/components/ui/LookDetail";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useDeleteOutfit, useOutfit } from "@/hooks/use-outfits";
-import { lookSections, headlineSlug, normalizeAnalysisResult } from "@/lib/outfit-history";
+import { lookSections, headlineSlug, normalizeAnalysisResult, outfitTitle } from "@/lib/outfit-history";
 import { files } from "@/services/files";
 import { useConciergeStore } from "@/stores/concierge-store";
 import { radii } from "@/theme/tokens";
@@ -76,12 +76,7 @@ export function LookDetailScreen({ id }: { id: string }) {
 
   const entry = normalizeAnalysisResult(outfit.analysis_result);
 
-  const title =
-    entry.kind === "lens"
-      ? "Lens analysis"
-      : entry.kind === "daily_look"
-        ? entry.look.outfit.headline || "Saved look"
-        : "Saved look";
+  const title = outfitTitle(entry);
 
   // The web's detail dialog, in the same three sections and the same order —
   // empties dropped, so a sparse analysis renders what it has.
@@ -132,13 +127,29 @@ export function LookDetailScreen({ id }: { id: string }) {
 
         {entry.kind === "daily_look" ? (
           <>
-            {entry.weather || entry.vibe ? (
-              <Text className="font-body text-sm text-body">
-                {[entry.vibe, entry.weather].filter(Boolean).join(" · ")}
-              </Text>
+            {entry.vibe || entry.look.vibe_alignment_score != null || entry.weather ? (
+              // The web's one-line pill: vibe, then the fit score, then the
+              // weather she generated against.
+              <View className="flex-row flex-wrap items-center gap-sm self-start rounded-pill border border-border bg-surface px-md py-xs dark:border-border/12">
+                {entry.vibe ? (
+                  <Text className="font-body text-micro tracking-label uppercase text-muted">
+                    {entry.vibe}
+                  </Text>
+                ) : null}
+                {entry.look.vibe_alignment_score != null ? (
+                  <Text className="font-body-semibold text-micro tracking-label uppercase text-ink">
+                    Vibe fit {entry.look.vibe_alignment_score}/10
+                  </Text>
+                ) : null}
+                {entry.weather ? (
+                  <Text className="font-body text-micro tracking-label uppercase text-muted">
+                    {entry.weather}
+                  </Text>
+                ) : null}
+              </View>
             ) : null}
             <LookDetail
-              headline={entry.look.outfit.headline || "Saved look"}
+              headline={title}
               sections={lookSections(entry.look)}
               loading={false}
             />
@@ -161,12 +172,7 @@ export function LookDetailScreen({ id }: { id: string }) {
               anchor({
                 id: outfit.id,
                 imageUrl: outfit.image_url,
-                headline:
-                  entry.kind === "daily_look"
-                    ? entry.look.outfit.headline || "Saved look"
-                    : entry.kind === "lens"
-                      ? "Lens analysis"
-                      : "Saved look",
+                headline: title,
               });
               router.replace("/concierge");
             }}

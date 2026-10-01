@@ -2,7 +2,7 @@ import { Image } from "expo-image";
 import { Pressable, Text, View } from "react-native";
 
 import { Badge } from "@/components/ui/Badge";
-import { normalizeAnalysisResult } from "@/lib/outfit-history";
+import { normalizeAnalysisResult, outfitTitle } from "@/lib/outfit-history";
 import type { OutfitRow } from "@/services/supabase/outfits";
 import { radii } from "@/theme/tokens";
 
@@ -16,12 +16,10 @@ import { radii } from "@/theme/tokens";
 export function LookCard({ outfit, onPress }: { outfit: OutfitRow; onPress: () => void }) {
   const entry = normalizeAnalysisResult(outfit.analysis_result);
 
-  const title =
-    entry.kind === "daily_look"
-      ? entry.look.outfit.headline || "Saved look"
-      : entry.kind === "lens"
-        ? "Lens analysis"
-        : "Saved look";
+  const title = outfitTitle(entry);
+  // The web's card carries the vibe and the match score; both are read-only
+  // facts about the row, so the grid shows them too.
+  const vibe = entry.kind === "daily_look" ? entry.vibe : null;
 
   const date = new Date(outfit.created_at).toLocaleDateString(undefined, {
     month: "short",
@@ -43,11 +41,17 @@ export function LookCard({ outfit, onPress }: { outfit: OutfitRow; onPress: () =
         transition={150}
       />
       <View className="gap-xs">
+        {vibe ? (
+          <Text className="font-body text-micro tracking-label uppercase text-muted">{vibe}</Text>
+        ) : null}
         <Text numberOfLines={2} className="font-body-medium text-sm text-ink">
           {title}
         </Text>
         <View className="flex-row items-center gap-sm">
           <Text className="font-body text-micro text-muted">{date}</Text>
+          {outfit.match_score != null ? (
+            <Text className="font-body text-micro text-muted">· {outfit.match_score}</Text>
+          ) : null}
           {entry.kind === "lens" ? <Badge label="Lens" variant="neutral" /> : null}
         </View>
       </View>

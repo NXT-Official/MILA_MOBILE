@@ -48,7 +48,9 @@ describe("normalizeAnalysisResult", () => {
 
     expect(entry.look.outfit.headline).toBe("Just this");
     expect(entry.look.hair.style).toBe("");
-    expect(entry.look.vibe_alignment_score).toBe(0);
+    // Absent stays absent. A missing score is not a score of zero: History
+    // renders "Vibe fit X/10" only when there is one, as the web does.
+    expect(entry.look.vibe_alignment_score).toBeNull();
     expect(entry.weather).toBeNull();
   });
 

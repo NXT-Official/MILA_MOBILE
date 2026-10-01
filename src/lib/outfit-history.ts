@@ -1,13 +1,26 @@
 import type { DailyLook, LensAnalysisRecord, ShoppablePick } from "@/types/look";
 
 /**
+ * A saved daily look.
+ *
+ * The generated shape (`DailyLook`) requires a 1–10 score; a saved row may
+ * carry none — an older write, or a partial one — and History has to read that
+ * as *absent* rather than as a score of zero. The web makes the same split: its
+ * generated schema requires the number and its history detail renders the chip
+ * only when the value is non-null.
+ */
+export type SavedLookSnapshot = Omit<DailyLook, "vibe_alignment_score"> & {
+  vibe_alignment_score: number | null;
+};
+
+/**
  * `outfits.analysis_result` is polymorphic: a saved daily look, a Lens
  * analysis, or — for a row written by an older client or a partial failure —
  * neither. Normalising it here means History and Look detail each read one
  * shape, and an unrecognised row degrades to a card rather than a crash.
  */
 export type HistoryEntry =
-  | { kind: "daily_look"; look: DailyLook; weather: string | null; vibe: string | null }
+  | { kind: "daily_look"; look: SavedLookSnapshot; weather: string | null; vibe: string | null }
   | { kind: "lens"; analysis: LensAnalysisRecord }
   | { kind: "unavailable" };
 
@@ -91,7 +104,8 @@ export function normalizeAnalysisResult(value: unknown): HistoryEntry {
         },
         hair: { style: str(hair.style), execution_tip: str(hair.execution_tip) },
         makeup: makeup ? { palette: str(makeup.palette), details: str(makeup.details) } : null,
-        vibe_alignment_score: typeof raw.vibe_alignment_score === "number" ? raw.vibe_alignment_score : 0,
+        vibe_alignment_score:
+          typeof raw.vibe_alignment_score === "number" ? raw.vibe_alignment_score : null,
         shoppable_picks: normalizePicks(raw.shoppable_picks),
         forecastRetrievedAt: optionalStr(raw.forecastRetrievedAt),
       },
@@ -125,8 +139,21 @@ export function headlineSlug(headline: string): string {
   return headline.toLowerCase().replace(/\s+/g, "-");
 }
 
+/**
+ * A saved row's display title — the web's `historyItemTitle`, one
+ * implementation: History's grid, the look detail, and the concierge archive
+ * picker all name the same row.
+ */
+export function outfitTitle(entry: HistoryEntry): string {
+  if (entry.kind === "daily_look") return entry.look.outfit.headline || "Saved look";
+  if (entry.kind === "lens") return "Lens analysis";
+  return "Saved look";
+}
+
 /** The three collapsible sections, in the §3 order, with empties dropped. */
-export function lookSections(look: DailyLook): { title: string; body: string }[] {
+export function lookSections(
+  look: Pick<DailyLook, "outfit" | "hair" | "makeup">,
+): { title: string; body: string }[] {
   const outfitBody = [look.outfit.description, look.outfit.styling_notes]
     .filter(Boolean)
     .join("\n\n");

@@ -359,7 +359,9 @@ export function HomeScreen() {
             {look ? (
               <View className="flex-row flex-wrap items-center gap-sm">
                 <Badge label={vibe} />
-                <Badge label={`Vibe fit ${look.vibe_alignment_score}/10`} />
+                {look.vibe_alignment_score != null ? (
+                  <Badge label={`Vibe fit ${look.vibe_alignment_score}/10`} />
+                ) : null}
                 {weather.data ? <Badge label={weather.data.label} /> : null}
               </View>
             ) : null}
