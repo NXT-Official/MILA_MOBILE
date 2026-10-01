@@ -19,9 +19,9 @@ import { useFeed } from "./hooks/use-feed";
 /**
  * The community feed — the web's Atelier Feed, in one column.
  *
- * An editorial masthead over a scrolling column of cards, and the feed is
- * **reciprocal**: it stays closed until the member has posted today, which is
- * the server's `has_posted_today` and the same rule the web enforces.
+ * An editorial masthead over a scrolling column of cards. Reading is open:
+ * the web shows the same list without a reciprocity gate, and the server still
+ * returns `has_posted_today` for anything that later wants it.
  *
  * `FlatList`, not `FlashList`. The endpoint returns at most 80 posts, and the
  * thing that actually prevents the OOM is `recyclingKey` on the images, which is
@@ -67,21 +67,6 @@ export function FeedScreen() {
   }
 
   const posts = data?.posts ?? [];
-
-  // Reciprocity, not a paywall: everyone here has shown their mirror today, and
-  // the masthead's one action is the one that opens it.
-  if (!data?.has_posted_today) {
-    return (
-      <Frame>
-        <Masthead />
-        <EmptyState
-          icon="lock"
-          title="Post today's look to open the feed"
-          description="The Atelier trades in kind — yours unlocks theirs."
-        />
-      </Frame>
-    );
-  }
 
   if (posts.length === 0) {
     return (

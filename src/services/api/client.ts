@@ -110,12 +110,18 @@ export const api = {
  * that were going to succeed. Worst case is ~3 × (render + QA) plus overhead;
  * 300s is that ceiling with headroom, and a partial result still comes back
  * well before it in every ordinary case.
+ *
+ * Every single-AI-call endpoint (`analysis`, `concierge`) sits on a 75s
+ * provider budget server-side, so a 45–60s client budget aborts calls the
+ * server was about to answer — and on the credit-charging ones the abort is
+ * seen while the server may still complete and bill. 120s clears the server's
+ * ceiling with room for the round trip.
  */
 export const TIMEOUTS = {
   default: 30_000,
   generateLook: 180_000,
   lookImage: 90_000,
   lookVisual: 300_000,
-  analysis: 60_000,
-  concierge: 45_000,
+  analysis: 120_000,
+  concierge: 120_000,
 } as const;

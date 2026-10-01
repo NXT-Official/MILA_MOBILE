@@ -59,6 +59,13 @@ export type DailyLook = {
    * saved row so history can tell the two apart.
    */
   forecastRetrievedAt?: string | null;
+  /**
+   * The direction the look defaulted to when the profile was neither an
+   * explicit Male nor Female one, so a rendered visual matches the pieces the
+   * shopper actually used. Null for an explicit direction or an all-Unisex
+   * look; absent on looks composed before the field existed.
+   */
+  fallback_gender_direction?: "Male" | "Female" | null;
 };
 
 /**
