@@ -16,8 +16,10 @@ import { queryKeys } from "@/constants/query-keys";
 import { useCountdown } from "@/hooks/use-countdown";
 import { useHaptics } from "@/hooks/use-haptics";
 import { useNetworkStatus } from "@/hooks/use-network-status";
+import { useOutfits } from "@/hooks/use-outfits";
 import { useProfile } from "@/hooks/use-profile";
 import { lookSections, headlineSlug } from "@/lib/outfit-history";
+import { looksThisMonth, styleProfileCompletionPercent } from "@/lib/dashboard-stats";
 import { toSeasonId } from "@/lib/season-id";
 import { isStyleProfileComplete, toStyleProfileRow } from "@/lib/style-profile/completion";
 import { formatRetryAfter, resolveApiFailure } from "@/services/api/client";
@@ -36,8 +38,10 @@ import { HeroCard } from "./components/HeroCard";
 import { HubSheet } from "./components/HubSheet";
 import { LookActions } from "./components/LookActions";
 import { LookVisual, type LookVisualState } from "./components/LookVisual";
+import { RecentLooksStrip } from "./components/RecentLooksStrip";
 import { SelfiePhotoWidget } from "./components/SelfiePhotoWidget";
 import { ShopThisLookGrid } from "./components/ShopThisLookGrid";
+import { StatsRow } from "./components/StatsRow";
 import { EMPTY_TODAY_PLAN, TodayPlanFields, type TodayPlan } from "./components/TodayPlanFields";
 import { VibePicker, VibeSheet } from "./components/VibePicker";
 import { useGenerateLook } from "./hooks/use-generate-look";
@@ -86,6 +90,8 @@ export function HomeScreen() {
   const userId = useAuthStore((s) => s.session?.user.id ?? null);
   const queryClient = useQueryClient();
   const { data: profile, isPending: profilePending } = useProfile();
+  /** The member's own saved rows — the same query History owns, for the strip. */
+  const outfits = useOutfits();
   const weather = useWeather(profile?.default_location);
   const { online } = useNetworkStatus();
   const vibe = useVibeStore((s) => s.vibe);
@@ -501,6 +507,26 @@ export function HomeScreen() {
         </HeroCard>
 
         {seasonId ? <DailyPaletteGenerator seasonId={seasonId} /> : null}
+
+        {/* The web's dashboard tail, below the look: the two tiles mobile
+            carries, then the recent-looks strip. The strip's "View all" is a
+            History entry point where the web's quick-action row put one. */}
+        <View className="gap-xl pt-xl">
+          <StatsRow
+            profilePercent={
+              profile ? styleProfileCompletionPercent(toStyleProfileRow(profile)) : 0
+            }
+            profileLoading={profilePending}
+            looksThisMonth={outfits.data ? looksThisMonth(outfits.data) : 0}
+            looksLoading={outfits.isPending}
+          />
+
+          <RecentLooksStrip
+            looks={outfits.data}
+            loading={outfits.isPending}
+            onExpired={() => void outfits.refetch()}
+          />
+        </View>
       </View>
 
       {/* Every sheet is mounted here, at the screen root — never inside
