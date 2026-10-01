@@ -29,6 +29,7 @@ export function LookVisual({
   onRetry,
   retryDisabled,
   onDownload,
+  onRendered,
 }: {
   state: LookVisualState;
   imageDataUri: string | null;
@@ -43,6 +44,13 @@ export function LookVisual({
   onRetry: () => void;
   retryDisabled?: boolean;
   onDownload: () => void;
+  /**
+   * The image is on screen (or has definitively failed to decode) — the moment
+   * the CTA may unlock. `onDisplay` is the paint; `onError` releases the same
+   * latch because an image that will never appear must not hold the button
+   * hostage forever.
+   */
+  onRendered?: () => void;
 }) {
   const frame =
     aspect === "video"
@@ -83,6 +91,8 @@ export function LookVisual({
             contentFit="contain"
             transition={200}
             accessibilityLabel={`${label} of ${headline}`}
+            onDisplay={onRendered}
+            onError={onRendered}
           />
           <Pressable
             accessibilityRole="button"

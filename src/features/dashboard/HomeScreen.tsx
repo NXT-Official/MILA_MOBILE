@@ -86,6 +86,11 @@ export function HomeScreen() {
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [previewAttempted, setPreviewAttempted] = useState(false);
   const [previewDetail, setPreviewDetail] = useState<string | null>(null);
+  /**
+   * The style sheet has finished rendering on screen. Until it has, the CTA is
+   * disabled — see `renderingVisual` below.
+   */
+  const [sheetRendered, setSheetRendered] = useState(false);
 
   const userId = useAuthStore((s) => s.session?.user.id ?? null);
   const queryClient = useQueryClient();
@@ -105,16 +110,30 @@ export function HomeScreen() {
 
   const rateLimitedFor = useCountdown(rateLimitedUntil);
   const profileComplete = isStyleProfileComplete(toStyleProfileRow(profile));
+
+  const look = generate.data ?? null;
+  const seasonId = toSeasonId(profile?.color_season);
+  const canRenderVisual = Boolean(profile?.photo_consent_at);
+
+  /**
+   * The visual in flight: the server is rendering the sheet, or its image has
+   * arrived and is not on screen yet. The CTA stays disabled the whole time —
+   * a second tap would compose (and pay for) another look on top of the picture
+   * already on its way. A look with no consented photo has no visual to wait
+   * for, so it never blocks.
+   */
+  const renderingVisual =
+    Boolean(look) &&
+    canRenderVisual &&
+    (styleSheet.isPending || (Boolean(sheetImage) && !sheetRendered));
+
   const blocked = resolveBlockedReason({
     online,
     profileComplete,
     hasWeather: Boolean(weather.data),
     rateLimitedFor,
+    renderingVisual,
   });
-
-  const look = generate.data ?? null;
-  const seasonId = toSeasonId(profile?.color_season);
-  const canRenderVisual = Boolean(profile?.photo_consent_at);
   const busy = generate.isPending || styleSheet.isPending || photoPreview.isPending;
 
   /**
@@ -148,6 +167,8 @@ export function HomeScreen() {
 
   function requestStyleSheet(currentLook: DailyLook) {
     setSheetAttempted(true);
+    // A fresh render: the CTA stays disabled until this one is on screen.
+    setSheetRendered(false);
     // A new visual is a different look to save. Without this, the row keeps
     // saying "View in History" and offers no way to save the replacement.
     save.reset();
@@ -202,6 +223,7 @@ export function HomeScreen() {
     setSheetImage(null);
     setSheetAttempted(false);
     setSheetDetail(null);
+    setSheetRendered(false);
     setPreviewImage(null);
     setPreviewAttempted(false);
     setPreviewDetail(null);
@@ -428,6 +450,9 @@ export function HomeScreen() {
                   failedMessage="The outfit is ready, but the style sheet couldn't be generated."
                   onRetry={() => requestStyleSheet(look)}
                   retryDisabled={generate.isPending || styleSheet.isPending}
+                  // The latch that unlocks "Create my look": only once the
+                  // sheet is actually on screen.
+                  onRendered={() => setSheetRendered(true)}
                   onDownload={() =>
                     sheetImage
                       ? handleDownload(

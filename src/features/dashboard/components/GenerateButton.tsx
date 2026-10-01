@@ -11,6 +11,7 @@ import { Icon } from "@/components/ui/Icon";
 export type BlockedReason =
   | "offline"
   | "rate-limited"
+  | "rendering"
   | "profile-incomplete"
   | "no-weather";
 
@@ -20,11 +21,21 @@ export function resolveBlockedReason(input: {
   hasWeather: boolean;
   /** Seconds left on a server rate limit, 0 when none is in force. */
   rateLimitedFor: number;
+  /**
+   * The look's visual is still being rendered — the server is drawing it, or
+   * the image has arrived and is not on screen yet. Tapping "Create my look"
+   * in that window would start a second composition (and spend a second
+   * credit) on top of a picture that is already on its way.
+   */
+  renderingVisual: boolean;
 }): BlockedReason | null {
   if (!input.online) return "offline";
   // Ahead of the profile and weather checks: it is the only one with a clock on
   // it, and it is the only one she cannot resolve by doing something.
   if (input.rateLimitedFor > 0) return "rate-limited";
+  // Self-resolving, like the rate limit — and like it, it comes before the
+  // checks she can act on: there is nothing to fix, only to wait for.
+  if (input.renderingVisual) return "rendering";
   if (!input.profileComplete) return "profile-incomplete";
   if (!input.hasWeather) return "no-weather";
   return null;
@@ -37,6 +48,7 @@ export function resolveBlockedReason(input: {
  */
 const BLOCKED_COPY: Record<Exclude<BlockedReason, "rate-limited">, string> = {
   offline: "Mila needs a connection to compose your look.",
+  rendering: "Your look is still rendering. One moment.",
   "profile-incomplete": "Complete your Style Profile first.",
   "no-weather": "Still finding today's weather. Choose a city in the weather panel to continue.",
 };
