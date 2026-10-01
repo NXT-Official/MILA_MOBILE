@@ -5,6 +5,7 @@ import {
   deleteConversation,
   fetchConversations,
   fetchMessages,
+  renameConversation,
 } from "@/services/supabase/concierge";
 import { useAuthStore } from "@/stores/auth-store";
 
@@ -54,6 +55,23 @@ export function useDeleteConversation() {
       return deleteConversation(userId, conversationId);
     },
     // Explicit key, never a bare invalidateQueries().
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.conciergeConversations(userId ?? undefined),
+      }),
+  });
+}
+
+/** Renaming a thread, the web's pencil beside each conversation. */
+export function useRenameConversation() {
+  const userId = useAuthStore((s) => s.session?.user.id ?? null);
+  const queryClient = useQueryClient();
+
+  return useMutation<void, unknown, { conversationId: string; title: string }>({
+    mutationFn: ({ conversationId, title }) => {
+      if (!userId) throw new Error("Not signed in.");
+      return renameConversation(userId, conversationId, title);
+    },
     onSuccess: () =>
       queryClient.invalidateQueries({
         queryKey: queryKeys.conciergeConversations(userId ?? undefined),

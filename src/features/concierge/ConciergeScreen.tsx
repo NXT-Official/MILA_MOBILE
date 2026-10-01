@@ -27,6 +27,7 @@ import { useConciergeStore } from "@/stores/concierge-store";
 import { spacing } from "@/theme/tokens";
 
 import { AnchoredLookCard } from "./components/AnchoredLookCard";
+import { ArchivePicker } from "./components/ArchivePicker";
 import { Composer } from "./components/Composer";
 import { ConversationSheet } from "./components/ConversationSheet";
 import { SuggestedActions } from "./components/SuggestedActions";
@@ -52,6 +53,8 @@ export function ConciergeScreen() {
   const [conversationId, setConversationId] = useState<string | null>(null);
   /** Which conversation the local thread was seeded from. */
   const [seededFrom, setSeededFrom] = useState<string | null>(null);
+  /** Which anchored look the open thread belongs to. */
+  const [seededAnchor, setSeededAnchor] = useState<string | null>(null);
   const [messages, setMessages] = useState<ThreadMessage[]>([]);
   const [draft, setDraft] = useState("");
   /** A local file from the picker. It is uploaded on send, never before. */
@@ -71,6 +74,7 @@ export function ConciergeScreen() {
 
   const anchoredLook = useConciergeStore((s) => s.anchoredLook);
   const clearAnchor = useConciergeStore((s) => s.clear);
+  const anchorLook = useConciergeStore((s) => s.anchor);
 
   const { data: profile } = useProfile();
   /** Silhouette and season, as the web's header badges. */
@@ -98,6 +102,19 @@ export function ConciergeScreen() {
         imageUrl: row.image_url,
       })),
     );
+  }
+
+  /**
+   * Anchoring a different look empties the thread, exactly as the web does
+   * (`concierge-chat.tsx`): the questions that came before were about another
+   * outfit. Adjusted during render for the same reason as the seed above.
+   * Clearing the anchor itself leaves the thread alone — that is the web's
+   * behaviour too.
+   */
+  const anchorId = anchoredLook?.id ?? null;
+  if (anchorId && anchorId !== seededAnchor) {
+    setSeededAnchor(anchorId);
+    setMessages([]);
   }
 
   const blockedMessage = !online
@@ -155,11 +172,6 @@ export function ConciergeScreen() {
     if (!message || send.isPending || blockedMessage) return;
 
     const pendingId = `pending-${Date.now()}`;
-    const thread = messages.map((m) => ({
-      role: m.role,
-      content: m.content,
-      failed: m.failed,
-    }));
     const imageUri = attachmentUri;
     // The mic keeps writing into a box that is about to be cleared, so the next
     // interim result would resurrect the message she just sent.
@@ -174,6 +186,24 @@ export function ConciergeScreen() {
     setDraft("");
     setAttachmentUri(null);
     setAttachError(null);
+
+    dispatch(message, imageUri, pendingId);
+  }
+
+  /**
+   * One send, whichever way it was started — the composer or a "Try again" on
+   * a failed bubble.
+   *
+   * Retrying is safe by construction: `useSendMessage` resumes a reply that was
+   * paid for but never stored from its persist step, so a retry after the
+   * credit was spent does not buy a second answer.
+   */
+  function dispatch(message: string, imageUri: string | null, pendingId: string) {
+    const thread = messages.map((m) => ({
+      role: m.role,
+      content: m.content,
+      failed: m.failed,
+    }));
 
     send.mutate(
       {
@@ -195,7 +225,7 @@ export function ConciergeScreen() {
             // file. Swapping in the storage URL means the thread survives the
             // OS clearing its cache without a blank frame where a photo was.
             ...current.map((m) =>
-              m.id === pendingId ? { ...m, imageUrl: result.imageUrl } : m,
+              m.id === pendingId ? { ...m, imageUrl: result.imageUrl, failed: false } : m,
             ),
             {
               id: `${pendingId}-reply`,
@@ -223,6 +253,15 @@ export function ConciergeScreen() {
     );
   }
 
+  /** Re-sends a dropped message in place — the web's "Try again". */
+  function retryFailed(message: ThreadMessage) {
+    if (send.isPending) return;
+    setMessages((current) =>
+      current.map((m) => (m.id === message.id ? { ...m, failed: false } : m)),
+    );
+    dispatch(message.content, message.imageUrl ?? null, message.id);
+  }
+
   function startNewConversation() {
     setConversationId(null);
     setSeededFrom(null);
@@ -230,6 +269,9 @@ export function ConciergeScreen() {
     setAttachmentUri(null);
     setAttachError(null);
     send.reset();
+    // The web clears the anchored look with a new chat (`newChat`): the next
+    // message should not silently attach the last look she opened.
+    clearAnchor();
   }
 
   /**
@@ -246,6 +288,10 @@ export function ConciergeScreen() {
     setAttachmentUri(null);
     setAttachError(null);
     send.reset();
+    // Switching threads drops the anchored look, as the web's
+    // `openConversation` does — an anchor is a property of the thread it was
+    // started in.
+    clearAnchor();
   }
 
   return (
@@ -312,6 +358,7 @@ export function ConciergeScreen() {
             ) : null
           }
           anchored={Boolean(anchoredLook)}
+          onRetryMessage={retryFailed}
         />
 
         {/* The composer sits above the gesture bar or the button navigation bar,
@@ -323,8 +370,15 @@ export function ConciergeScreen() {
           {draft.trim().length === 0 ? (
             <SuggestedActions
               anchored={Boolean(anchoredLook)}
+              attached={Boolean(attachmentUri)}
               onSelect={setDraft}
             />
+          ) : null}
+
+          {/* The web's archive strip, and only while nothing is anchored — it
+              is a way to *choose* a look, not a way to switch away from one. */}
+          {!anchoredLook && draft.trim().length === 0 ? (
+            <ArchivePicker onSelect={anchorLook} />
           ) : null}
 
           <Composer

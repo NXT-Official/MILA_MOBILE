@@ -56,6 +56,9 @@ export function toHistory(
   return kept.reverse();
 }
 
+/** The column's cap, mirrored from the DB check constraint on the title. */
+export const CONVERSATION_TITLE_MAX = 120;
+
 /**
  * A conversation's title, taken from its opening message.
  *
@@ -65,5 +68,7 @@ export function toHistory(
 export function conversationTitle(firstMessage: string): string {
   const trimmed = firstMessage.trim().replace(/\s+/g, " ");
   if (!trimmed) return "New conversation";
-  return trimmed.length <= 120 ? trimmed : `${trimmed.slice(0, 119)}…`;
+  return trimmed.length <= CONVERSATION_TITLE_MAX
+    ? trimmed
+    : `${trimmed.slice(0, CONVERSATION_TITLE_MAX - 1)}…`;
 }

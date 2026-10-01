@@ -128,3 +128,22 @@ export async function deleteConversation(userId: string, conversationId: string)
 
   if (error) throw error;
 }
+
+/**
+ * Renaming is direct through RLS, the same statement the web runs with the
+ * member's own client — the title column is granted to its owner and the DB
+ * check constraint (1–120 characters, trimmed) is the real validator.
+ */
+export async function renameConversation(
+  userId: string,
+  conversationId: string,
+  title: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from("concierge_conversations")
+    .update({ title })
+    .eq("id", conversationId)
+    .eq("user_id", userId);
+
+  if (error) throw error;
+}

@@ -30,14 +30,28 @@ const ANCHORED_PROMPTS = [
   "Does this suit my palette?",
 ];
 
+/** The web's third set, for when a photo is attached — same priority order. */
+const ATTACHMENT_PROMPTS = [
+  "What do you think of this?",
+  "How would you style this?",
+  "Does this suit my palette?",
+  "What occasions fit this piece?",
+  "What would you pair with it?",
+];
+
 export function SuggestedActions({
   anchored,
+  attached = false,
   onSelect,
 }: {
   anchored: boolean;
+  /** A photo is staged in the composer — its own openers, as on the web. */
+  attached?: boolean;
   onSelect: (prompt: string) => void;
 }) {
-  const prompts = anchored ? ANCHORED_PROMPTS : GENERAL_PROMPTS;
+  // The web's order: an attachment outranks an anchor, an anchor outranks the
+  // general set.
+  const prompts = attached ? ATTACHMENT_PROMPTS : anchored ? ANCHORED_PROMPTS : GENERAL_PROMPTS;
 
   return (
     // One line that scrolls. The web wraps these into a five-row stack, which

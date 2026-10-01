@@ -30,6 +30,7 @@ export function Thread({
   awaitingReply,
   header,
   anchored,
+  onRetryMessage,
 }: {
   messages: ThreadMessage[];
   awaitingReply: boolean;
@@ -37,6 +38,8 @@ export function Thread({
   header: React.ReactNode;
   /** True when a saved look is anchored — the opening copy addresses it. */
   anchored: boolean;
+  /** Re-sends a message the network dropped, in place. */
+  onRetryMessage?: (message: ThreadMessage) => void;
 }) {
   const list = useRef<FlatList<ThreadMessage>>(null);
 
@@ -84,6 +87,9 @@ export function Thread({
           content={item.content}
           imageUrl={item.imageUrl}
           failed={item.failed}
+          onRetry={
+            item.failed && onRetryMessage ? () => onRetryMessage(item) : undefined
+          }
         />
       )}
     />

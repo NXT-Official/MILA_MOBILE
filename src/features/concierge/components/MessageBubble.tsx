@@ -1,5 +1,5 @@
 import { Image } from "expo-image";
-import { Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 
 import { Icon } from "@/components/ui/Icon";
 import type { ChatRole } from "@/lib/concierge-history";
@@ -23,6 +23,7 @@ export function MessageBubble({
   content,
   imageUrl,
   failed = false,
+  onRetry,
 }: {
   role: ChatRole;
   content: string;
@@ -30,6 +31,8 @@ export function MessageBubble({
   imageUrl?: string | null;
   /** The send never reached Mila. Marked, kept, and retryable. */
   failed?: boolean;
+  /** Re-sends this message in place — the web's "Try again". */
+  onRetry?: () => void;
 }) {
   const mine = role === "user";
 
@@ -70,9 +73,22 @@ export function MessageBubble({
       </View>
 
       {failed ? (
-        <View className="flex-row items-center gap-xs">
+        <View className="flex-row items-center gap-sm">
           <Icon name="alert" size="xs" color="muted" />
           <Text className="font-body text-micro text-muted">Not sent</Text>
+          {onRetry ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Try sending this message again"
+              onPress={onRetry}
+              hitSlop={8}
+              className="active:opacity-60 min-h-tap justify-center"
+            >
+              <Text className="font-body-semibold text-micro tracking-label uppercase text-ink underline">
+                Try again
+              </Text>
+            </Pressable>
+          ) : null}
         </View>
       ) : null}
     </View>
