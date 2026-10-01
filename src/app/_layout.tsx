@@ -121,6 +121,14 @@ function RootNavigator() {
               session from the link is live. */}
           <Stack.Screen name="reset-password" />
 
+          {/* Also outside every guard: the login screen offers "Having trouble?
+              Get help" before she can sign in, exactly as the web's login page
+              does, and the support endpoint is unauthenticated (captcha plus an
+              IP limit are its defence). Behind the inApp guard this push would
+              be dropped for a signed-out member — the same dead end the
+              recovery link had. */}
+          <Stack.Screen name="settings/support" />
+
           <Stack.Protected guard={signedOut}>
             <Stack.Screen name="(auth)" />
           </Stack.Protected>
@@ -144,7 +152,6 @@ function RootNavigator() {
             <Stack.Screen name="settings/account" />
             <Stack.Screen name="settings/location" />
             <Stack.Screen name="settings/privacy" />
-            <Stack.Screen name="settings/support" />
             {/* Editing one dossier answer. Outside the `onboarding` group on
             purpose: that group is hidden once a profile is complete, and
             entering it would latch the launch gate and unmount the tabs. */}

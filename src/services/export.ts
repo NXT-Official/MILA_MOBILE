@@ -18,6 +18,11 @@ import { fetchProfile } from "@/services/supabase/profile";
  */
 export type ExportedData = {
   exported_at: string;
+  /**
+   * Who the export belongs to — the web's `account` field. Without it a member
+   * holding two exports cannot tell which account either one came from.
+   */
+  account: { id: string; email: string | null };
   profile: unknown;
   outfits: unknown[];
   posts: unknown[];
@@ -25,7 +30,12 @@ export type ExportedData = {
   favourites: unknown[];
 };
 
-export async function assembleExport(userId: string): Promise<ExportedData> {
+export async function assembleExport(account: {
+  id: string;
+  email: string | null;
+}): Promise<ExportedData> {
+  const userId = account.id;
+
   // Independent reads, so they go together. A failure in any one rejects the
   // whole export rather than handing her a file with a silently missing
   // section — an incomplete export that looks complete is the worse outcome.
@@ -39,6 +49,7 @@ export async function assembleExport(userId: string): Promise<ExportedData> {
 
   return {
     exported_at: new Date().toISOString(),
+    account,
     profile,
     outfits,
     posts: member.posts,

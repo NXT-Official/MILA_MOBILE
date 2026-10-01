@@ -1,11 +1,12 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRef, useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
-import { View } from "react-native";
+import { Linking, Text, View } from "react-native";
 
 import { Button } from "@/components/ui/Button";
 import { InlineError } from "@/components/ui/ErrorState";
 import { Input } from "@/components/ui/Input";
+import { PRIVACY_POLICY_URL, TERMS_URL } from "@/constants/links";
 import { SignupForm as SignupSchema, type SignupFormValues } from "@/lib/auth-input";
 import { ApiError } from "@/services/api/client";
 import { UNIFORM_AUTH_FAILURE } from "@/services/api/auth";
@@ -114,6 +115,29 @@ export function SignupForm() {
       </View>
 
       <CaptchaGate ref={captcha} verified={Boolean(captchaToken)} onChange={setCaptchaToken} />
+
+      {/* The web's notice, verbatim. The two links open the web's own legal
+          pages in the browser — the app has no legal screens of its own, and
+          the origin is the deployment that serves them (constants/links.ts). */}
+      <Text className="font-body text-micro leading-relaxed text-muted">
+        By creating an account you agree to our{" "}
+        <Text
+          accessibilityRole="link"
+          className="text-body underline"
+          onPress={() => void Linking.openURL(PRIVACY_POLICY_URL)}
+        >
+          Privacy Policy
+        </Text>{" "}
+        and{" "}
+        <Text
+          accessibilityRole="link"
+          className="text-body underline"
+          onPress={() => void Linking.openURL(TERMS_URL)}
+        >
+          Terms
+        </Text>
+        .
+      </Text>
 
       <Button
         label="Create Atelier Account"

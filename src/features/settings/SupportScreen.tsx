@@ -26,8 +26,8 @@ import { cn } from "@/utils/cn";
  * it is cleared after every attempt — reusing one fails for a reason the member
  * cannot act on.
  */
-export function SupportScreen() {
-  const [kind, setKind] = useState<SupportKind>("help");
+export function SupportScreen({ initialKind = "help" }: { initialKind?: SupportKind } = {}) {
+  const [kind, setKind] = useState<SupportKind>(initialKind);
   const [message, setMessage] = useState("");
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
 

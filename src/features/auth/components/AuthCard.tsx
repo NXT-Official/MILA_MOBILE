@@ -1,6 +1,6 @@
 import { router, usePathname } from "expo-router";
 import type { ReactNode } from "react";
-import { Linking, Pressable, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 
 import { Icon } from "@/components/ui/Icon";
 import { cn } from "@/utils/cn";
@@ -93,10 +93,14 @@ export function AuthCard({
       </View>
 
       <View className="flex-row items-center justify-center gap-xl">
+        {/* The web's login page opens a support dialog here — help and
+            feedback both file through the same unauthenticated endpoint. The
+            native equivalent is the support screen, which is why that route
+            lives outside the guards (app/_layout.tsx). */}
         <Pressable
           accessibilityRole="link"
           accessibilityLabel="Studio help desk"
-          onPress={() => Linking.openURL("mailto:hello@mila.app?subject=Studio%20Help%20Desk")}
+          onPress={() => router.push("/settings/support")}
           className="flex-row items-center gap-sm"
           hitSlop={8}
         >
@@ -109,7 +113,7 @@ export function AuthCard({
         <Pressable
           accessibilityRole="link"
           accessibilityLabel="Send feedback"
-          onPress={() => Linking.openURL("mailto:hello@mila.app?subject=Feedback")}
+          onPress={() => router.push({ pathname: "/settings/support", params: { kind: "feedback" } })}
           className="flex-row items-center gap-sm"
           hitSlop={8}
         >

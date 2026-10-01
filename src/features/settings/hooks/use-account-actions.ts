@@ -1,6 +1,7 @@
 import { useMutation } from "@tanstack/react-query";
 
 import { deleteAccount } from "@/services/api/account";
+import { changeEmail } from "@/services/api/auth";
 import { assembleExport, exportFilename } from "@/services/export";
 import { files } from "@/services/files";
 import { supabase } from "@/services/supabase/client";
@@ -13,10 +14,7 @@ import { useAuthStore } from "@/stores/auth-store";
  */
 export function useChangeEmail() {
   return useMutation<void, unknown, string>({
-    mutationFn: async (email) => {
-      const { error } = await supabase.auth.updateUser({ email });
-      if (error) throw error;
-    },
+    mutationFn: changeEmail,
   });
 }
 
@@ -52,12 +50,15 @@ export function useChangePassword() {
  * in it and why iOS will need no change here.
  */
 export function useExportData() {
+  // Two primitives, not one object: a selector returning a fresh object would
+  // re-render on every store tick under useSyncExternalStore.
   const userId = useAuthStore((s) => s.session?.user.id ?? null);
+  const email = useAuthStore((s) => s.session?.user.email ?? null);
 
   return useMutation<"shared" | "cancelled", unknown, void>({
     mutationFn: async () => {
       if (!userId) throw new Error("Not signed in.");
-      const data = await assembleExport(userId);
+      const data = await assembleExport({ id: userId, email });
 
       return files.saveAndShare({
         filename: exportFilename(),
