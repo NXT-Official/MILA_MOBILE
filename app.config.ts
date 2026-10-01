@@ -21,6 +21,7 @@ const BUNDLE_ID = {
 
 const config: ExpoConfig = {
   name: NAME,
+  owner: "naaxtechs-team",
   slug: "mila-mobile",
   version: "1.0.0",
   orientation: "portrait",
@@ -172,9 +173,9 @@ const config: ExpoConfig = {
 
   extra: {
     variant: VARIANT,
-    // Linked to the EAS project under the kurtgav account (`eas init`, Sep 23).
+    // Linked to the EAS project under the naaxtechs-team account (`eas init`).
     // The env override stays for anyone building against a different project.
-    eas: { projectId: process.env.EAS_PROJECT_ID ?? "8ee3d05d-b5a3-4670-8096-5eac1ac4e834" },
+    eas: { projectId: process.env.EAS_PROJECT_ID ?? "98d444fe-f321-450f-bb61-88360ebf17f2" },
   },
 };
 

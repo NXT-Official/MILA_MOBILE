@@ -4,9 +4,10 @@ Everything in this repo that a developer can finish alone is finished. What's
 left below all requires accounts, credentials, or copy that belong to the
 client — this file is the punch list, not a how-to for things already done.
 
-## 1. EAS project — done (2026-09-23)
+## 1. EAS project — done (2026-09-23, moved 2026-10-01)
 
-Linked to `@kurtgav/mila-mobile`; the project ID lives in `app.config.ts`'s
+Linked to `@naaxtechs-team/mila-mobile` (moved from `@kurtgav/mila-mobile`,
+which holds the earlier builds and their signing keystore); the project ID lives in `app.config.ts`'s
 `extra.eas.projectId` (the `EAS_PROJECT_ID` env override remains for anyone
 building against a different project). All three `eas.json` profiles target it.
 
