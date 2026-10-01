@@ -3,6 +3,7 @@ import { Text, View } from "react-native";
 import { Badge } from "@/components/ui/Badge";
 import { Icon } from "@/components/ui/Icon";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { STAFF_GRANTED_SUBSCRIPTION_NOTICE } from "@/constants/subscriptions";
 import { formatPeriodDate, type MembershipState } from "@/lib/subscription-status";
 
 /**
@@ -43,6 +44,26 @@ export function MembershipStatusRow({
   }
 
   const date = formatPeriodDate(state.date);
+
+  // A plan staff granted by hand: no renewal, no end date, and the reason the
+  // cancel button is not here. The web's copy, verbatim.
+  if (state.headline === "granted") {
+    return (
+      <View className="gap-md rounded-panel border border-border bg-surface p-lg dark:border-border/12">
+        <View className="flex-row items-center justify-between gap-md">
+          <Text className="font-body-semibold text-section tracking-section uppercase text-muted">
+            Membership
+          </Text>
+          <Badge label="Granted" variant="success" />
+        </View>
+
+        {planTitle ? <Text className="font-display text-h3 text-ink">{planTitle}</Text> : null}
+
+        <Text className="font-body text-base text-body">By the Mila team.</Text>
+        <Text className="font-body text-sm text-muted">{STAFF_GRANTED_SUBSCRIPTION_NOTICE}</Text>
+      </View>
+    );
+  }
 
   return (
     <View className="gap-md rounded-panel border border-border bg-surface p-lg dark:border-border/12">
