@@ -24,7 +24,11 @@ export function useSignUp() {
 }
 
 export function usePasswordReset() {
-  return useMutation({ mutationFn: (email: string) => requestPasswordReset(email), retry: false });
+  return useMutation({
+    mutationFn: (input: { email: string; captchaToken: string }) =>
+      requestPasswordReset(input.email, input.captchaToken),
+    retry: false,
+  });
 }
 
 export function useUpdatePassword() {

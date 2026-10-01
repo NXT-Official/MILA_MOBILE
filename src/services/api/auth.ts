@@ -217,9 +217,12 @@ export async function changeEmail(email: string): Promise<void> {
   if (error) throw error;
 }
 
-export async function requestPasswordReset(email: string): Promise<void> {
+export async function requestPasswordReset(email: string, captchaToken?: string): Promise<void> {
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: "mila://reset-password",
+    // This project has captcha protection enabled, so a tokenless request is
+    // rejected server-side with `captcha_failed` — same requirement as sign-in.
+    captchaToken,
   });
   // Never reveal whether the address exists — the screen always shows the same
   // "if that address is registered" confirmation.

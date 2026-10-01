@@ -111,17 +111,18 @@ function RootNavigator() {
         value={showHeader ? { ...insets, top: 0 } : insets}
       >
         <Stack screenOptions={{ headerShown: false }}>
+          {/* Deliberately outside every guard. The recovery link Supabase
+              emails opens `mila://reset-password` — if this screen sat behind
+              `Stack.Protected guard={recovery}`, expo-router would drop the
+              deep link before the screen could ever mount and latch that same
+              flag (it is only ever set inside this screen). The screen itself
+              decides between verifying / invalid / ready, and once it latches
+              `recovery` the launch gate holds her here while the temporary
+              session from the link is live. */}
+          <Stack.Screen name="reset-password" />
+
           <Stack.Protected guard={signedOut}>
             <Stack.Screen name="(auth)" />
-          </Stack.Protected>
-
-          {/* Reachable regardless of session state: the recovery link Supabase
-          emails signs the member into a temporary session, which would
-          otherwise satisfy `inApp` (or even `onboarding`) and race her into
-          the app before she has set a new password. `recovery` is latched
-          ahead of that session existing — see `resolveDestination`. */}
-          <Stack.Protected guard={recovery}>
-            <Stack.Screen name="reset-password" />
           </Stack.Protected>
 
           <Stack.Protected guard={suspended}>
