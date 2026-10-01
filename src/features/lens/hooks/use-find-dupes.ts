@@ -27,8 +27,8 @@ export function useFindDupes() {
   /** A retry after a failed hunt re-uses the upload — same file, same bytes. */
   const uploaded = useRef<{ localUri: string; imageUrl: string } | null>(null);
 
-  return useMutation<DupeHuntResult, unknown, CapturedPhoto>({
-    mutationFn: async (photo) => {
+  return useMutation<DupeHuntResult, unknown, { photo: CapturedPhoto; maxBudget?: number }>({
+    mutationFn: async ({ photo, maxBudget }) => {
       if (!userId) throw new Error("Not signed in.");
 
       const imageUrl =
@@ -37,8 +37,13 @@ export function useFindDupes() {
           : await uploadOutfitImage(userId, photo.uri);
       uploaded.current = { localUri: photo.uri, imageUrl };
 
-      // Same `region` the web sends — the server ranks with it.
-      return findDupes({ imageUrl, region: profile?.delivery_country || undefined });
+      // Same `region` the web sends — the server ranks with it. `maxBudget` is
+      // the ceiling she typed in the review step, when she typed one.
+      return findDupes({
+        imageUrl,
+        region: profile?.delivery_country || undefined,
+        maxBudget,
+      });
     },
 
     // On settle, not on success: the server charges before the provider call

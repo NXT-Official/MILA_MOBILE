@@ -66,6 +66,12 @@ export function findDupes(input: {
   maxResults?: number;
   /** ISO 3166-1 alpha-2 from the profile's delivery country — the web sends it on this call. */
   region?: string;
+  /**
+   * A hard price ceiling the member typed before hunting. Omitted means no
+   * ceiling. The server applies it as a filter over the ranked results — the
+   * web sends the same field from its Dupe Hunter drawer.
+   */
+  maxBudget?: number;
 }): Promise<DupeHuntResult> {
   return api.post<DupeHuntResult>("/dupes/find", input, { timeoutMs: TIMEOUTS.analysis });
 }

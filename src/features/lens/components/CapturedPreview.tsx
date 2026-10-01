@@ -1,8 +1,9 @@
 import { Image } from "expo-image";
-import { View } from "react-native";
+import { Text, View } from "react-native";
 
 import { Button } from "@/components/ui/Button";
 import { InlineError } from "@/components/ui/ErrorState";
+import { Input } from "@/components/ui/Input";
 import type { CapturedPhoto } from "@/services/camera";
 
 /**
@@ -18,6 +19,7 @@ export function CapturedPreview({
   busy,
   blockedMessage,
   actionLabel,
+  budget,
   onRetake,
   onAnalyse,
 }: {
@@ -29,6 +31,11 @@ export function CapturedPreview({
   blockedMessage: string | null;
   /** What the credit is about to be spent on — the mode names it. */
   actionLabel: string;
+  /**
+   * Dupe Hunter only: the optional price ceiling she types before hunting.
+   * The screen owns the value and its parsing; this only draws the field.
+   */
+  budget?: { value: string; onChange: (next: string) => void };
   onRetake: () => void;
   onAnalyse: () => void;
 }) {
@@ -50,6 +57,24 @@ export function CapturedPreview({
           <InlineError message={blockedMessage} />
         ) : error ? (
           <InlineError message={error} />
+        ) : null}
+
+        {budget ? (
+          <View className="gap-sm">
+            <Input
+              label="Max budget (optional)"
+              value={budget.value}
+              onChangeText={budget.onChange}
+              placeholder="e.g. 150"
+              keyboardType="decimal-pad"
+              inputMode="decimal"
+              returnKeyType="done"
+              editable={!busy}
+            />
+            <Text className="font-body text-sm text-muted">
+              We&rsquo;ll only show dupes at or under this price. Leave blank for no limit.
+            </Text>
+          </View>
         ) : null}
 
         <Button

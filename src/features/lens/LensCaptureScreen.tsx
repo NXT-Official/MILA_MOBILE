@@ -79,6 +79,8 @@ export function LensCaptureScreen({
   const [discardOpen, setDiscardOpen] = useState(false);
   /** Epoch ms the server's rate limit lifts, or null. */
   const [rateLimitedUntil, setRateLimitedUntil] = useState<number | null>(null);
+  /** Dupe Hunter's optional price ceiling, exactly as she typed it. */
+  const [maxBudget, setMaxBudget] = useState("");
 
   const handle = useRef<CameraHandle>(null);
 
@@ -216,15 +218,24 @@ export function LensCaptureScreen({
     if (!photo || blockedMessage) return;
 
     if (dupeMode) {
-      hunt.mutate(photo, {
-        onSuccess: (next) => {
-          haptics.success();
-          AccessibilityInfo.announceForAccessibility(
-            `${next.dupes.length} budget alternatives found.`,
-          );
+      // Blank, zero, or unparseable means "no ceiling" — the same reading the
+      // web's Dupe Hunter applies before it sends the field.
+      const parsed = Number(maxBudget);
+      const budget =
+        maxBudget.trim() !== "" && Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+
+      hunt.mutate(
+        { photo, maxBudget: budget },
+        {
+          onSuccess: (next) => {
+            haptics.success();
+            AccessibilityInfo.announceForAccessibility(
+              `${next.dupes.length} budget alternatives found.`,
+            );
+          },
+          onError: handleFailure,
         },
-        onError: handleFailure,
-      });
+      );
       return;
     }
 
@@ -322,6 +333,7 @@ export function LensCaptureScreen({
           busy={run.isPending}
           blockedMessage={blockedMessage}
           actionLabel={dupeMode ? "Hunt the dupes" : "Analyse this outfit"}
+          budget={dupeMode ? { value: maxBudget, onChange: setMaxBudget } : undefined}
           onRetake={startOver}
           onAnalyse={handleAnalyse}
         />
