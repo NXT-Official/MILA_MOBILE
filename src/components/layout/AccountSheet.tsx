@@ -80,7 +80,11 @@ export function AccountSheet({ visible, onClose }: { visible: boolean; onClose: 
           </View>
         </View>
 
-        <CreditsMeter balance={balance} loading={credits.isPending} />
+        <CreditsMeter
+          balance={balance}
+          allowance={credits.data?.allowance ?? null}
+          loading={credits.isPending}
+        />
 
         <SettingsList>
           <SettingsRow

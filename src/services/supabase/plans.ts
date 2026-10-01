@@ -33,3 +33,19 @@ export async function fetchSubscriptionPlans(): Promise<SubscriptionPlan[]> {
   if (error) throw error;
   return data ?? [];
 }
+
+/**
+ * The live plan's daily allowance, by id — one column, for `effectiveCredits`.
+ * A plan row can be archived between the subscription read and this one, hence
+ * the null rather than a throw: no plan means no allowance is owed.
+ */
+export async function fetchPlanAllowance(planId: string): Promise<number | null> {
+  const { data, error } = await supabase
+    .from("subscription_plans")
+    .select("credits_included")
+    .eq("id", planId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data?.credits_included ?? null;
+}

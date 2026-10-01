@@ -9,6 +9,7 @@ function row(overrides: Partial<Parameters<typeof resolveMembership>[0]> = {}) {
     status: "active",
     cancel_at_period_end: false,
     current_period_end: PERIOD_END,
+    paddle_subscription_id: null,
     ...overrides,
   };
 }
@@ -21,6 +22,7 @@ describe("resolveMembership", () => {
       date: PERIOD_END,
       status: "active",
       paymentFailing: false,
+      staffGranted: false,
     });
   });
 
@@ -77,6 +79,33 @@ describe("resolveMembership", () => {
     const state = resolveMembership(row({ current_period_end: null }));
     expect(state.headline).toBe("renews");
     expect(state.date).toBeNull();
+  });
+
+  /**
+   * A plan staff granted by hand has no Paddle subscription behind it, so both
+   * "renews" and "ends" would be inventions — and offering to cancel it would
+   * call an endpoint that has nothing to cancel.
+   */
+  it("reads a staff-granted plan as granted, with no renewal and no end date", () => {
+    const state = resolveMembership(
+      row({ paddle_subscription_id: "manual:0f0a", current_period_end: null }),
+    );
+    expect(state.inForce).toBe(true);
+    expect(state.headline).toBe("granted");
+    expect(state.date).toBeNull();
+    expect(state.staffGranted).toBe(true);
+  });
+
+  it("counts a hand-made manual_ row as granted too", () => {
+    expect(
+      resolveMembership(row({ paddle_subscription_id: "manual_comp_2026" })).staffGranted,
+    ).toBe(true);
+  });
+
+  it("does not mistake a Paddle subscription for a granted plan", () => {
+    const state = resolveMembership(row({ paddle_subscription_id: "sub_01H8XYZ" }));
+    expect(state.staffGranted).toBe(false);
+    expect(state.headline).toBe("renews");
   });
 });
 

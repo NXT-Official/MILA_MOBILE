@@ -9,14 +9,24 @@ import { supabase } from "@/services/supabase/client";
 export type Entitlements = {
   ai_credits: number;
   purchased_credits: number;
+  /**
+   * UTC date (YYYY-MM-DD) of the last daily reset. Read to answer one question
+   * only: has today's allowance been put into `ai_credits` yet (see
+   * `effectiveCredits`)? Nothing on the device schedules or predicts the reset.
+   */
+  credits_reset_at: string | null;
 };
 
-const NO_ENTITLEMENTS: Entitlements = { ai_credits: 0, purchased_credits: 0 };
+const NO_ENTITLEMENTS: Entitlements = {
+  ai_credits: 0,
+  purchased_credits: 0,
+  credits_reset_at: null,
+};
 
 export async function fetchEntitlements(userId: string): Promise<Entitlements> {
   const { data, error } = await supabase
     .from("user_entitlements")
-    .select("ai_credits,purchased_credits")
+    .select("ai_credits,purchased_credits,credits_reset_at")
     .eq("user_id", userId)
     .maybeSingle();
 

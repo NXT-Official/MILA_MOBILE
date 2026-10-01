@@ -15,20 +15,27 @@ export type SubscriptionRow = {
   cancel_at_period_end: boolean;
   current_period_end: string | null;
   plan_id: string;
+  /**
+   * Read **only** to tell a plan staff granted by hand from one bought through
+   * Paddle (`isStaffGrantedSubscription`) — a granted plan must not offer
+   * self-serve cancel/resume, because there is no Paddle subscription behind
+   * it. Nothing on the device may act on it beyond that label.
+   */
+  paddle_subscription_id: string | null;
 };
 
 /**
  * Newest first, one row. A member can accumulate historical rows — an expired
  * subscription and a current one — and the newest is the one that governs.
  *
- * `paddle_subscription_id` and `paddle_customer_id` are not selected. Nothing
- * on the device may act on either, and a column that is never read cannot be
- * wired into an accidental client-side billing call.
+ * `paddle_customer_id` is not selected. Nothing on the device may act on it,
+ * and a column that is never read cannot be wired into an accidental
+ * client-side billing call.
  */
 export async function fetchMySubscription(userId: string): Promise<SubscriptionRow | null> {
   const { data, error } = await supabase
     .from("subscriptions")
-    .select("status,cancel_at_period_end,current_period_end,plan_id")
+    .select("status,cancel_at_period_end,current_period_end,plan_id,paddle_subscription_id")
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
     .limit(1)

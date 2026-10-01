@@ -13,6 +13,7 @@ import { useSubscriptionPlans } from "@/hooks/use-subscription-plans";
 import { resolveMembership } from "@/lib/subscription-status";
 
 import { MembershipStatusRow } from "./components/MembershipStatusRow";
+import { MembershipActions } from "./components/MembershipActions";
 import { PlanCard } from "./components/PlanCard";
 
 /**
@@ -23,13 +24,9 @@ import { PlanCard } from "./components/PlanCard";
  * Paddle webhook — the system of record (§9). Nothing here decides access, and
  * there is no optimistic state anywhere, so there is nothing to roll back.
  *
- * **No checkout, permanently.** Appendix D.1 (Paddle hosted checkout vs.
- * native IAP) is decided: Paddle stays web-only. Purchase, cancel, and resume
- * live exclusively on the web app, and mobile shows entitlement status
- * read-only. This is not a stopgap pending App Store/Play Store IAP review —
- * there is no purchase affordance here at all, not even a disabled one, and
- * none is planned. A disabled or "coming soon" CTA would advertise a mobile
- * checkout that is not coming.
+ * Existing memberships can cancel or resume through the same server handlers
+ * as web. Store purchases require configured products and verified receipts
+ * before this screen can offer a purchase (§9).
  */
 export function MembershipScreen() {
   const plans = useSubscriptionPlans();
@@ -62,13 +59,25 @@ export function MembershipScreen() {
           </Text>
         </View>
 
-        <MembershipStatusRow
-          state={membership}
-          planTitle={currentPlan?.title ?? null}
-          loading={subscription.isPending}
-        />
+        {subscription.isError ? (
+          <ErrorState
+            title="Membership didn't load"
+            description="Check your connection and try again."
+            actionLabel="Try again"
+            onAction={() => void subscription.refetch()}
+          />
+        ) : (
+          <>
+            <MembershipStatusRow state={membership} planTitle={currentPlan?.title ?? null} loading={subscription.isPending} />
+            {!subscription.isPending ? <MembershipActions membership={membership} /> : null}
+          </>
+        )}
 
-        <CreditsMeter balance={balance} loading={credits.isPending} />
+        <CreditsMeter
+          balance={balance}
+          allowance={credits.data?.allowance ?? null}
+          loading={credits.isPending}
+        />
 
         {plans.isPending ? (
           <LoadingState label="Loading membership plans" lines={4} />

@@ -1,4 +1,7 @@
-import { IN_FORCE_SUBSCRIPTION_STATUSES } from "@/constants/subscriptions";
+import {
+  IN_FORCE_SUBSCRIPTION_STATUSES,
+  isStaffGrantedSubscription,
+} from "@/constants/subscriptions";
 
 /**
  * What a subscription row means, as one decision.
@@ -13,6 +16,7 @@ export type MembershipRow = {
   status: string;
   cancel_at_period_end: boolean;
   current_period_end: string | null;
+  paddle_subscription_id: string | null;
 };
 
 export type MembershipState = {
@@ -22,8 +26,11 @@ export type MembershipState = {
    * `cancel_at_period_end` is the whole distinction between "Renews on" and
    * "Ends on". Getting it backwards tells a member who cancelled that she will
    * be charged again, or tells a paying member her access is about to stop.
+   *
+   * `granted` is the fourth case: staff gave her the plan by hand, so there is
+   * no renewal, no end date, and nothing to cancel.
    */
-  headline: "renews" | "ends" | "lapsed" | "none";
+  headline: "renews" | "ends" | "lapsed" | "none" | "granted";
   /** ISO date the headline refers to, or null when the row has no period end. */
   date: string | null;
   /** Raw status, for the badge. Never interpreted beyond the fields above. */
@@ -34,6 +41,8 @@ export type MembershipState = {
    * is hers to make.
    */
   paymentFailing: boolean;
+  /** Staff granted this plan by hand; self-serve cancel/resume does not apply. */
+  staffGranted: boolean;
 };
 
 const NO_MEMBERSHIP: MembershipState = {
@@ -42,12 +51,14 @@ const NO_MEMBERSHIP: MembershipState = {
   date: null,
   status: null,
   paymentFailing: false,
+  staffGranted: false,
 };
 
 export function resolveMembership(row: MembershipRow | null | undefined): MembershipState {
   if (!row) return NO_MEMBERSHIP;
 
   const inForce = IN_FORCE_SUBSCRIPTION_STATUSES.includes(row.status);
+  const staffGranted = isStaffGrantedSubscription(row.paddle_subscription_id);
 
   if (!inForce) {
     // Cancelled, paused, or expired. The date is still shown when there is one,
@@ -58,6 +69,20 @@ export function resolveMembership(row: MembershipRow | null | undefined): Member
       date: row.current_period_end,
       status: row.status,
       paymentFailing: false,
+      staffGranted,
+    };
+  }
+
+  // A granted plan is never "renews" or "ends": nobody is billing it, so both
+  // sentences would be inventions.
+  if (staffGranted) {
+    return {
+      inForce: true,
+      headline: "granted",
+      date: null,
+      status: row.status,
+      paymentFailing: false,
+      staffGranted: true,
     };
   }
 
@@ -67,6 +92,7 @@ export function resolveMembership(row: MembershipRow | null | undefined): Member
     date: row.current_period_end,
     status: row.status,
     paymentFailing: row.status === "past_due",
+    staffGranted: false,
   };
 }
 

@@ -107,23 +107,35 @@ describe("SeasonTag", () => {
 
 describe("CreditsMeter", () => {
   it("announces the balance as a count", async () => {
-    const s = await render(<CreditsMeter balance={12} loading={false} />);
-    expect(s.getByLabelText("12 credits remaining")).toBeTruthy();
+    const s = await render(<CreditsMeter balance={12} allowance={null} loading={false} />);
+    expect(s.getByLabelText(/^12 credits remaining\. Resets in \d+h \d+m\.$/)).toBeTruthy();
   });
 
   it("singularises one credit", async () => {
-    const s = await render(<CreditsMeter balance={1} loading={false} />);
-    expect(s.getByLabelText("1 credit remaining")).toBeTruthy();
+    const s = await render(<CreditsMeter balance={1} allowance={null} loading={false} />);
+    expect(s.getByLabelText(/^1 credit remaining\. Resets in \d+h \d+m\.$/)).toBeTruthy();
+  });
+
+  it("names the plan's allowance when there is one", async () => {
+    const s = await render(<CreditsMeter balance={12} allowance={30} loading={false} />);
+    expect(s.getByLabelText(/^12 credits remaining of 30 today\. Resets in \d+h \d+m\.$/)).toBeTruthy();
+    expect(s.getByText("of 30 left today")).toBeTruthy();
+  });
+
+  it("tells her when the empty bucket comes back", async () => {
+    const s = await render(<CreditsMeter balance={0} allowance={30} loading={false} />);
+    expect(s.getByLabelText(/They reset tomorrow\.$/)).toBeTruthy();
+    expect(s.getByText("They reset tomorrow.")).toBeTruthy();
   });
 
   it("treats a null balance as zero rather than blank", async () => {
-    const s = await render(<CreditsMeter balance={null} loading={false} />);
-    expect(s.getByLabelText("0 credits remaining")).toBeTruthy();
+    const s = await render(<CreditsMeter balance={null} allowance={null} loading={false} />);
+    expect(s.getByLabelText(/^0 credits remaining\./)).toBeTruthy();
   });
 
   it("shows a skeleton while loading, not a zero", async () => {
-    const s = await render(<CreditsMeter balance={null} loading />);
-    expect(s.queryByLabelText("0 credits remaining")).toBeNull();
+    const s = await render(<CreditsMeter balance={null} allowance={null} loading />);
+    expect(s.queryByLabelText(/^0 credits remaining/)).toBeNull();
   });
 });
 
