@@ -1,5 +1,9 @@
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
+import { useState } from "react";
+
+import { InlineError } from "@/components/ui/ErrorState";
+import { GOOGLE_NATIVE_BUILD_REQUIRED } from "@/services/api/auth";
 
 /**
  * Google's mark is brand artwork with mandated colours — the same carve-out
@@ -35,27 +39,42 @@ export function GoogleButton({
   loading = false,
   disabled = false,
 }: {
-  onPress: () => void;
+  onPress: () => Promise<unknown>;
   loading?: boolean;
   disabled?: boolean;
 }) {
   const blocked = loading || disabled;
+  const [failure, setFailure] = useState<string | null>(null);
 
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel="Continue with Google"
-      accessibilityState={{ disabled: blocked, busy: loading }}
-      disabled={blocked}
-      onPress={onPress}
-      style={({ pressed }) =>
-        pressed && !blocked ? { opacity: 0.9, transform: [{ scale: 0.98 }] } : undefined
-      }
-      className="h-14 w-full flex-row items-center justify-center gap-md rounded-control border border-border bg-surface dark:border-border/12"
-    >
-      {loading ? <ActivityIndicator size="small" /> : <GoogleMark />}
-      <Text className="font-body-medium text-base text-ink">Continue with Google</Text>
-      <View />
-    </Pressable>
+    <View className="w-full gap-md">
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Continue with Google"
+        accessibilityState={{ disabled: blocked, busy: loading }}
+        disabled={blocked}
+        onPress={async () => {
+          setFailure(null);
+          try {
+            await onPress();
+          } catch (error) {
+            setFailure(
+              error instanceof Error && error.message === GOOGLE_NATIVE_BUILD_REQUIRED
+                ? GOOGLE_NATIVE_BUILD_REQUIRED
+                : "Google sign-in could not finish. Check your connection and retry.",
+            );
+          }
+        }}
+        style={({ pressed }) =>
+          pressed && !blocked ? { opacity: 0.9, transform: [{ scale: 0.98 }] } : undefined
+        }
+        className="h-14 w-full flex-row items-center justify-center gap-md rounded-control border border-border bg-surface dark:border-border/12"
+      >
+        {loading ? <ActivityIndicator size="small" /> : <GoogleMark />}
+        <Text className="font-body-medium text-base text-ink">Continue with Google</Text>
+        <View />
+      </Pressable>
+      {failure ? <InlineError message={failure} /> : null}
+    </View>
   );
 }

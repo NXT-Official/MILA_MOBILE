@@ -76,6 +76,15 @@ launch with `Missing EXPO_PUBLIC_SUPABASE_URL` before this was set.
 
 ## 6. Associated domains (deep linking)
 
+- Supabase Auth > URL Configuration must include the exact redirect URLs
+  `mila://auth/callback` and `mila://reset-password`. Both were added and verified
+  on the live project on 2026-10-01. Keep the existing website Site URL and web
+  redirects. Email templates must use `{{ .ConfirmationURL }}` rather than a
+  hardcoded web-only confirmation route.
+- A rebuilt APK is required for the signup `emailRedirectTo` and native callback
+  screen fix. Generate a fresh confirmation email from the updated app; emails
+  issued by an older build still carry the website return URL.
+
 - Android is live (2026-09-23): `MILA/public/.well-known/assetlinks.json`
   serves `com.mila.app` with the EAS production signing certificate. After the
   first Play upload, append the Play App Signing certificate fingerprint (Play
@@ -90,6 +99,24 @@ launch with `Missing EXPO_PUBLIC_SUPABASE_URL` before this was set.
   worse than the feature simply not existing yet.
 
 ## 7. First real build and submission
+
+### October 1 scope update
+
+Google OAuth and signup/email-change confirmation return to native `/auth/callback` in installed
+Mila. Expo Go blocks Google OAuth before browser launch. Email confirmation retains the registered
+`mila://auth/callback` URI; Expo Go testers confirm email, then return and sign in with password.
+Full callback testing requires the installed app. See [Expo OAuth](https://docs.expo.dev/guides/authentication/).
+
+Native purchases were approved, replacing the earlier permanent web-only decision. `expo-iap`
+5.8.2 and its config plugin are installed. Real charges are **not enabled**: store product IDs/base
+plans, server verification/lifecycle notifications, provider-aware backend storage, and real-device
+ratification are required. Current subscription rows require Paddle IDs, so fake Paddle IDs are
+forbidden. No schema was changed. Existing memberships have native cancel/resume via existing APIs.
+
+Expo Go cannot run real purchases or custom dictation. SDK validation currently passes 20/21 checks;
+existing SDK 57 patch mismatches remain. See [native payment requirements](docs/mobile-architecture.md#9-payment-integration).
+
+### Earlier release record
 
 Android production build is done and verified (2026-09-26, versionCode 4):
 https://expo.dev/accounts/kurtgav/projects/mila-mobile/builds/f6123d45-77d0-48ed-b0b7-24b4283db074

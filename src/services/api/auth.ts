@@ -1,4 +1,7 @@
 import type { Session } from "@supabase/supabase-js";
+import { makeRedirectUri } from "expo-auth-session";
+import Constants from "expo-constants";
+import * as WebBrowser from "expo-web-browser";
 
 import { supabase } from "@/services/supabase/client";
 import { trackEvent } from "@/services/supabase/analytics";
@@ -16,6 +19,97 @@ export const UNIFORM_AUTH_FAILURE = "Email, password, or verification challenge 
 
 export type SignInInput = { email: string; password: string; captchaToken: string };
 export type SignUpInput = SignInInput & { username: string };
+
+const NATIVE_AUTH_CALLBACK = "mila://auth/callback";
+export const GOOGLE_NATIVE_BUILD_REQUIRED =
+  "Google sign-in needs the installed Mila app. Use email and password here.";
+
+/** SDK 57 requires an explicit native URI for installed builds. */
+export function authRedirectUri(): string {
+  // Expo Go's changing exp:// address is not a production auth redirect. An
+  // unregistered address silently falls back to Supabase's website Site URL.
+  // Email confirmation stays tied to the installed app, even when requested
+  // from Expo Go; afterwards the member can sign in here with a password.
+  if (Constants.expoVersion) return NATIVE_AUTH_CALLBACK;
+  return makeRedirectUri({
+    native: NATIVE_AUTH_CALLBACK,
+    scheme: "mila",
+    path: "auth/callback",
+  });
+}
+
+const CALLBACK_FAILURE = "This sign-in link could not be verified. Please sign in again.";
+const pendingCallbacks = new Map<string, Promise<Session>>();
+
+/** Handles both a browser return and an email link opening a cold app. */
+export async function completeAuthCallback(url: string): Promise<Session> {
+  let callback: URL;
+  try {
+    callback = new URL(url);
+  } catch {
+    throw new Error(CALLBACK_FAILURE);
+  }
+  const expected = new URL(authRedirectUri());
+  if (
+    callback.protocol !== expected.protocol ||
+    callback.host !== expected.host ||
+    callback.pathname !== expected.pathname ||
+    callback.username ||
+    callback.password
+  ) {
+    throw new Error(CALLBACK_FAILURE);
+  }
+
+  // Supabase's implicit flow uses the fragment; PKCE uses the query string.
+  // Parse both without losing query parameters when a fragment is present.
+  const params = new URLSearchParams(callback.search);
+  new URLSearchParams(callback.hash.slice(1)).forEach((value, key) => params.set(key, value));
+  if (params.has("error") || params.has("error_code")) throw new Error(CALLBACK_FAILURE);
+  const code = params.get("code");
+  const access_token = params.get("access_token");
+  const refresh_token = params.get("refresh_token");
+  if (!code && (!access_token || !refresh_token)) throw new Error(CALLBACK_FAILURE);
+  const tokens = access_token && refresh_token ? { access_token, refresh_token } : null;
+
+  // Android can deliver the same link to the route and openAuthSessionAsync.
+  // Coalesce simultaneous exchanges, especially single-use PKCE codes.
+  const pending = pendingCallbacks.get(url);
+  if (pending) return pending;
+  const completion = (async () => {
+    if (access_token && refresh_token) {
+      const { data } = await supabase.auth.getSession();
+      if (data.session?.access_token === access_token) return data.session;
+    }
+    let result;
+    if (code) result = await supabase.auth.exchangeCodeForSession(code);
+    else if (tokens) result = await supabase.auth.setSession(tokens);
+    else throw new Error(CALLBACK_FAILURE);
+    const { data, error } = result;
+    if (error || !data.session) throw new Error(CALLBACK_FAILURE);
+    return data.session;
+  })();
+  pendingCallbacks.set(url, completion);
+  try {
+    return await completion;
+  } finally {
+    pendingCallbacks.delete(url);
+  }
+}
+
+export async function signInWithGoogle(): Promise<Session | null> {
+  // SDK 57 documents expoVersion as non-null only in Expo Go. expoGoConfig
+  // can contain an embedded manifest in installed builds, so it is not a guard.
+  if (Constants.expoVersion) throw new Error(GOOGLE_NATIVE_BUILD_REQUIRED);
+  const redirectTo = authRedirectUri();
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: { redirectTo, skipBrowserRedirect: true },
+  });
+  if (error || !data.url) throw new Error("Google sign-in is unavailable right now. Please retry.");
+  const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+  if (result.type !== "success") return null;
+  return completeAuthCallback(result.url);
+}
 
 /**
  * TEMPORARY TRANSPORT SWITCH.
@@ -78,6 +172,7 @@ export async function signUp(input: SignUpInput): Promise<Session> {
     password: input.password,
     options: {
       captchaToken: input.captchaToken,
+      emailRedirectTo: authRedirectUri(),
       // A `handle_new_user` trigger reads this to seed profiles.username.
       data: { username: input.username },
     },
@@ -112,6 +207,14 @@ export async function signOut(): Promise<void> {
   // out", saw the spinner stop, and is still signed in with nothing to retry.
   const { error } = await supabase.auth.signOut();
   if (error) throw new ApiError("INTERNAL", "Mila couldn't sign you out. Please try again.", 500);
+}
+
+export async function changeEmail(email: string): Promise<void> {
+  const { error } = await supabase.auth.updateUser(
+    { email },
+    { emailRedirectTo: authRedirectUri() },
+  );
+  if (error) throw error;
 }
 
 export async function requestPasswordReset(email: string): Promise<void> {

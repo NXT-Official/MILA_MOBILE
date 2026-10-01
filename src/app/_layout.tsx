@@ -50,6 +50,7 @@ function RootNavigator() {
   useAuthListener();
   const insets = useSafeAreaInsets();
   const pathname = usePathname();
+  const authCallback = pathname === "/auth/callback";
   const { ready, destination } = useAppDestination();
   // Once she is inside onboarding she stays until she leaves through Review.
   // Without the latch, saving the LAST required answer (hair type) completes the
@@ -61,8 +62,8 @@ function RootNavigator() {
   const setLensOpen = useLensStore((s) => s.setOpen);
 
   useEffect(() => {
-    if (ready) SplashScreen.hideAsync();
-  }, [ready]);
+    if (ready || authCallback) SplashScreen.hideAsync();
+  }, [ready, authCallback]);
 
   // Hold the stack back until the destination is known — rendering it first
   // would flash the wrong group for a frame on every cold start.
@@ -73,7 +74,7 @@ function RootNavigator() {
   // but by the time she taps "Enter Mila Studio" the splash is long gone, and
   // `null` there is a blank screen for the whole length of the profile fetch —
   // the app looks like it died at the exact moment she signed in.
-  if (!ready) {
+  if (!ready && !authCallback) {
     return (
       <View className="flex-1 items-center justify-center bg-canvas">
         <ActivityIndicator size="large" />
@@ -91,7 +92,7 @@ function RootNavigator() {
     (destination === "/onboarding/welcome" || onboardingActive);
 
   const inApp = !signedOut && !recovery && !suspended && !onboarding;
-  const showHeader = inApp && !isFullBleed(pathname);
+  const showHeader = inApp && !authCallback && !isFullBleed(pathname);
 
   return (
     // The header sits above the navigator, so it survives every push and every
@@ -171,6 +172,9 @@ function RootNavigator() {
               options={{ presentation: "fullScreenModal", gestureEnabled: false }}
             />
           </Stack.Protected>
+          {/* Always reachable, including email links opening a signed-out app.
+              Last so it never becomes the default login/onboarding route. */}
+          <Stack.Screen name="auth/callback" />
         </Stack>
       </SafeAreaInsetsContext.Provider>
 

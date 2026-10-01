@@ -16,7 +16,7 @@ export default function SignupScreen() {
         subtitle="Log in or sign up below to unlock your studio color dossier."
       >
         <View className="w-full gap-xl">
-          <GoogleButton onPress={() => google.mutate()} loading={google.isPending} />
+          <GoogleButton onPress={() => google.mutateAsync()} loading={google.isPending} />
           <AuthDivider label="or continue with email" />
           <SignupForm />
         </View>

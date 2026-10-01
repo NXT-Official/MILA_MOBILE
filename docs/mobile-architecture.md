@@ -412,6 +412,9 @@ duplicate the shell, progress bar, and autosave nine times.
 - Touch targets ≥ 56px on `OptionTile` (above the 44px floor — these are the primary interaction).
 - Exit condition is `isStyleProfileComplete()`: valid `skin_undertone`, `color_season`, `body_type`,
   `face_shape`, `hair_type` **and** a non-empty `color_profile`.
+- Manual palette selection does not answer face/body questions. Ignore the library's default face
+  when `calibrationSource` is `Studio Calibrated` or lighting marks manual calibration. Explicit
+  member answers and legacy AI face readings remain supported; a fresh member must choose a face.
 
 ### Main tabs (6)
 
@@ -686,7 +689,23 @@ Scheme `mila://`, plus Universal Links / App Links on `https://<production-domai
 | `/profile/:userId` | Member profile |
 | `/feed`            | Feed tab       |
 | `/membership`      | Plans          |
-| `/auth/callback`   | OAuth return   |
+| `/auth/callback`   | OAuth / signup email return |
+
+Installed builds request `mila://auth/callback` explicitly (`makeRedirectUri`'s `native` option).
+Signup supplies the same URL as `emailRedirectTo`. Supabase Auth's redirect allowlist must include
+the exact URLs `mila://auth/callback` and `mila://reset-password`; otherwise it falls back to the
+website Site URL. Keep the web Site URL for the existing web client.
+
+`/auth/callback` remains reachable regardless of session state. Its native screen verifies the
+returned session through `services/api/auth.ts`, then follows the existing session/profile gate:
+incomplete profile to onboarding, complete profile to Home, suspended member to the block screen.
+The navigator stays mounted on this route while the new profile loads, avoiding a second callback
+exchange. Invalid or expired links remain in the app with retry and sign-in actions. Google uses
+the system browser only for provider authentication; Mila screens and onboarding remain native.
+
+SDK 57 references: [AuthSession](https://docs.expo.dev/versions/v57.0.0/sdk/auth-session/),
+[WebBrowser](https://docs.expo.dev/versions/v57.0.0/sdk/webbrowser/),
+[Linking](https://docs.expo.dev/versions/v57.0.0/sdk/linking/).
 
 Deep links to a protected route while signed out store the intent, route to login, and resume
 after authentication. As on web, any redirect target is validated as a same-origin absolute path
@@ -780,7 +799,7 @@ only on the server.
 | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
 | Sign in (password) | `POST /api/v1/auth/sign-in` → returns a session → `supabase.auth.setSession(session)`                                               |
 | Sign up            | `POST /api/v1/auth/sign-up` → same                                                                                                  |
-| Google OAuth       | `expo-auth-session` → id token → `supabase.auth.signInWithIdToken({ provider: "google", token })` → session persisted automatically |
+| Google OAuth       | `services/api/auth.ts`: `signInWithOAuth` with app `redirectTo` and `skipBrowserRedirect`, then `openAuthSessionAsync`; callback verifies tokens with `setSession` (or a PKCE code with `exchangeCodeForSession`) |
 | Session restore    | `supabase.auth.getSession()` at boot                                                                                                |
 | Session changes    | `supabase.auth.onAuthStateChange` → updates `useAuthStore` and calls `queryClient.clear()` on `SIGNED_OUT`                          |
 | Change email       | `supabase.auth.updateUser({ email })`                                                                                               |
@@ -1328,6 +1347,38 @@ Look generation is 5–15s; image generation up to 75s. On a phone that is an et
 ---
 
 ## 9. Payment Integration
+
+**Current decision — October 1, 2026:** the owner revoked permanent web-only billing and approved
+native purchases plus native membership management. `expo-iap` 5.8.2 and its config plugin are
+installed with approval. Real purchases are not enabled yet. This paragraph and the requirements
+below override the historical read-only and Paddle-hosted mobile proposals retained afterward.
+
+**Implemented:** existing Paddle memberships cancel/resume through native confirmation sheets and
+the existing authenticated `/billing/cancel` and `/billing/resume` handlers. Mutations never
+auto-retry or optimistically change entitlement; success refreshes `mySubscription`, `credits`,
+and `profile`. States: loading, no membership (empty), error with retry, server-confirmed success,
+and offline/rate-limited (blocked).
+
+**Store-purchase activation requirements:**
+
+- Configure real Google Play/App Store products and map them to Mila plan IDs. Store-localized
+  prices replace informational Paddle prices during purchase. Product IDs must never be guessed.
+- Ratify the package on a real Android device before adding native purchase calls. The installed
+  build owns purchase/restore; Expo Go cannot run real purchases.
+- Define and implement an authenticated server receipt-verification contract, ownership binding,
+  idempotent transaction handling, restore, and store lifecycle notifications. None exists yet.
+  Only server verification may grant access/credits; pending transactions remain pending.
+- Review a provider-aware backend data model. Current `subscriptions` requires non-null unique
+  `paddle_subscription_id` and non-null `paddle_customer_id`; store purchases cannot be stored as
+  fake Paddle IDs. No database schema is changed in this mobile task. Credit accounting stays shared.
+- Dispatch membership management by server-confirmed provider before store memberships are enabled:
+  existing Paddle memberships use current endpoints, store subscriptions use store management.
+- Keep native purchase APIs inside services and load them only in supported native builds.
+
+References: [OpenIAP Expo setup](https://www.openiap.dev/docs/setup/expo),
+[Expo purchases](https://docs.expo.dev/guides/in-app-purchases/).
+
+**Historical proposal below — superseded by the October 1 decision above:**
 
 > **Superseded — Appendix D.1 is decided, and the decision is "no."** Paddle stays web-only,
 > permanently. Mobile does not implement checkout, does not open a Paddle-hosted session, and does
@@ -3819,9 +3870,9 @@ from inside the app.
 ### Phase 9 — Membership and Payments
 
 **Goal.** ~~Paid features work correctly, and the device is never believed about payment.~~
-**Decided scope: read-only membership status, and the device is never believed about payment.**
+**Revised October 1 scope: native membership management and store purchases; the server owns access.**
 
-> **[Appendix D.1](#appendix-d--open-decisions) is decided: Paddle stays web-only, permanently.**
+> **Historical scope below is superseded by [§9](#9-payment-integration), revised October 1.**
 > This is no longer "blocked pending a decision" — the decision is in, and it is that mobile does not
 > build a checkout. Everything below that describes checkout, cancel, resume, or the Paddle sandbox
 > flow (the "Paddle hosted checkout" and "Manage membership: … cancel, resume" bullets, the
@@ -3837,7 +3888,7 @@ from inside the app.
 - ~~Paddle hosted checkout in a system browser via `expo-web-browser`~~ — not built; checkout is
   web-only (Appendix D.1)
 - ~~Post-checkout sync, then invalidate, then re-check after 5 seconds~~ — not built, same reason
-- Manage membership: current plan, renewal or end date — **read-only**; ~~cancel, resume~~ are web-only
+- Manage membership: current plan, renewal or end date, native cancel/resume for existing memberships
 - Credits meter
 
 **Files created:**
@@ -4355,7 +4406,12 @@ scaffolding; everything after it is expansion. Get there fast and put it on a re
 
 These need a product answer, not an engineering one. Each blocks or reshapes real work.
 
-1. ~~**Paddle web checkout vs. native IAP.**~~ **Decided — Paddle stays web-only, permanently.**
+1. **Native purchases approved October 1, 2026.** The owner revoked the web-only decision and
+   approved `expo-iap`. Native cancel/resume is implemented for existing memberships. Store product
+   setup, server purchase verification, provider-aware backend design, and real-device testing
+   remain prerequisites. See [§9](#9-payment-integration).
+
+   **Historical decision below — superseded:**
    Apple and Google generally require IAP for digital goods consumed in-app, which is exactly the
    rejection risk that made this an open question; the answer is not to attempt IAP or a Paddle
    checkout inside the app at all. Mobile shows entitlement status **read-only** — plan, renewal or
