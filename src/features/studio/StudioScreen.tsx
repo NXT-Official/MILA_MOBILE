@@ -24,6 +24,7 @@ import { normalizeStoredProfile } from "@/lib/style-profile/studio-dossier";
 import { ComboCard } from "./components/ComboCard";
 import { DossierHero } from "./components/DossierHero";
 import { PaletteStrip } from "./components/PaletteStrip";
+import { RestartStyleAnalysisAction } from "./components/RestartStyleAnalysisAction";
 import { SectionHeader } from "./components/SectionHeader";
 import { SeasonPalette } from "./components/SeasonPalette";
 import { StyleGoalsTray } from "./components/StyleGoalsTray";
@@ -221,6 +222,11 @@ export function StudioScreen() {
             />
           ) : null}
         </View>
+
+        {/* The web's style-profile page ends its action row with this. It is
+            the only route back through the whole wizard once a profile is
+            complete — the dossier chips edit one answer at a time. */}
+        <RestartStyleAnalysisAction />
       </View>
     </Screen>
   );

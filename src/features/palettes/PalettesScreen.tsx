@@ -65,9 +65,12 @@ export function PalettesScreen() {
 
   return (
     <View className="flex-1 bg-canvas" style={{ paddingTop: insets.top }}>
-      <View className="px-xl pb-md pt-md">
+      <View className="gap-xs px-xl pb-md pt-md">
         <Text accessibilityRole="header" className="font-display text-h1 tracking-heading text-ink">
           Saved palettes
+        </Text>
+        <Text className="font-body text-base text-body">
+          Every daily mix you&apos;ve pinned, ready to wear again.
         </Text>
       </View>
 
@@ -118,9 +121,12 @@ function Frame({ children }: { children: React.ReactNode }) {
 
   return (
     <View className="flex-1 bg-canvas px-xl" style={{ paddingTop: insets.top }}>
-      <View className="pb-lg pt-md">
+      <View className="gap-xs pb-lg pt-md">
         <Text accessibilityRole="header" className="font-display text-h1 tracking-heading text-ink">
           Saved palettes
+        </Text>
+        <Text className="font-body text-base text-body">
+          Every daily mix you&apos;ve pinned, ready to wear again.
         </Text>
       </View>
       <View className="flex-1 pb-2xl">{children}</View>
