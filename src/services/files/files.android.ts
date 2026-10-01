@@ -42,4 +42,21 @@ export const files: FilesService = {
 
     return "shared";
   },
+
+  async saveAndShareRemoteImage({ filename, url }) {
+    if (!(await Sharing.isAvailableAsync())) return "cancelled";
+
+    // `idempotent` because sharing one look twice lands on a cache file the
+    // first share already wrote; without it the download rejects with
+    // `DestinationAlreadyExists` instead of overwriting it.
+    const file = await File.downloadFileAsync(url, new File(Paths.cache, filename), {
+      idempotent: true,
+    });
+
+    await Sharing.shareAsync(file.uri, { mimeType: "image/jpeg", dialogTitle: filename });
+
+    // Left in the cache, exactly like the other two paths: the receiving app
+    // may still be reading it when this resolves.
+    return "shared";
+  },
 };

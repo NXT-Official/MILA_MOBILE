@@ -116,6 +116,15 @@ export function normalizeAnalysisResult(value: unknown): HistoryEntry {
   return { kind: "unavailable" };
 }
 
+/**
+ * The web's download filename slug, verbatim: `mila-<headline>.jpg`. The
+ * dashboard's style sheet and History's saved-look download both name their
+ * files from a look's headline, so the transform lives here once.
+ */
+export function headlineSlug(headline: string): string {
+  return headline.toLowerCase().replace(/\s+/g, "-");
+}
+
 /** The three collapsible sections, in the §3 order, with empties dropped. */
 export function lookSections(look: DailyLook): { title: string; body: string }[] {
   const outfitBody = [look.outfit.description, look.outfit.styling_notes]

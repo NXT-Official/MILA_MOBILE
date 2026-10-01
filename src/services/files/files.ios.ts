@@ -73,4 +73,24 @@ export const files: FilesService = {
 
     return "shared";
   },
+
+  async saveAndShareRemoteImage({ filename, url }) {
+    if (!(await Sharing.isAvailableAsync())) return "cancelled";
+
+    // The document directory, like the other two paths, and `idempotent` so a
+    // second share of the same look overwrites rather than rejecting with
+    // `DestinationAlreadyExists`.
+    const file = await File.downloadFileAsync(url, new File(Paths.document, filename), {
+      idempotent: true,
+    });
+
+    await Sharing.shareAsync(file.uri, {
+      mimeType: "image/jpeg",
+      UTI: MIME_TO_UTI["image/jpeg"],
+    });
+
+    file.delete();
+
+    return "shared";
+  },
 };

@@ -26,4 +26,16 @@ export interface FilesService {
    * decoder, one set of failure modes.
    */
   saveAndShareImage(opts: { filename: string; dataUri: string }): Promise<"shared" | "cancelled">;
+
+  /**
+   * Downloads an image that already lives in Mila storage and hands it to the
+   * same flow — History's saved look, whose `image_url` is a signed URL rather
+   * than the pipeline's `data:` URI. Re-encoding it into a data URI first would
+   * hold the whole JPEG in JS memory for no reason, so the file is downloaded
+   * straight to a local one and shared from there.
+   */
+  saveAndShareRemoteImage(opts: {
+    filename: string;
+    url: string;
+  }): Promise<"shared" | "cancelled">;
 }

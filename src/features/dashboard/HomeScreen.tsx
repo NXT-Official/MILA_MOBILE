@@ -17,7 +17,7 @@ import { useCountdown } from "@/hooks/use-countdown";
 import { useHaptics } from "@/hooks/use-haptics";
 import { useNetworkStatus } from "@/hooks/use-network-status";
 import { useProfile } from "@/hooks/use-profile";
-import { lookSections } from "@/lib/outfit-history";
+import { lookSections, headlineSlug } from "@/lib/outfit-history";
 import { toSeasonId } from "@/lib/season-id";
 import { isStyleProfileComplete, toStyleProfileRow } from "@/lib/style-profile/completion";
 import { formatRetryAfter, resolveApiFailure } from "@/services/api/client";
@@ -45,11 +45,6 @@ import { usePhotoPreview } from "./hooks/use-photo-preview";
 import { useSaveLook } from "./hooks/use-save-look";
 import { useStyleSheet } from "./hooks/use-style-sheet";
 import { useWeather } from "./hooks/use-weather";
-
-/** The web's filename slug, verbatim: `mila-<headline>.jpg`. */
-function headlineSlug(headline: string): string {
-  return headline.toLowerCase().replace(/\s+/g, "-");
-}
 
 /**
  * The screen the product is judged on.
