@@ -1,4 +1,4 @@
-# Native member parity — October 1, 2026
+# Native member parity — October 2, 2026
 
 Goal: the website's member capabilities run as native React Native screens against the same Mila
 backend. A native implementation existing in source is not proof that its live flow passed.
@@ -25,8 +25,8 @@ Admin/staff tools remain excluded by the project's member-only architecture.
 
 ## Release gates
 
-- Typecheck, lint, all 35 test suites (425 tests), and bundle/git-history secret scan pass for current changes.
-- Expo Doctor currently passes 20/21 checks; existing SDK 57 patch version mismatches remain.
+- Typecheck, lint, all 38 test suites (452 tests), and bundle/git-history secret scan pass for current changes.
+- Expo Doctor passes 21/21 (the SDK 57 patch mismatches were re-aligned on October 2).
 - Native Google/email return, successful onboarding, paid member features, camera, and store billing
   require live testing. An emulator callback error test cannot prove successful registration.
 - Store purchasing must not be claimed complete or enabled before server verification and store
@@ -34,8 +34,8 @@ Admin/staff tools remain excluded by the project's member-only architecture.
 - Expo Go emulator boot did not reach a usable member screen during verification: screenshots
   were black or showed the loading screen, and Metro reported a device connection timeout.
   No successful Expo Go end-to-end or physical Android test is claimed.
-- Updated signed preview build submitted: [Android build](https://expo.dev/accounts/kurtgav/projects/mila-mobile/builds/ab956297-21a1-4e2d-8333-e58cbbc825f2).
-  Submission returned `NEW`; APK completion has not been verified.
+- Signed preview builds completed: the [team org build](https://expo.dev/accounts/naaxtechs-team/projects/mila-mobile/builds/2eab0f17-f20e-44e9-bb3f-1cfd191b50f9)
+  (October 2, APK available) and the earlier [personal-project build](https://expo.dev/accounts/kurtgav/projects/mila-mobile/builds/ab956297-21a1-4e2d-8333-e58cbbc825f2).
 
 References: [Expo OAuth](https://docs.expo.dev/guides/authentication/),
 [Expo native purchases](https://docs.expo.dev/guides/in-app-purchases/),
