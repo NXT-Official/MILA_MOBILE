@@ -43,6 +43,13 @@ export function AuthCallbackScreen() {
     };
   }, [url, attempt]);
 
+  // A callback that "succeeded" yet left no session — an expired confirmation
+  // link, a listener that never fired — must not sit on the spinner forever.
+  // The web lands the member back on /login in the same situation; this shows
+  // the retryable error instead of verifying eternally.
+  const stranded = status === "success" && ready && destination === "/login";
+  const failed = status === "error" || stranded;
+
   if (status === "success" && ready && destination !== "/login") {
     return <Redirect href={destination} />;
   }
@@ -50,7 +57,7 @@ export function AuthCallbackScreen() {
   return (
     <Screen>
       <View className="flex-1 justify-center gap-lg">
-        {status === "error" ? (
+        {failed ? (
           <ErrorState
             title="Sign-in could not finish"
             description="Check your connection and retry. If this link has expired, sign in again or request a fresh confirmation email."
@@ -65,7 +72,7 @@ export function AuthCallbackScreen() {
             <Text className="font-body text-base text-body">Verifying your sign-in…</Text>
           </View>
         )}
-        {status === "error" ? (
+        {failed ? (
           <Button
             label="Back to sign in"
             variant="ghost"

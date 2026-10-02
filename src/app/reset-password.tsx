@@ -73,16 +73,27 @@ export default function ResetPasswordScreen() {
     updatePassword.mutate(password, {
       onSuccess: () => {
         setStage("done");
-        // No explicit navigation: the gate reads the still-live session and
-        // routes her in, same as LoginForm/SignupForm after a successful auth.
         setRecovery(false);
+        // Explicit navigation, and the web is the reason: its form ends with
+        // `navigate({ to: "/dashboard", replace: true })` after the same call.
+        // LoginForm/SignupForm get away without one because they sit inside the
+        // `(auth)` guard, which flips off the moment a session exists and
+        // ejects them — this screen is deliberately outside every guard (the
+        // deep link has to be able to mount it), so nothing moves her off it.
+        // Without this she sat on "Password updated" forever.
+        setTimeout(() => router.replace("/"), 900);
       },
     });
   };
 
   const backToSignIn = () => {
     setRecovery(false);
-    router.replace("/login");
+    // Let the gate decide, exactly as it does on a cold start: "/" resolves to
+    // the tabs for a signed-in member and falls through to the (auth) group —
+    // login — for a signed-out one. Hard-coding /login here would bounce a
+    // signed-in member (an expired link opened while she is already in) off a
+    // guard-protected screen.
+    router.replace("/");
   };
 
   return (
