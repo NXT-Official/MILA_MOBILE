@@ -25,22 +25,39 @@ export function useChangeEmail() {
  * and `updateUser({ password })` alone would let anyone holding it lock the
  * owner out. `signInWithPassword` proves the current password before the new
  * one is accepted, and a wrong one fails here rather than silently succeeding.
+ *
+ * The password grant is captcha-protected on this project, so the re-auth
+ * carries a fresh hCaptcha token (`options.captchaToken`) — without it every
+ * attempt dies server-side with `captcha_failed` and a correct password reads
+ * as wrong. The token is single-use: the screen resets the gate after every
+ * attempt, so the mutation never retries on its own.
  */
 export function useChangePassword() {
-  return useMutation<void, unknown, { currentPassword: string; newPassword: string }>({
-    mutationFn: async ({ currentPassword, newPassword }) => {
+  return useMutation<
+    void,
+    unknown,
+    { currentPassword: string; newPassword: string; captchaToken: string }
+  >({
+    mutationFn: async ({ currentPassword, newPassword, captchaToken }) => {
       const email = useAuthStore.getState().session?.user.email;
       if (!email) throw new Error("You need to be signed in to change your password.");
 
       const { error: reauthError } = await supabase.auth.signInWithPassword({
         email,
         password: currentPassword,
+        options: { captchaToken },
       });
-      if (reauthError) throw new Error("That current password isn't right.");
+      if (reauthError) {
+        if (reauthError.code === "captcha_failed") {
+          throw new Error("That human check didn't go through — verify again and retry.");
+        }
+        throw new Error("That current password isn't right.");
+      }
 
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw error;
     },
+    retry: false,
   });
 }
 
