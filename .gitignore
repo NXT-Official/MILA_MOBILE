@@ -42,3 +42,6 @@ example
 # generated native folders
 /ios
 /android
+
+# local release artifacts (APK/AAB copies for device installs)
+release-artifacts/
