@@ -91,7 +91,7 @@ export function ColorPath({
 
           <Text className="font-body text-sm text-muted">
             Not sure which is yours? Pick the one closest to your colouring — you can change it any
-            time, and Mila re-reads your palette live in the Lens once you have credits.
+            time in your style dossier.
           </Text>
         </View>
       </StepShell>
