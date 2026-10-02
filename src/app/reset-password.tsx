@@ -63,6 +63,24 @@ export default function ResetPasswordScreen() {
   }, [tokens, setRecovery]);
 
   const effectiveStage: Stage = tokens === null && stage === "verifying" ? "invalid" : stage;
+
+  const session = useAuthStore((s) => s.session);
+  const left = useRef(false);
+
+  // A recovery intent re-delivered by Android — a task relaunched from Recents
+  // is handed its original VIEW intent again — lands a member who is already
+  // inside the app on this screen with tokens that are long spent. There is
+  // nothing for her to do here, and because this screen deliberately sits
+  // outside every guard nothing would ever move her: the exact "stuck on
+  // reset password" report. Hand her back to the gate. A signed-out member
+  // still gets the expired-link message and its working exit below.
+  useEffect(() => {
+    if (left.current || effectiveStage !== "invalid" || !session) return;
+    left.current = true;
+    setRecovery(false);
+    router.replace("/");
+  }, [effectiveStage, session, setRecovery]);
+
   const passwordsMatch = password.length > 0 && password === confirmPassword;
   const passwordReady =
     passwordsMatch &&
