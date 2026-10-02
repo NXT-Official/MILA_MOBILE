@@ -48,6 +48,14 @@ export function useOnboardingMachine(rawStep: string | undefined) {
   // refetch that briefly returns a stale profile would throw a member backwards
   // out of the step she is standing on.
   const resolvedForRef = useRef<string | null>(null);
+  // True from the restart branch navigating to `color-path` until the router
+  // reflects that route. Clearing `restartRequested` re-runs this effect
+  // immediately, and on the group index that stale run still reads
+  // `requested === undefined` — indistinguishable from a cold start — so
+  // without this guard the resume-point logic replaces the restart with the
+  // resume point (11/15 over 1/15). Seen on device; the first regression test
+  // missed it by rendering at an explicit step instead of the index route.
+  const restartNavigationRef = useRef(false);
   useEffect(() => {
     if (!settled) return;
 
@@ -60,8 +68,23 @@ export function useOnboardingMachine(rawStep: string | undefined) {
     // else.
     if (restartRequested) {
       clearRestart();
+      restartNavigationRef.current = true;
+      // The restart guarantees this step, so mark it resolved before the run
+      // that sees the landed route can re-check reachability.
+      resolvedForRef.current = "color-path";
       goTo("color-path", { replace: true });
       return;
+    }
+
+    if (restartNavigationRef.current) {
+      if (requested === undefined) {
+        // The route has not caught up: this run's `requested` is stale, so the
+        // resume logic must not decide anything from it. Re-issue the
+        // navigation in case the first replace was dropped.
+        goTo("color-path", { replace: true });
+        return;
+      }
+      restartNavigationRef.current = false;
     }
 
     const key = requested ?? "";
