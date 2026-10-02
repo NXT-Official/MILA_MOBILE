@@ -27,6 +27,7 @@ export function AccountScreen() {
   const [email, setEmail] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
   const changeEmail = useChangeEmail();
   const changePassword = useChangePassword();
@@ -37,6 +38,7 @@ export function AccountScreen() {
     currentPassword.length > 0 &&
     newPassword.length <= PASSWORD_MAX_LENGTH &&
     passwordRuleResults(newPassword).every((rule) => rule.met) &&
+    newPassword === confirmPassword &&
     newPassword !== currentPassword;
 
   return (
@@ -54,8 +56,8 @@ export function AccountScreen() {
             Email
           </Text>
           <Text className="font-body text-sm text-body">
-            Signed in as {currentEmail}. Changing this sends a confirmation to the new address — it
-            takes effect only once you open that link.
+            Signed in as {currentEmail}. Check both your old and new inboxes to confirm an email
+            change. Your address changes only after confirmation.
           </Text>
 
           <Input
@@ -74,7 +76,7 @@ export function AccountScreen() {
 
           {changeEmail.isSuccess ? (
             <Text accessibilityLiveRegion="polite" className="font-body text-sm text-body">
-              Check {email} for the confirmation link.
+              Check both your old and new inboxes for confirmation links.
             </Text>
           ) : null}
 
@@ -114,6 +116,16 @@ export function AccountScreen() {
 
           <PasswordChecklist value={newPassword} />
 
+          <Input
+            label="Confirm new password"
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            revealable
+            autoCapitalize="none"
+            textContentType="newPassword"
+            error={confirmPassword && confirmPassword !== newPassword ? "Passwords don't match." : undefined}
+          />
+
           {changePassword.isError ? (
             <InlineError
               message={errorMessage(changePassword.error, "We couldn't change your password.")}
@@ -137,6 +149,7 @@ export function AccountScreen() {
                   onSuccess: () => {
                     setCurrentPassword("");
                     setNewPassword("");
+                    setConfirmPassword("");
                   },
                 },
               );
