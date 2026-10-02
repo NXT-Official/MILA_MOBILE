@@ -111,24 +111,6 @@ function RootNavigator() {
         value={showHeader ? { ...insets, top: 0 } : insets}
       >
         <Stack screenOptions={{ headerShown: false }}>
-          {/* Deliberately outside every guard. The recovery link Supabase
-              emails opens `mila://reset-password` — if this screen sat behind
-              `Stack.Protected guard={recovery}`, expo-router would drop the
-              deep link before the screen could ever mount and latch that same
-              flag (it is only ever set inside this screen). The screen itself
-              decides between verifying / invalid / ready, and once it latches
-              `recovery` the launch gate holds her here while the temporary
-              session from the link is live. */}
-          <Stack.Screen name="reset-password" />
-
-          {/* Also outside every guard: the login screen offers "Having trouble?
-              Get help" before she can sign in, exactly as the web's login page
-              does, and the support endpoint is unauthenticated (captcha plus an
-              IP limit are its defence). Behind the inApp guard this push would
-              be dropped for a signed-out member — the same dead end the
-              recovery link had. */}
-          <Stack.Screen name="settings/support" />
-
           <Stack.Protected guard={signedOut}>
             <Stack.Screen name="(auth)" />
           </Stack.Protected>
@@ -180,6 +162,33 @@ function RootNavigator() {
               options={{ presentation: "fullScreenModal", gestureEnabled: false }}
             />
           </Stack.Protected>
+          {/* Unguarded screens live after every guard, and the order is
+              load-bearing. When a cold start's URL resolves to nothing
+              available — "/" for a signed-out member, whose (tabs) index sits
+              behind a false guard — expo-router falls back to the first
+              available screen in declaration order. With this screen first
+              that fallback was the reset-password card ("Choose a new
+              password") on a freshly installed app. Behind the guards, the
+              first available screen for a signed-out member is (auth) — login,
+              exactly as the web's landing page sends her.
+
+              Outside every guard on purpose: the recovery link Supabase emails
+              opens `mila://reset-password` — behind `Stack.Protected
+              guard={recovery}` expo-router would drop the deep link before the
+              screen could mount and latch that same flag (it is only ever set
+              inside this screen). The screen decides between verifying /
+              invalid / ready, and once it latches `recovery` the launch gate
+              holds her here while the temporary session from the link is live. */}
+          <Stack.Screen name="reset-password" />
+
+          {/* Also outside every guard: the login screen offers "Having trouble?
+              Get help" before she can sign in, exactly as the web's login page
+              does, and the support endpoint is unauthenticated (captcha plus an
+              IP limit are its defence). Behind the inApp guard this push would
+              be dropped for a signed-out member — the same dead end the
+              recovery link had. */}
+          <Stack.Screen name="settings/support" />
+
           {/* Always reachable, including email links opening a signed-out app.
               Last so it never becomes the default login/onboarding route. */}
           <Stack.Screen name="auth/callback" />

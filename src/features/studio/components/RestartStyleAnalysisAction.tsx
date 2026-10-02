@@ -1,5 +1,4 @@
-import { router } from "expo-router";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { Button } from "@/components/ui/Button";
 import { ConfirmSheet } from "@/components/ui/ConfirmSheet";
@@ -11,23 +10,19 @@ import { useOnboardingStore } from "@/stores/onboarding-store";
  * default — every step preloads her current answer, so nothing changes until
  * she saves.
  *
- * The push is deferred by one commit on purpose. The onboarding group is hidden
- * while a profile is complete (`Stack.Protected` in `app/_layout.tsx`), so the
- * latch has to be set first and the navigation made after the gate re-renders —
- * pushing in the same tick is dropped as a protected route.
+ * The navigation is NOT issued from here. Latching `active` re-renders the
+ * root gate in the same commit, and the gate unmounts the tabs — this button
+ * with them — before any effect of its own can run; the `router.push` this
+ * component used to make was silently dropped, and the machine then resumed at
+ * the last incomplete step instead of the first. The intent goes into the
+ * onboarding store and the machine, which is mounted by then, starts the
+ * wizard at `gender` — the first step of the style profile proper, and where
+ * the web's restart lands too (its `/onboarding/style-profile`).
  */
 export function RestartStyleAnalysisAction() {
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [restarting, setRestarting] = useState(false);
   const enterOnboarding = useOnboardingStore((s) => s.enterOnboarding);
-
-  useEffect(() => {
-    if (!restarting) return;
-    // `gender` is the first step of the style profile proper — where the web's
-    // restart lands too (its `/onboarding/style-profile`). Requesting it on a
-    // complete profile is reachable, so the machine does not redirect.
-    router.push("/onboarding/gender");
-  }, [restarting]);
+  const requestRestart = useOnboardingStore((s) => s.requestRestart);
 
   return (
     <>
@@ -45,7 +40,7 @@ export function RestartStyleAnalysisAction() {
         onConfirm={() => {
           setConfirmOpen(false);
           enterOnboarding();
-          setRestarting(true);
+          requestRestart();
         }}
       />
     </>

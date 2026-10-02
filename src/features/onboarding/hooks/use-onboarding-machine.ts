@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef } from "react";
 
 import { sanitizeOnboardingStep, type OnboardingStepId } from "@/constants/steps";
 import { useProfile } from "@/hooks/use-profile";
+import { useOnboardingStore } from "@/stores/onboarding-store";
 import type { DashboardProfile } from "@/types/models";
 
 import { nextStep, previousStep, resolveStep } from "../machine";
@@ -24,6 +25,9 @@ export function useOnboardingMachine(rawStep: string | undefined) {
   // after its answer is saved, and judging reachability against a profile that
   // is mid-refetch would bounce her back to the step she just finished.
   const settled = !isPending && !isFetching && !isError;
+
+  const restartRequested = useOnboardingStore((s) => s.restartRequested);
+  const clearRestart = useOnboardingStore((s) => s.clearRestart);
 
   const goTo = useCallback(
     (step: OnboardingStepId, options?: { replace?: boolean }) => {
@@ -47,6 +51,17 @@ export function useOnboardingMachine(rawStep: string | undefined) {
   useEffect(() => {
     if (!settled) return;
 
+    // "Restart Style Analysis" asks for the wizard from its first question,
+    // not the resume point — and it asks from a component the gate unmounts
+    // in the same commit, so the request travels through the store instead of
+    // a router call from the action itself. Consumed once, before the
+    // resume-point logic below can decide anything else.
+    if (restartRequested) {
+      clearRestart();
+      goTo("gender", { replace: true });
+      return;
+    }
+
     const key = requested ?? "";
     if (resolvedForRef.current === key) return;
     resolvedForRef.current = key;
@@ -55,7 +70,7 @@ export function useOnboardingMachine(rawStep: string | undefined) {
     // Terminates after one hop: resolveStep only ever returns the resume point,
     // which is reachable by construction (asserted in the machine tests).
     if (redirected) goTo(step, { replace: true });
-  }, [settled, requested, profile, goTo]);
+  }, [settled, restartRequested, clearRestart, requested, profile, goTo]);
 
   return {
     /** Undefined until the router has a valid step — the screen shows loading. */

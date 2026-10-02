@@ -51,6 +51,21 @@ type OnboardingState = {
    * re-derives the truth from the profile.
    */
   active: boolean;
+  /**
+   * Set by "Restart Style Analysis": walk the wizard from its first question
+   * instead of resuming.
+   *
+   * The action cannot navigate on its own. Latching `active` re-renders the
+   * root gate in the same commit, and the gate unmounts the tabs — the action
+   * with them — before any effect of its own can run, so a `router.push` from
+   * there is dropped and the machine resumes at the last incomplete step
+   * instead of the beginning. The intent is recorded here and consumed by the
+   * machine, which is mounted by the time it can act on it.
+   *
+   * Deliberately NOT persisted: a restart is a session intent, and a cold
+   * start re-derives the truth from the profile.
+   */
+  restartRequested: boolean;
   /** False until the persisted draft has been read — a retry before then would send null. */
   hydrated: boolean;
   setPending: (pending: PendingWrite) => void;
@@ -59,6 +74,8 @@ type OnboardingState = {
   clearCandidate: () => void;
   enterOnboarding: () => void;
   exitOnboarding: () => void;
+  requestRestart: () => void;
+  clearRestart: () => void;
   /** Wipes every trace of one member's flow. Called on sign-out. */
   reset: () => void;
 };
@@ -77,6 +94,7 @@ export const useOnboardingStore = create<OnboardingState>()(
       pending: null,
       candidate: null,
       active: false,
+      restartRequested: false,
       hydrated: false,
       setPending: (pending) => set({ pending }),
       clearPending: () => set({ pending: null }),
@@ -84,10 +102,13 @@ export const useOnboardingStore = create<OnboardingState>()(
       clearCandidate: () => set({ candidate: null }),
       enterOnboarding: () => set({ active: true }),
       exitOnboarding: () => set({ active: false }),
+      requestRestart: () => set({ restartRequested: true }),
+      clearRestart: () => set({ restartRequested: false }),
       // A draft belongs to the member who wrote it. Replaying one into the next
       // account to sign in on this device would write her answers to a
       // stranger's profile.
-      reset: () => set({ pending: null, candidate: null, active: false }),
+      reset: () =>
+        set({ pending: null, candidate: null, active: false, restartRequested: false }),
     }),
     {
       name: "mila-onboarding-draft",
