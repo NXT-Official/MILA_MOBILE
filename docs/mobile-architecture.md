@@ -2795,10 +2795,9 @@ from a failed build or a store rejection.
 - Entitlements: Associated Domains for Universal Links, Push Notifications
 - Capabilities to enable in the Apple Developer portal
 - Bundle identifier, team id, provisioning approach
-- App Store review considerations. The one that used to dominate this list — the IAP decision in
-  [Appendix D](#appendix-d--open-decisions) item 1 — is resolved: Paddle stays web-only,
-  permanently, so there is no in-app checkout for a reviewer to flag. What remains here is the
-  ordinary review surface (permission strings, entitlements, capabilities) below
+- App Store review considerations: native subscriptions, restore, account attribution, and
+  server-verified entitlement under [§9](#9-payment-integration), alongside permission strings,
+  entitlements, and capabilities. Native purchases are approved but not yet enabled
 - Any iOS-only native module
 
 Writing the iOS README during Android development is cheap and is the single most effective thing
@@ -2819,7 +2818,7 @@ that keeps iOS from becoming a discovery project.
 | Shadows               | `elevation` only — `shadow*` props are ignored                                 | `shadowColor/Opacity/Radius/Offset`              |
 | Ripple                | `android_ripple` on `Pressable`                                                | `opacity` press feedback                         |
 | Storage               | Keystore via SecureStore                                                       | Keychain via SecureStore                         |
-| Payments              | N/A — no mobile checkout on either platform (Appendix D.1: Paddle is web-only, permanently) | N/A — same                        |
+| Payments              | Google Play subscriptions through approved `expo-iap`; activation pending §9 | App Store subscriptions through same service; activation pending §9 |
 | Back-gesture conflict | Sheets must consume back before the navigator                                  | Edge-swipe-to-pop — `gestureEnabled: false` on capture/publish screens, since only Android's hardware back is wired in-screen |
 
 ### Android specifics
@@ -2842,9 +2841,8 @@ that keeps iOS from becoming a discovery project.
 - No Android-only API called outside a `.android.ts` file.
 - No hardcoded 24dp status-bar assumptions — always `insets.top`.
 - Layouts verified at 320pt width (SE) and with a Dynamic Island.
-- [Appendix D](#appendix-d--open-decisions) item 1 is decided: there is no paid flow on mobile to
-  submit to App Review in the first place. Membership is read-only entitlement display; nothing
-  here triggers the IAP-policy review risk this bullet used to guard against.
+- Native subscriptions must pass store sandbox, restore, and server-verification checks before
+  App Review. [§9](#9-payment-integration) records the remaining activation requirements.
 
 ### Responsive rules
 
@@ -3029,9 +3027,9 @@ changes an architectural decision.
 ### Still open — unchanged from Appendix D, except D.1
 
 [Appendix D](#appendix-d--open-decisions) items 2–6 remain product decisions, not engineering ones.
-**D.1 (Paddle vs. IAP) is now decided: Paddle stays web-only, permanently.** Mobile displays
-entitlement read-only and never ships checkout, cancel, or resume; it is no longer a Phase 9/11
-blocker or a store-submission risk (see the updated item 1 in [Appendix D](#appendix-d--open-decisions)).
+**D.1 was revised October 1: native purchases and membership management are approved.** Store
+setup, provider-aware backend design, and verified purchase/restore flows now block completion of
+Phase 9 and store release (see [§9](#9-payment-integration)).
 One of the rest now has a scheduling consequence, recorded in
 [§15](#15-mila-mobile-implementation-phases): **D.2 (`DEFAULT_AI_CREDITS = 0`) must be resolved or
 worked around before Phase 4 can be demonstrated to anyone.**
@@ -3869,66 +3867,51 @@ from inside the app.
 
 ### Phase 9 — Membership and Payments
 
-**Goal.** ~~Paid features work correctly, and the device is never believed about payment.~~
-**Revised October 1 scope: native membership management and store purchases; the server owns access.**
+**Goal, revised October 1.** Native membership management and store purchases; the server owns
+access and credits. The activation requirements in [§9](#9-payment-integration) govern this phase.
 
-> **Historical scope below is superseded by [§9](#9-payment-integration), revised October 1.**
-> This is no longer "blocked pending a decision" — the decision is in, and it is that mobile does not
-> build a checkout. Everything below that describes checkout, cancel, resume, or the Paddle sandbox
-> flow (the "Paddle hosted checkout" and "Manage membership: … cancel, resume" bullets, the
-> `services/checkout.ts` / `CancelSheet` / `ResumeSheet` files, and their testing-checklist rows) is
-> the historical record of the plan considered before the decision and **is not to be built**. What
-> mobile actually ships for this phase: plan cards, current plan/renewal/end-date display, and the
-> credits meter — all read-only, sourced from `subscription_plans`, `subscriptions`, and
-> `user_entitlements` exactly as the rest of this section already specifies for reads.
+**Implemented:**
 
-**Ships:**
+- Plan cards from `subscription_plans`, current membership and renewal/end-date display
+- Server-owned credits meter
+- Native confirmation sheets for cancel/resume of existing Paddle memberships through the existing
+  `/billing/cancel` and `/billing/resume` handlers; explicit cache refresh after success
+- Approved `expo-iap` package and native config plugin; no purchase calls or entitlement grants
 
-- Plan cards from `subscription_plans` (active, non-archived), single column, ordered
-- ~~Paddle hosted checkout in a system browser via `expo-web-browser`~~ — not built; checkout is
-  web-only (Appendix D.1)
-- ~~Post-checkout sync, then invalidate, then re-check after 5 seconds~~ — not built, same reason
-- Manage membership: current plan, renewal or end date, native cancel/resume for existing memberships
-- Credits meter
+**Remaining:**
 
-**Files created:**
+- Store products, plan mapping, and localized prices
+- Provider-aware backend design reviewed before any schema change
+- Server purchase verification, ownership, idempotency, restore, and lifecycle notifications
+- Native purchase/restore service and member controls after package ratification on real hardware
+- Provider-aware membership management before store subscriptions are enabled
+
+**Files currently used:**
 
 ```text
-src/app/membership/manage.tsx  (index.tsx upgraded from Phase 3's read-only list)
-src/features/membership/components/{PlanCard,CreditsMeter,CancelSheet,ResumeSheet}.tsx
-src/services/checkout.ts · src/services/api/billing.ts
-src/lib/subscription-plans.ts · src/constants/subscriptions.ts   ← copied verbatim
+src/app/membership/index.tsx
+src/features/membership/MembershipScreen.tsx
+src/features/membership/components/{PlanCard,MembershipStatusRow,MembershipActions}.tsx
+src/services/api/billing.ts
 ```
 
-**Backend dependencies.** `POST /api/v1/billing/checkout-url` (**new logic** — the only new business
-logic in the whole adapter layer), `/billing/sync`, `/billing/cancel`, `/billing/resume`. The
-existing Paddle webhook is unchanged.
-
-**Rules:**
-
-- **Mobile never trusts payment state.** `checkout.completed` on the device is a hint to refresh.
-- **Supabase is the source of truth**, written by the webhook.
-- **`custom_data.user_id` is set server-side** when minting the URL and is never accepted from the
-  client.
-- **Card data never enters the app** — the checkout runs in the system browser.
+**Rules:** entitlement comes from verified server data. Device completion only triggers refresh.
+No client credit accounting or optimistic access. No automatic mutation retry. No Paddle checkout
+browser flow is added to the native app. Real store billing requires an installed native build;
+Expo Go supports the other member screens.
 
 **Testing checklist:**
 
-- [ ] Purchase flow in the **Paddle sandbox**: pick plan → checkout → return → entitlement appears
-- [ ] Returning without a `transaction_id` still lands the entitlement via the webhook
-- [ ] Dismissing the checkout leaves state untouched
-- [ ] Cancel: access continues to period end; copy says so; status shows "Ends on *date*"
-- [ ] Resume clears the scheduled change and restores "Renews on *date*"
-- [ ] `past_due` keeps the member in force — not locked out mid-dunning
-- [ ] Restore/refresh: killing the app after checkout and relaunching shows the correct entitlement
-- [ ] A tampered client cannot claim another member's transaction (server rejects on attribution)
-- [ ] Prices render from minor units via `Intl.NumberFormat` with the correct interval suffix
-- [ ] Credits granted on renewal appear after a webhook, without an app action
+- [x] Cancel/resume confirmation, success cache refresh, errors, and offline blocking covered by tests
+- [ ] Existing membership cancel/resume tested against a live sandbox account
+- [ ] Store sandbox purchase, pending/canceled purchase, and restore verified on real hardware
+- [ ] Killing the app during purchase and relaunching recovers server-confirmed entitlement
+- [ ] Server rejects another member's transaction and repeated receipt cannot grant credits twice
+- [ ] Renewals, refunds, expiry, and revoked purchases reconcile through store notifications
+- [ ] Store memberships open the correct provider management surface
 
-**Definition of done:**
-
-Paid features work correctly; entitlement always comes from Supabase; the sandbox purchase, cancel,
-and resume paths are exercised end to end.
+**Definition of done:** purchase, restore, management, and lifecycle paths pass end to end; access
+and credits always come from the shared backend. This phase is not complete yet.
 
 ---
 
@@ -3999,13 +3982,12 @@ Phase 4 lands with a test that fails without the fix.
       Face ID if biometrics ships
 - [ ] Safe areas verified at 320pt and with a Dynamic Island; no hardcoded 24dp status bar
 - [ ] Swipe-back enabled everywhere except capture (`lens-capture`, `publish` —
-      `gestureEnabled: false`, since only Android's hardware back is wired in-screen). There is no
-      checkout screen to exempt: Appendix D.1 keeps checkout web-only
+      `gestureEnabled: false`, since only Android's hardware back is wired in-screen)
 - [ ] HEIC transcoding path present in `camera.ios.tsx` (via `prepareUpload`'s JPEG re-encode)
 - [ ] Associated Domains configured for Universal Links
 - [ ] `src/platform/ios/README.md` complete
-- [x] [Appendix D.1](#appendix-d--open-decisions) decided: Paddle stays web-only, permanently —
-      satisfied, nothing further needed here before App Store submission
+- [ ] Native purchases, restore, and server verification from [§9](#9-payment-integration) pass
+      store sandbox tests before App Store submission
 
 **Definition of done:**
 
@@ -4032,7 +4014,7 @@ flowchart LR
   P6 --> P10
   P7 --> P10
   P9 --> P10
-  D1{{"D.1 decided: Paddle web-only"}} -.->|"no longer blocks"| P9
+  D1{{"D.1 native purchases approved"}} -.->|"store + server setup needed"| P9
   D2{{"D.2 free credits"}} -.->|blocks demo| P4
 ```
 
@@ -4391,7 +4373,7 @@ construction — that is defence in depth, not a convention.
 | 8     | Lens: camera abstraction, capture, analyse, result                                                                                                                              | 1, 5                |
 | 9     | Feed: dual capture, publish, tagging, hotspots, member profile                                                                                                                  | 8                   |
 | 10    | Concierge chat + look anchoring                                                                                                                                                 | 5                   |
-| 11    | Membership: plans, entitlement display (read-only — no checkout/cancel/resume, per decided **Appendix D.1**)                                                                    | 5                   |
+| 11    | Membership: plans, entitlement display, native cancel/resume; store purchases and restore under §9                                                                                | 5, store/backend setup |
 | 12    | Settings: account, location, privacy, data export, delete, support                                                                                                              | 11                  |
 | 13    | Push notifications, offline cache, EAS Update channels                                                                                                                          | 5–12                |
 | 14    | iOS parity pass, accessibility audit, low-end device testing                                                                                                                    | all                 |
