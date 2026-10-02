@@ -115,6 +115,9 @@ const config: ExpoConfig = {
     // The share sheet behind `services/files/` — used by the Phase 08 data
     // export. Its own plugin only registers the module; it adds no permission.
     "expo-sharing",
+    // Store purchases need a rebuilt native app; Expo Go does not load this
+    // module. Product setup and server receipt verification are tracked in §9.
+    "expo-iap",
     [
       // Dictation in the Concierge composer, behind `services/speech.ts`.
       //

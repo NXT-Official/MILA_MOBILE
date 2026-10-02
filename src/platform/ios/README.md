@@ -90,11 +90,15 @@ These are the reasons `services/*/` exists. Each is handled inside an adapter, n
 
 **Two blockers, both known now:**
 
-1. **In-app purchase.** Apple generally requires IAP for digital content consumed in-app; the Paddle
-   web checkout may be rejected. This is Appendix D.1 in the architecture doc and it blocks Phase 09
-   and any submission.
+1. **In-app purchase.** Native store purchases were approved October 1. `expo-iap` 5.8.2 supports
+   StoreKit and is configured alongside Android. App Store products, server verification,
+   provider-aware backend design, and real-device testing remain prerequisites (architecture §9).
 2. **Account deletion must be reachable in the app.** Built in Phase 08.
 
 ## iOS-only native modules
 
 None.
+
+Shared custom modules: `expo-iap` for StoreKit purchases and
+`@jamsch/expo-speech-recognition` for Concierge dictation. Both require an installed native build;
+Expo Go supports other screens without invoking them. Entitlement remains server-owned.

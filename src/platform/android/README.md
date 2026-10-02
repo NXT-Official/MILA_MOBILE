@@ -93,5 +93,10 @@ Universal/App Link paths in §4 work.
 
 ## Native modules outside Expo's managed set
 
-None. Adding one requires a written reason here and a matching note in
-[`../ios/README.md`](../ios/README.md).
+`expo-iap` 5.8.2 is approved for native Google Play purchases. Existing Expo packages cannot open
+Google Play's payment sheet. The config plugin is installed; purchase calls remain disabled pending
+store product setup, server verification, provider-aware backend design, and real-device ratification
+(architecture §9). Expo Go cannot run this native module; other screens remain usable.
+
+Custom Concierge dictation uses `@jamsch/expo-speech-recognition`; the service guards absent native
+modules and hides dictation in Expo Go. No audio is stored or uploaded.
