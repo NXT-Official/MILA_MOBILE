@@ -4,11 +4,16 @@ Everything in this repo that a developer can finish alone is finished. What's
 left below all requires accounts, credentials, or copy that belong to the
 client — this file is the punch list, not a how-to for things already done.
 
-## 1. EAS project — done (2026-09-23)
+## 1. EAS project — done (2026-09-23; moved to the team org 2026-10-02)
 
-Linked to `@kurtgav/mila-mobile`; the project ID lives in `app.config.ts`'s
-`extra.eas.projectId` (the `EAS_PROJECT_ID` env override remains for anyone
-building against a different project). All three `eas.json` profiles target it.
+Linked to `@naaxtechs-team/mila-mobile` (the team account), so teammates can
+install from its build pages; the project ID lives in `app.config.ts`'s
+`extra.eas.projectId`. The `EAS_PROJECT_ID` env override remains for anyone
+building against a different project, but EAS Build re-evaluates the config
+without a local shell env — a different project must also set the value in
+`eas.json`'s profile `env` (or as an EAS environment variable), or the build
+fails with `EAS_BUILD_PROJECT_ID_MISMATCH`. The original personal project
+(`@kurtgav/mila-mobile`) still holds the earlier build history.
 
 Cloud builds never see `.env.local` (gitignored), so every profile's `env`
 block in `eas.json` carries the public `EXPO_PUBLIC_*` values

@@ -175,9 +175,13 @@ const config: ExpoConfig = {
 
   extra: {
     variant: VARIANT,
-    // Linked to the EAS project under the kurtgav account (`eas init`, Sep 23).
-    // The env override stays for anyone building against a different project.
-    eas: { projectId: process.env.EAS_PROJECT_ID ?? "8ee3d05d-b5a3-4670-8096-5eac1ac4e834" },
+    // The team's EAS project (`@naaxtechs-team/mila-mobile`) — the builds the
+    // dev team installs from. The env override stays for anyone building
+    // against a different project; note that EAS Build re-evaluates this file
+    // without your shell env, so a different project must also be set in
+    // eas.json's profile env (or an EAS environment variable) or the build
+    // fails with EAS_BUILD_PROJECT_ID_MISMATCH.
+    eas: { projectId: process.env.EAS_PROJECT_ID ?? "98d444fe-f321-450f-bb61-88360ebf17f2" },
   },
 };
 
