@@ -13,10 +13,9 @@ import {
 } from "@/types/models";
 
 /**
- * All profile I/O. The normalisation below is the web's `buildDashboardProfile`
- * carried over unchanged — it is what lets a legacy row whose undertone or face
- * shape only ever landed inside `color_profile` still read as complete. Two
- * normalisations is how a member resumes at a different step on each client.
+ * All profile I/O. Normalisation follows the web's `buildDashboardProfile`,
+ * with one correction: a manual season library's default face is not a member
+ * answer. Legacy AI readings can still supply a missing face column.
  */
 
 const EMPTY_PROFILE: DashboardProfile = {
@@ -85,9 +84,14 @@ function buildDashboardProfile(data: ProfileRow | null): DashboardProfile {
     season?: string;
     faceShape?: string;
     hairType?: string;
+    calibrationSource?: string;
+    detectedLighting?: string;
   } | null;
 
-  const faceShape = data.face_shape ?? normalizeFirstWord(json?.faceShape) ?? null;
+  const manualPalette =
+    json?.calibrationSource === "Studio Calibrated" ||
+    json?.detectedLighting === "Manual Studio Calibration";
+  const faceShape = data.face_shape ?? (manualPalette ? null : normalizeFirstWord(json?.faceShape));
   const hairType =
     data.hair_type ??
     (typeof json?.hairType === "string" && json.hairType.trim() ? json.hairType : null);
