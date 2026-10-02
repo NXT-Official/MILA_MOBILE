@@ -51,14 +51,16 @@ export function useOnboardingMachine(rawStep: string | undefined) {
   useEffect(() => {
     if (!settled) return;
 
-    // "Restart Style Analysis" asks for the wizard from its first question,
-    // not the resume point — and it asks from a component the gate unmounts
-    // in the same commit, so the request travels through the store instead of
-    // a router call from the action itself. Consumed once, before the
-    // resume-point logic below can decide anything else.
+    // "Restart Style Analysis" asks for the wizard from its first question —
+    // `color-path`, "Step 1 of 15" — not the resume point (which for a
+    // complete profile is `beauty-preferences`, "Step 11 of 15"). It asks from
+    // a component the gate unmounts in the same commit, so the request travels
+    // through the store instead of a router call from the action itself.
+    // Consumed once, before the resume-point logic below can decide anything
+    // else.
     if (restartRequested) {
       clearRestart();
-      goTo("gender", { replace: true });
+      goTo("color-path", { replace: true });
       return;
     }
 

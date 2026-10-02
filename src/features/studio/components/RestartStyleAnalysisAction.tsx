@@ -16,8 +16,8 @@ import { useOnboardingStore } from "@/stores/onboarding-store";
  * component used to make was silently dropped, and the machine then resumed at
  * the last incomplete step instead of the first. The intent goes into the
  * onboarding store and the machine, which is mounted by then, starts the
- * wizard at `gender` — the first step of the style profile proper, and where
- * the web's restart lands too (its `/onboarding/style-profile`).
+ * wizard at `color-path` — the first counted step, "Step 1 of 15". (The web
+ * reaches the same step through its welcome screen.)
  */
 export function RestartStyleAnalysisAction() {
   const [confirmOpen, setConfirmOpen] = useState(false);
