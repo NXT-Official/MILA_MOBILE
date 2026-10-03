@@ -45,3 +45,6 @@ example
 
 # local release artifacts (APK/AAB copies for device installs)
 release-artifacts/
+
+# jest cache (kept inside the project so Windows EPERM on %TEMP% renames cannot break it)
+.jest-cache/
