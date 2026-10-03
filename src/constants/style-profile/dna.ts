@@ -68,7 +68,7 @@ export const MAKEUP_LOOKS: Record<Season, MakeupLook[]> = {
       category: "Full Look",
       name: "Sunlit Fresh",
       hex: "#FFB347",
-      note: "Peach cheek, coral lip, gold highlight — luminous and effortless.",
+      note: "Peach cheek, coral lip, gold highlight. Soft, not fussy.",
     },
   ],
   Summer: [

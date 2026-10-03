@@ -35,7 +35,7 @@ export function combosFor(season: Season): OutfitCombo[] {
     {
       id: "weekend",
       picks: [p.primary[3]!, p.primary[0]!, p.neutrals[0]!],
-      note: "Weekend palette — warm enough to feel effortless.",
+      note: "Weekend palette. Warm and easy to wear.",
     },
     {
       id: "evening",

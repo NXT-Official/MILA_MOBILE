@@ -13,7 +13,7 @@ export default function LoginScreen() {
     <Screen scroll>
       <AuthCard
         title="Get Started"
-        subtitle="Log in or sign up below to unlock your studio color dossier."
+        subtitle="Log in or sign up to see your studio color dossier."
       >
         <View className="w-full gap-xl">
           <GoogleButton onPress={() => google.mutateAsync()} loading={google.isPending} />

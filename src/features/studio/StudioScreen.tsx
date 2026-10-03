@@ -179,7 +179,7 @@ export function StudioScreen() {
             title="Hair direction"
             directive={hair}
             rationale={{ label: "hair texture", value: profile?.hair_type }}
-            fallback="Add your hair texture to unlock this."
+            fallback="Add your hair texture to see this."
             action={
               hair
                 ? undefined
