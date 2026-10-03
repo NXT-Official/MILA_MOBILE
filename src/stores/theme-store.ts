@@ -1,6 +1,7 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+
+import { persistStorage } from "./persist-storage";
 
 export type ThemePreference = "light" | "dark" | "system";
 
@@ -20,7 +21,7 @@ export const useThemeStore = create<ThemeState>()(
     }),
     {
       name: "mila-theme",
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createJSONStorage(persistStorage),
       partialize: (state) => ({ preference: state.preference }),
       onRehydrateStorage: () => (state) => {
         // Runs on success and on failure; a read error must not hold the splash

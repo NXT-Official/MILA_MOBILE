@@ -1,10 +1,11 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
 import type { OnboardingStepId } from "@/constants/steps";
 import type { StyleProfileUpdate } from "@/services/supabase/profile";
 import type { StudioColorProfile } from "@/types/models";
+
+import { persistStorage } from "./persist-storage";
 
 /**
  * The one answer that has been given but not yet confirmed by the server.
@@ -112,7 +113,7 @@ export const useOnboardingStore = create<OnboardingState>()(
     }),
     {
       name: "mila-onboarding-draft",
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createJSONStorage(persistStorage),
       partialize: (state) =>
         Object.fromEntries(PERSISTED_KEYS.map((key) => [key, state[key]])) as Pick<
           OnboardingState,

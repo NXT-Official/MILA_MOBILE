@@ -1,5 +1,5 @@
 /**
- * The SecureStore chunking round-trip in `services/supabase/client.ts`.
+ * The SecureStore chunking round-trip in `services/supabase/storage.ts`.
  *
  * A Supabase session with a large JWT exceeds the ~2048-byte value the platform
  * historically refuses, so the adapter splits it. Getting this wrong does not
