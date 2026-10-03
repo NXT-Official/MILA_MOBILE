@@ -12,6 +12,7 @@ import {
 import type { StudioColorProfile } from "@/types/models";
 
 import { OptionTile } from "../components/OptionTile";
+import { PersonalColorCapture } from "../components/PersonalColorCapture";
 import { StepShell } from "../components/StepShell";
 
 /**
@@ -40,12 +41,14 @@ function knownTileToCandidate(
 const ALL_TILES = KNOWN_SEASON_GROUPS.flatMap((g) => g.tiles);
 
 /**
- * "I know my season" is the only path this phase ships.
+ * Both colour paths ship: "Analyze my coloring" runs the live camera read
+ * (`PersonalColorCapture` → `POST /analysis/personal-color`), whose founding
+ * read is free until a dossier exists, and "I know my season" stays for anyone
+ * who would rather pick from the library.
  *
- * The live read costs a credit and `DEFAULT_AI_CREDITS` is 0, so offering it to
- * a member who has had no reason to pay yet is a dead end — the web has the
- * same tile commented out. It returns with the Lens camera in Phase 05, where
- * the paywall already exists (Appendix D.2).
+ * A failed read drops back to this screen with the manual path intact — the
+ * live read can never dead-end the step, so offering it at step 1 costs a
+ * member nothing but a moment.
  */
 export function ColorPath({
   existingDossier,
@@ -60,6 +63,7 @@ export function ColorPath({
 }) {
   const [showKnown, setShowKnown] = useState(false);
   const [tileId, setTileId] = useState<string | null>(null);
+  const [captureOpen, setCaptureOpen] = useState(false);
 
   if (!showKnown) {
     return (
@@ -83,6 +87,13 @@ export function ColorPath({
           ) : null}
 
           <OptionTile
+            title="Analyze my coloring"
+            description="Use your camera and Mila reads your true tones live, in good natural light."
+            selected={false}
+            onPress={() => setCaptureOpen(true)}
+          />
+
+          <OptionTile
             title="I know my season"
             description="Pick your seasonal palette from our full sixteen-season library. No camera needed."
             selected={false}
@@ -93,6 +104,16 @@ export function ColorPath({
             Not sure which is yours? Pick the one closest to your colouring — you can change it any
             time in your style dossier.
           </Text>
+
+          {captureOpen ? (
+            <PersonalColorCapture
+              onClose={() => setCaptureOpen(false)}
+              onComplete={(profile) => {
+                setCaptureOpen(false);
+                onCandidateReady(profile);
+              }}
+            />
+          ) : null}
         </View>
       </StepShell>
     );

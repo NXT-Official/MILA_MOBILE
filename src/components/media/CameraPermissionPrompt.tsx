@@ -14,20 +14,26 @@ import { Icon } from "@/components/ui/Icon";
  * what §12 says matters: a `"denied"` prompt can ask again, a `"blocked"` one
  * must deep-link to settings or it taps into a void.
  *
- * Lives in `components/` rather than beside Lens because the feed's dual capture
- * needs the same screen — and a feature may never import another feature's
- * internals (§5).
+ * Lives in `components/` rather than beside Lens because the feed's dual
+ * capture, the selfie widget, and the colour read all need the same screen —
+ * and a feature may never import another feature's internals (§5). `title`
+ * and `description` default to Lens's outfit wording; other callers override
+ * them so the rationale always names the thing the camera is wanted for.
  */
 export function CameraPermissionPrompt({
   status,
   requesting,
   onAllow,
   onOpenSettings,
+  title,
+  description,
 }: {
   status: "denied" | "blocked";
   requesting: boolean;
   onAllow: () => void;
   onOpenSettings: () => void;
+  title?: string;
+  description?: string;
 }) {
   const blocked = status === "blocked";
 
@@ -36,13 +42,14 @@ export function CameraPermissionPrompt({
       <Icon name="camera" size="xl" color="muted" />
 
       <Text accessibilityRole="header" className="font-display text-h2 text-ink text-center">
-        {blocked ? "Camera access is turned off" : "Mila needs your camera"}
+        {title ?? (blocked ? "Camera access is turned off" : "Mila needs your camera")}
       </Text>
 
       <Text className="font-body text-base text-body text-center">
-        {blocked
-          ? "Turn the camera on for Mila in your device settings, then come back to read an outfit."
-          : "One photo of what you are wearing, read against your season and your silhouette. Nothing leaves your account."}
+        {description ??
+          (blocked
+            ? "Turn the camera on for Mila in your device settings, then come back to read an outfit."
+            : "One photo of what you are wearing, read against your season and your silhouette. Nothing leaves your account.")}
       </Text>
 
       <Button

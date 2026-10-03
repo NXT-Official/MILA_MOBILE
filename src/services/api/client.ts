@@ -116,6 +116,12 @@ export const api = {
  * server was about to answer — and on the credit-charging ones the abort is
  * seen while the server may still complete and bill. 120s clears the server's
  * ceiling with room for the round trip.
+ *
+ * `personalColor` covers the two-pass colour read (calibration, then the season
+ * call), each bounded at 75s server-side — 150s worst case, so the 120s
+ * `analysis` budget would abort a read that was going to succeed. 180s clears
+ * it; a read that fails refunds server-side, but only if it fails rather than
+ * aborts.
  */
 export const TIMEOUTS = {
   default: 30_000,
@@ -124,4 +130,5 @@ export const TIMEOUTS = {
   lookVisual: 300_000,
   analysis: 120_000,
   concierge: 120_000,
+  personalColor: 180_000,
 } as const;

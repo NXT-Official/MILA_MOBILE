@@ -109,6 +109,38 @@ export type StudioColorProfile = {
   confidenceLabel?: string;
 };
 
+/**
+ * The colour read's telemetry — the debug trail the web viewfinder renders in
+ * its studio log. Carried here so the response type mirrors the server payload
+ * field-for-field even while nothing on a phone renders it yet.
+ */
+export type PersonalColorTelemetry = {
+  pass1Raw: {
+    ambientLighting: string;
+    biologicalUndertone: string;
+    computedContrast: string;
+  };
+  interceptTriggered: boolean;
+  gatekeeperNotes: string[];
+  pass2OverrideInputs: {
+    ambientLighting: string;
+    biologicalUndertone: string;
+    computedContrast: string;
+    sensorClippingEvent: boolean;
+  };
+  forcedDiagnostic: boolean;
+};
+
+/**
+ * The `POST /analysis/personal-color` answer. Failures ride the **200** as
+ * `{ success: false, error }` — the endpoint's own contract, unlike the shared
+ * HTTP taxonomy — so the caller must branch on `success`; a thrown `ApiError`
+ * is a different class of failure entirely (auth, transport).
+ */
+export type PersonalColorAnalysisResult =
+  | { success: true; profile: StudioColorProfile; telemetry: PersonalColorTelemetry }
+  | { success: false; error: string };
+
 /** Columns a member is granted INSERT/UPDATE on — §7. Never send others. */
 export const PROFILE_WRITABLE_COLUMNS = [
   "full_name",
