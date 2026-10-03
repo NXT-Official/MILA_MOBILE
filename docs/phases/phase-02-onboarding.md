@@ -83,7 +83,7 @@ One route, nine steps: `/(onboarding)/[step]`
 | Step | `id`                 | Title                       | Optional | Interaction                                    |
 | ---- | -------------------- | --------------------------- | -------- | ---------------------------------------------- |
 | —    | `welcome`            | Welcome to Mila             | —        | Full-bleed intro, single CTA. Not counted      |
-| 1    | `color-path`         | Your colouring              |          | Two tiles: "I know my season" / "Read it live" |
+| 1    | `color-path`         | Your colouring              |          | Two tiles: "Analyze my coloring" (live read) / "I know my season" |
 | 2    | `color-result`       | Confirm your colour profile |          | Season card, palette swatches, confirm         |
 | 3    | `body-type`          | Body silhouette             |          | 5 `OptionTile`s                                |
 | 4    | `face-shape`         | Face shape                  |          | `OptionTile` grid                              |
@@ -92,9 +92,10 @@ One route, nine steps: `/(onboarding)/[step]`
 | 7    | `location`           | Location & weather          | ✔        | 10 hubs + "use my location"                    |
 | 8    | `review`             | Your Mila profile is ready  |          | Dossier summary + "Enter Mila"                 |
 
-> **The live colour path costs a credit.** With `DEFAULT_AI_CREDITS = 0`, a new member cannot use
-> "Read it live" before she has any reason to pay. Ship "I know my season" as the primary path, or
-> resolve Appendix D.2 first.
+> **The live colour path is open.** The founding read — no colour dossier on file yet — is free;
+> re-reads cost 1 AI credit, 10/hour, and an out-of-credits read opens the paywall sheet
+> (`INSUFFICIENT_CREDITS`), never a dead end. "I know my season" remains for anyone who would
+> rather pick from the library.
 
 ---
 

@@ -7,8 +7,8 @@ backend. A native implementation existing in source is not proof that its live f
 | --- | --- | --- |
 | Password login, signup, email confirmation, Google | `services/api/auth.ts`, auth screens, `/auth/callback` | App return fixed and regression-tested; successful live account/provider tests still needed. Expo Go supports password login; custom-scheme Google requires installed app. Email confirmation returns to installed app, then Expo Go testers can sign in by password. |
 | Password recovery, email/password changes | Recovery and native Account screens | Email-change return now uses same app callback. Live email/recovery checks still needed. |
-| Onboarding and dossier | Native step machine, manual season library, dossier editors | Manual palette template faces no longer fill the required face answer. Real saved answers and legacy AI faces remain supported. Website's onboarding camera tile is currently commented out too. No default `MOOD_COLLECT_DEFAULT` dossier is rendered by native features. |
-| Studio camera colour analysis | Website `StyleProfile` opens `VisualDiagnosticViewfinder`; native dossier colour editor is manual | **Gap:** native camera colour analysis and the planned `/analysis/personal-color` server adapter are absent. Migrate real analysis and error/credit handling; never substitute a sample face or fabricated result. |
+| Onboarding and dossier | Native step machine, live colour read + manual season library, dossier editors | Manual palette template faces no longer fill the required face answer. Real saved answers and legacy AI faces remain supported. The website's onboarding camera tile is restored and shares the same live read. No default `MOOD_COLLECT_DEFAULT` dossier is rendered by native features. |
+| Studio camera colour analysis | Website `StyleProfile` opens `VisualDiagnosticViewfinder`; native `PersonalColorCapture` runs the same live read via `/api/v1/analysis/personal-color` | Native implementation present: light briefing, permission prompt, capture, founding-read-free handling, paywall on credit failure, and the manual fallback. Live camera/read checks on a device still needed; never substitute a sample face or fabricated result. |
 | Daily looks, weather, occasions, dress code | `HomeScreen`, weather/vibe/plan controls, existing look API services | Implemented in source; paid live generation and visual flows not tested in this change. |
 | Consented selfie, style sheet, portrait preview | Native selfie hooks/media controls; server look APIs | Implemented in source, including removal. Real portrait identity/consent/upload flows need device tests. |
 | Lens outfit analysis, dupes, similar items | Native capture/result screens and existing analysis/item APIs | Implemented in source; live camera, upload, analysis, and insufficient-credit checks still needed. |
@@ -25,7 +25,7 @@ Admin/staff tools remain excluded by the project's member-only architecture.
 
 ## Release gates
 
-- Typecheck, lint, all 38 test suites (452 tests), and bundle/git-history secret scan pass for current changes.
+- Typecheck, lint, all 43 test suites (470 tests), and bundle/git-history secret scan pass for current changes.
 - Expo Doctor passes 21/21 (the SDK 57 patch mismatches were re-aligned on October 2).
 - Native Google/email return, successful onboarding, paid member features, camera, and store billing
   require live testing. An emulator callback error test cannot prove successful registration.

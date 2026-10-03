@@ -393,7 +393,7 @@ duplicate the shell, progress bar, and autosave nine times.
 | Step | `id`                 | Title                      | Optional | Interaction                                                           |
 | ---- | -------------------- | -------------------------- | -------- | --------------------------------------------------------------------- |
 | —    | `welcome`            | Welcome to Mila            | —        | Full-bleed intro, single CTA. Not counted in progress.                |
-| 1    | `color-path`         | Your coloring              |          | Two large tiles: "I know my season" / "Read it live"                  |
+| 1    | `color-path`         | Your coloring              |          | Two large tiles: "Analyze my coloring" (live camera read) / "I know my season" |
 | 2    | `color-result`       | Confirm your color profile |          | Season card + palette swatches + confirm                              |
 | 3    | `body-type`          | Body silhouette            |          | 5 `OptionTile`s: Hourglass, Rectangle, Pear, Inverted Triangle, Apple |
 | 4    | `face-shape`         | Face shape                 |          | `OptionTile` grid                                                     |
@@ -3524,12 +3524,12 @@ __tests__/onboarding-machine-test.ts · __tests__/profile-completion-test.ts
 
 **Backend dependencies.** Direct Supabase `profiles` update on the permitted column list only
 ([§7](#column-level-protection-you-must-not-work-around)). `POST /api/v1/analysis/personal-color`
-**only** for the "Read it live" colour path.
+**only** for the live colour path ("Analyze my coloring").
 
-> **The live colour path costs a credit.** With `DEFAULT_AI_CREDITS = 0`, a new member cannot use it
-> during onboarding — before she has any reason to pay. Ship "I know my season" as the primary path
-> and treat the live read as the optional one, or resolve
-> [Appendix D.2](#appendix-d--open-decisions) first.
+> **The live colour path is open.** The founding read — no colour dossier on file yet — is free;
+> re-reads cost 1 AI credit, 10/hour, and an out-of-credits read opens the paywall sheet
+> (`INSUFFICIENT_CREDITS`) rather than failing. "I know my season" stays for anyone who would
+> rather pick from the library, and every read failure leaves it one tap away.
 
 **Testing checklist:**
 
