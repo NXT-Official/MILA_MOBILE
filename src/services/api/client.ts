@@ -125,7 +125,11 @@ export const api = {
  */
 export const TIMEOUTS = {
   default: 30_000,
-  generateLook: 180_000,
+  // The compose call runs two sequential server-side AI stages, each bounded
+  // at 110s (MILA's ai.server.ts), plus the inventory load — a worst case of
+  // ~225s. This must sit above that, or a paid generation completes after
+  // the client already gave up (and the credit with it).
+  generateLook: 240_000,
   lookImage: 90_000,
   lookVisual: 300_000,
   analysis: 120_000,
