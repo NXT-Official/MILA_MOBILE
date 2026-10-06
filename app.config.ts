@@ -84,10 +84,11 @@ const config: ExpoConfig = {
     "expo-secure-store",
     "expo-font",
     [
-      // Stills only. `recordAudioAndroid: false` and `microphonePermission:
-      // false` keep RECORD_AUDIO out of the manifest entirely — Mila captures
-      // no video, and a microphone permission on the Play listing that the app
-      // never uses is both a review question and a trust cost.
+      // Stills only. No video capture: `recordAudioAndroid: false` (Android
+      // adds RECORD_AUDIO only when it is true) and `microphonePermission:
+      // false` (iOS). Dictation's own RECORD_AUDIO comes from the speech
+      // plugin below — nothing in this file may emit a `tools:node` remove
+      // for it.
       //
       // `barcodeScannerEnabled: false` drops the MLKit scanner Mila has no use
       // for, along with its share of the binary.
@@ -103,13 +104,21 @@ const config: ExpoConfig = {
     [
       // Gallery pick. Android uses the system photo picker, which grants access
       // to the single chosen image and needs no READ_MEDIA_IMAGES.
+      //
+      // `microphonePermission` must NOT be `false` here: the plugin answers
+      // that with a `tools:node="remove"` entry, and the Android manifest
+      // merger applies it last — stripping RECORD_AUDIO even though the
+      // speech plugin below adds it, which kills Concierge dictation in every
+      // installed build (QA F-MM-001, verified against the packaged release
+      // manifest). The usage string keeps the permission declared.
       "expo-image-picker",
       {
         photosPermission:
           "Mila needs access to your photos so you can analyse an outfit you have already taken.",
         cameraPermission:
           "Mila uses your camera to analyse an outfit and to capture your outfit of the day.",
-        microphonePermission: false,
+        microphonePermission:
+          "Mila uses your microphone only while you are dictating a message to her.",
       },
     ],
     // The share sheet behind `services/files/` — used by the Phase 08 data
@@ -121,11 +130,11 @@ const config: ExpoConfig = {
     [
       // Dictation in the Concierge composer, behind `services/speech.ts`.
       //
-      // This is the one thing in Mila that holds a microphone, and it is the
-      // reason RECORD_AUDIO is back in the manifest after `expo-camera` and
-      // `expo-image-picker` were both configured to keep it out. It is
-      // requested at the mic button, never at launch, and the recogniser is
-      // stopped the moment she taps it again.
+      // This plugin OWNS the RECORD_AUDIO permission. Nothing above may emit
+      // a `tools:node="remove"` for it (see the image-picker note): the
+      // manifest merger's removal wins over this add and dictation dies in
+      // the installed build. It is requested at the mic button, never at
+      // launch, and the recogniser is stopped the moment she taps it again.
       //
       // The plugin also declares package visibility for the speech service —
       // without that `<queries>` entry Android's SpeechRecognizer cannot see

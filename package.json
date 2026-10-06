@@ -87,6 +87,7 @@
     "lint": "expo lint",
     "test": "jest",
     "test:watch": "jest --watch",
+    "test:win": "jest --no-cache --maxWorkers=2",
     "scan:secrets": "bash scripts/scan-secrets.sh",
     "doctor": "npx expo-doctor"
   },
