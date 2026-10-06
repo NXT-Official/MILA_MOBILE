@@ -40,6 +40,16 @@ export function MembershipScreen() {
       null)
     : null;
 
+  // Purchases are not open yet, and the plan cards carry no purchase control, so
+  // nothing here may invite a choice. A member who already holds a plan is not
+  // told memberships are closed, and neither is anyone while it is still loading.
+  const intro =
+    subscription.isPending || subscription.isError
+      ? "What each plan includes."
+      : membership.inForce
+        ? "Your membership and what each plan includes."
+        : "Memberships open soon. Your stylist is getting ready.";
+
   return (
     <Screen scroll>
       <View className="gap-xl py-xl">
@@ -51,12 +61,9 @@ export function MembershipScreen() {
             accessibilityRole="header"
             className="font-display text-h1 text-center tracking-heading text-ink"
           >
-            Choose Your Atelier Access
+            Atelier Access
           </Text>
-          <Text className="font-body text-center text-base text-body">
-            Select the membership that best fits the way you want to style,
-            explore, and create with Mila.
-          </Text>
+          <Text className="font-body text-center text-base text-body">{intro}</Text>
         </View>
 
         {subscription.isError ? (

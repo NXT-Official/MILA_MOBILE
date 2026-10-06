@@ -150,3 +150,21 @@ test("out of credits opens the paywall sheet, never a generic error", async () =
 
   await waitFor(() => expect(screen.getByText("paywall stub")).toBeTruthy());
 });
+
+test("after the paywall is dismissed she is told her credits reset, not that a membership will refresh them", async () => {
+  analyze.mockResolvedValue({
+    success: false,
+    error: "ANALYSIS_CREDITS_EXHAUSTED",
+  } as PersonalColorAnalysisResult);
+  const { screen } = await mount();
+
+  await openCamera(screen);
+  await fireEvent.press(screen.getByLabelText("Take a photo"));
+  await waitFor(() => expect(screen.getByText("paywall stub")).toBeTruthy());
+  await fireEvent.press(screen.getByLabelText("Dismiss paywall"));
+
+  expect(screen.getByText("You're out of studio credits for today. They reset tomorrow.")).toBeTruthy();
+  expect(screen.queryByText(/membership refreshes/i)).toBeNull();
+  expect(screen.queryByText(/ANALYSIS_/)).toBeNull();
+  expect(screen.getByRole("button", { name: "Choose my season instead" })).toBeTruthy();
+});

@@ -274,13 +274,20 @@ export function DualCaptureScreen() {
         />
       ) : null}
 
+      {/* Once publishing has started, leaving does not cancel it: the upload and
+          the post settle in the background (see `usePublishPost`). "Nothing is
+          posted" is only true before she taps Post. */}
       <ConfirmSheet
         visible={discardOpen}
         onClose={() => setDiscardOpen(false)}
-        title="Discard this look?"
-        message="Your photographs are dropped and nothing is posted. None of it has been uploaded yet."
-        confirmLabel="Discard"
-        destructive
+        title={publish.isPending ? "Leave while your look posts?" : "Discard this look?"}
+        message={
+          publish.isPending
+            ? "Your look may still finish posting in the background, so it can still appear in the feed."
+            : "Your photographs are dropped and nothing is posted."
+        }
+        confirmLabel={publish.isPending ? "Leave" : "Discard"}
+        destructive={!publish.isPending}
         onConfirm={() => {
           setDiscardOpen(false);
           leave();

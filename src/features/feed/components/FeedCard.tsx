@@ -46,11 +46,14 @@ export function FeedCard({
   /** Own posts only; the context menu has no meaning on someone else's. */
   onLongPress: (post: FeedPost) => void;
   onOpenAuthor: (userId: string) => void;
-  /** Only offered when the post was published from a generated look. */
+  /** Own posts only, and only when the post was published from a generated look. */
   onOpenBlueprint: () => void;
   onSelectItem: (item: PostItem) => void;
 }) {
   const author = post.is_self ? "You" : post.author_name?.trim() || "Member";
+  // The blueprint opens the viewer's own History. A look is private to its
+  // author, so on someone else's post there is nothing of theirs to open.
+  const showBlueprint = post.is_self && Boolean(post.generated_look_id);
 
   return (
     // The card clips the photograph to its own radius, so the image needs no
@@ -102,7 +105,7 @@ export function FeedCard({
         ))}
       </Pressable>
 
-      {post.caption || post.generated_look_id ? (
+      {post.caption || showBlueprint ? (
         <View className="gap-md px-lg py-lg">
           {post.caption ? (
             <Text numberOfLines={4} className="font-display text-base text-ink">
@@ -110,7 +113,7 @@ export function FeedCard({
             </Text>
           ) : null}
 
-          {post.generated_look_id ? (
+          {showBlueprint ? (
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="View the AI blueprint behind this look"

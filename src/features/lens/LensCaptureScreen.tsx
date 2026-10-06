@@ -366,13 +366,22 @@ export function LensCaptureScreen({
         </View>
       )}
 
+      {/* Once the request is in flight, leaving does not cancel it: the paid call
+          settles in the background (see `useAnalyzeOutfit`). "No credit has been
+          used" is only true before the photo is sent. */}
       <ConfirmSheet
         visible={discardOpen}
         onClose={() => setDiscardOpen(false)}
-        title="Discard this photo?"
-        message="You'll need to take it again. Nothing has been analysed yet, so no credit has been used."
-        confirmLabel="Discard"
-        destructive
+        title={run.isPending ? "Leave while Mila reads this?" : "Discard this photo?"}
+        message={
+          run.isPending
+            ? dupeMode
+              ? "Mila may still finish this search in the background, and a credit may still be used."
+              : "Mila may still finish reading this in the background, and a credit may still be used. If she does, the look will be in your History."
+            : "You'll need to take it again. Nothing has been analysed yet, so no credit has been used."
+        }
+        confirmLabel={run.isPending ? "Leave" : "Discard"}
+        destructive={!run.isPending}
         onConfirm={() => {
           setDiscardOpen(false);
           router.back();

@@ -316,7 +316,7 @@ export function PersonalColorCapture({
             setPaywallOpen(false);
             fail({
               kind: "paywall",
-              message: "You're out of studio credits — membership refreshes them daily.",
+              message: "You're out of studio credits for today. They reset tomorrow.",
             });
           }}
         />

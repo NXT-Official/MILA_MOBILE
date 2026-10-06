@@ -10,7 +10,6 @@ import { useMySubscription } from "@/hooks/use-my-subscription";
 import { useProfile } from "@/hooks/use-profile";
 import { useSubscriptionPlans } from "@/hooks/use-subscription-plans";
 import { formatPeriodDate, resolveMembership } from "@/lib/subscription-status";
-import { useAuthStore } from "@/stores/auth-store";
 
 /**
  * The header avatar's destination — the web's membership drawer, as a sheet.
@@ -26,7 +25,6 @@ import { useAuthStore } from "@/stores/auth-store";
  * balance.
  */
 export function AccountSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
-  const email = useAuthStore((s) => s.session?.user.email ?? null);
   const { data: profile } = useProfile();
   const subscription = useMySubscription();
   const plans = useSubscriptionPlans();
@@ -38,8 +36,10 @@ export function AccountSheet({ visible, onClose }: { visible: boolean; onClose: 
     plans.data?.find((plan) => plan.id === subscription.data?.plan_id)?.title ?? null;
   const renewal = formatPeriodDate(membership.date);
 
-  const name = profile?.full_name?.trim() || email?.split("@")[0] || "Member";
-  const handle = email?.split("@")[0] ?? "member";
+  // Her name as she gave it, else a plain "Member". Never her sign-in address:
+  // the front of an email is neither a name nor a handle, and showing it as one
+  // hands her private login back as if it were public identity.
+  const name = profile?.full_name?.trim() || "Member";
   const monogram = name[0].toUpperCase();
 
   function go(href: Parameters<typeof router.push>[0]) {
@@ -67,9 +67,6 @@ export function AccountSheet({ visible, onClose }: { visible: boolean; onClose: 
                 </Text>
                 {membership.inForce ? <VerifiedBadge /> : null}
               </View>
-              <Text numberOfLines={1} className="font-body text-sm text-muted">
-                @{handle}
-              </Text>
             </View>
           </View>
 

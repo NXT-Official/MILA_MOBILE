@@ -19,6 +19,10 @@ import {
  * after three seconds is how it gets missed. It is opened by the server's error
  * code and by nothing else: no screen inspects a local balance to decide
  * whether to show it.
+ *
+ * Payments are not live yet, so the copy states what is true — credits reset
+ * daily and memberships are coming — and the plans below are information, not
+ * an offer. The button leads to the membership screen, which says the same.
  */
 export function PaywallSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const { data: plans, isPending, isError, refetch } = useSubscriptionPlans();
@@ -27,8 +31,7 @@ export function PaywallSheet({ visible, onClose }: { visible: boolean; onClose: 
     <Sheet visible={visible} onClose={onClose} title="You're out of credits">
       <View className="gap-lg">
         <Text className="font-body text-base text-body">
-          Credits refresh daily with a membership. Choose the one that fits how often you dress with
-          Mila.
+          Your credits reset tomorrow. Memberships open soon. Your stylist is getting ready.
         </Text>
 
         {isPending ? <LoadingState label="Loading membership plans" lines={3} /> : null}
