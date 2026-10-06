@@ -12,33 +12,74 @@ export type CaptchaGateHandle = {
 };
 
 /**
+ * What the member is told after a challenge that did not produce a token. A
+ * challenge she closed herself is not one of these: backing out needs no
+ * message, the checkbox just goes back to the start.
+ */
+type Notice = "failed" | "expired";
+
+const NOTICE_COPY: Record<Notice, string> = {
+  failed: "Couldn't check that. Tap to try again.",
+  expired: "That check timed out. Tap to try again.",
+};
+
+/** The library's message event, narrowed to the two fields the gate reads. */
+type CaptchaMessage = { nativeEvent: { data: string }; success?: boolean };
+
+/**
+ * The library reports every outcome through one channel as a bare string: the
+ * token on success, otherwise a name such as `challenge-closed` or
+ * `network-error`. It marks a token with `success: true` (and `open` with it
+ * too, which the caller has already ruled out); its own `cancel` and
+ * loading-timeout events carry no `success` at all.
+ *
+ * `success` alone is not enough: the library also flags any long enough message
+ * as a token, including a script-load error sentence. A token is one unbroken
+ * string, so anything with whitespace in it is an error message, not a token.
+ */
+function isToken(event: CaptchaMessage): boolean {
+  return event.success === true && /^\S+$/.test(event.nativeEvent.data);
+}
+
+/**
  * hCaptcha is a hard requirement, not a nicety: this Supabase project has
  * captcha protection enabled, so `signInWithPassword` without a token is
  * rejected server-side with `captcha_failed`.
  *
  * A token is single-use and short-lived, so it is cleared after every attempt —
  * success or failure. Reusing one produces a failure the member cannot act on.
+ *
+ * Only a success event carrying a token reads as verified. Every other message
+ * settles `null`, so a closed challenge or a dropped connection can never be
+ * mistaken for a token and sent to sign-in.
  */
 export const CaptchaGate = forwardRef<CaptchaGateHandle, { verified: boolean; onChange: (token: string | null) => void }>(
   function CaptchaGate({ verified, onChange }, ref) {
     const widget = useRef<ConfirmHcaptcha>(null);
     const resolver = useRef<((token: string | null) => void) | null>(null);
     const [pending, setPending] = useState(false);
+    const [notice, setNotice] = useState<Notice | null>(null);
 
-    const settle = (token: string | null) => {
+    const settle = (token: string | null, next: Notice | null = null) => {
       setPending(false);
+      setNotice(next);
       widget.current?.hide();
       onChange(token);
       resolver.current?.(token);
       resolver.current = null;
     };
 
+    const open = () => {
+      setNotice(null);
+      setPending(true);
+      widget.current?.show();
+    };
+
     useImperativeHandle(ref, () => ({
       challenge: () =>
         new Promise<string | null>((resolve) => {
           resolver.current = resolve;
-          setPending(true);
-          widget.current?.show();
+          open();
         }),
       reset: () => {
         onChange(null);
@@ -46,12 +87,13 @@ export const CaptchaGate = forwardRef<CaptchaGateHandle, { verified: boolean; on
       },
     }));
 
-    const onMessage = (event: { nativeEvent: { data: string } }) => {
+    const onMessage = (event: CaptchaMessage) => {
       const data = event.nativeEvent.data;
-      // The library reports outcomes as bare strings; anything else is a token.
-      if (data === "cancel" || data === "error" || data === "expired") return settle(null);
       if (data === "open") return;
-      settle(data);
+      if (isToken(event)) return settle(data);
+      if (data === "cancel" || data === "challenge-closed") return settle(null);
+      if (data === "expired") return settle(null, "expired");
+      settle(null, "failed");
     };
 
     return (
@@ -80,8 +122,7 @@ export const CaptchaGate = forwardRef<CaptchaGateHandle, { verified: boolean; on
           accessibilityLabel="Verify you are human"
           onPress={() => {
             if (verified) return;
-            setPending(true);
-            widget.current?.show();
+            open();
           }}
           className="w-full flex-row items-center gap-md rounded-control border border-border bg-surface px-lg py-md dark:border-border/12"
         >
@@ -92,10 +133,20 @@ export const CaptchaGate = forwardRef<CaptchaGateHandle, { verified: boolean; on
                 : "h-6 w-6 items-center justify-center rounded-control border border-border dark:border-border/12"
             }
           >
-            {verified ? <Icon name="check" size="xs" color="onInk" /> : null}
+            {verified ? (
+              <Icon name="check" size="xs" color="onInk" />
+            ) : notice ? (
+              <Icon name="alert" size="xs" color="destructive" />
+            ) : null}
           </View>
-          <Text className="flex-1 font-body text-base text-ink">
-            {verified ? "Verified" : pending ? "Opening challenge…" : "I am human"}
+          <Text accessibilityLiveRegion="polite" className="flex-1 font-body text-base text-ink">
+            {verified
+              ? "Verified"
+              : pending
+                ? "Opening challenge…"
+                : notice
+                  ? NOTICE_COPY[notice]
+                  : "I am human"}
           </Text>
           <Text className="font-body text-micro text-muted">hCaptcha</Text>
         </Pressable>

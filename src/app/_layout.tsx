@@ -219,10 +219,17 @@ function isFullBleed(pathname: string): boolean {
   );
 }
 
-// `Sentry.wrap` adds an error boundary and touch-event breadcrumbs around the
-// whole tree at no cost when reporting is disabled — `enabled: false` (no
-// DSN) makes the wrapped client a no-op, so this is safe on every developer
-// machine and every build that has not been given a DSN.
+// expo-router wraps this route in an error boundary only when the module
+// exports one under exactly this name. It covers every screen below — `(tabs)`
+// and the rest declare none of their own — so a render error anywhere shows the
+// retry screen instead of closing the app.
+export { AppErrorBoundary as ErrorBoundary } from "@/components/feedback/AppErrorBoundary";
+
+// `Sentry.wrap` adds touch-event breadcrumbs and performance profiling around
+// the whole tree (it adds no error boundary — the export above is that) at no
+// cost when reporting is disabled — `enabled: false` (no DSN) makes the
+// wrapped client a no-op, so this is safe on every developer machine and every
+// build that has not been given a DSN.
 function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
     PlayfairDisplay_700Bold,

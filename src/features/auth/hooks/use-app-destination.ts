@@ -26,9 +26,13 @@ export function useAppDestination(): { ready: boolean; destination: Destination 
     hasSession,
     recovery,
     suspended: profile?.suspended === true,
-    // A failed profile read must not strand her on a blank screen; treat it as
-    // incomplete so onboarding can re-fetch and recover.
-    profileComplete: isError ? false : isStyleProfileComplete(toStyleProfileRow(profile)),
+    // Judge the profile she has. A failed refetch (every foreground makes one)
+    // keeps the last good row in the cache, so `isError` alone says nothing
+    // about whether she finished onboarding — treating it as incomplete sent a
+    // member who had to a screen she was stuck on. Only an error with no row at
+    // all has nothing to judge; that falls through as incomplete so onboarding
+    // can re-fetch and recover rather than strand her on a blank screen.
+    profileComplete: isError && !profile ? false : isStyleProfileComplete(toStyleProfileRow(profile)),
   });
 
   return { ready: !authLoading && profileSettled, destination };
