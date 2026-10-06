@@ -1,0 +1,64 @@
+__tests__/launch-hold-test.tsx
+  s_755964b2e0c3da::t_e484174ccff1df 1-167
+  s_755964b2e0c3da::t_f9053b5431edd2 168-169
+__tests__/profile-read-deadline-test.ts
+  s_755964b2e0c3da::t_390450ccf07389 1-86
+  s_755964b2e0c3da::t_eb77cf9ec0a5a7 87-93
+__tests__/auth-session-lockless-test.ts
+  s_755964b2e0c3da::t_ecb81a4fbccad2 256-301
+__tests__/auth-fetch-test.ts
+  s_755964b2e0c3da::t_e1fe0a58f43640 138
+  s_112de9b654bcdf::t_c34325cfc045fb 174-257
+src/features/auth/LaunchOfflineScreen.tsx
+  s_755964b2e0c3da::t_56fca4203ce21a 8-16,19-21,23-24,26-31,33,42-43,49-50,52-59
+src/features/auth/hooks/use-launch-hold.ts
+  s_755964b2e0c3da::t_1b2454e36ef174 2-21,26-40,42,49-60,72-73
+  s_755964b2e0c3da::t_d400132325adb4 62-70
+  s_755964b2e0c3da::t_441ce15d99f430 1,22-25,41,43-48,61,71
+__tests__/auth-listener-restore-test.tsx
+  s_755964b2e0c3da::t_51272b8d06dc6d 20-25,47,49,51,76-108,137,272,285-298,300-302,426,437,459,472-473,479,496
+__tests__/launch-offline-screen-test.tsx
+  s_755964b2e0c3da::t_43010b75e9be43 33-34,66-95
+__tests__/profile-face-source-test.ts
+  s_755964b2e0c3da::t_bfd7472f201cff 19-25
+__tests__/profile-username-test.ts
+  s_755964b2e0c3da::t_58a1e5cf79848c 23-24
+__tests__/root-layout-launch-test.tsx
+  s_755964b2e0c3da::t_27689accdbc93a 78,83,107,117,151-170
+src/app/_layout.tsx
+  s_755964b2e0c3da::t_b68dee3a0e9bce 29,65-69,85-95
+src/features/auth/hooks/use-auth-listener.ts
+  s_755964b2e0c3da::t_cc378f565a6d6c 15-17,35-42,44-48,61,91-94,156
+src/hooks/use-profile.ts
+  s_755964b2e0c3da::t_f017c3e102d10e 26-28
+src/services/supabase/auth-fetch.ts
+  s_755964b2e0c3da::t_74984661f87204 18-21,23-38,55-65,72-73,75,77,81-122,139-140,143,153,155,165
+src/services/supabase/profile.ts
+  s_755964b2e0c3da::t_21ed136922cbb2 129-156,158-163
+src/stores/auth-store.ts
+  s_755964b2e0c3da::t_4a7cc96a76b357 26-30,57-60
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "fef26af5903459864c41aef207fea25043504340",
+  "prompts": {},
+  "sessions": {
+    "s_112de9b654bcdf": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-aead46551284f55e9",
+        "model": "unknown"
+      },
+      "human_author": "naaxtech <naaxtech.official@gmail.com>"
+    },
+    "s_755964b2e0c3da": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "41717171-e98d-4ccb-91e6-20f4d84aa5ab",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "naaxtech <naaxtech.official@gmail.com>"
+    }
+  }
+}
