@@ -31,6 +31,7 @@ import { LensSheet } from "@/features/lens/components/LensSheet";
 // `Sentry.init` needs to run before anything else in the tree can throw, so a
 // crash during font loading or session resolution below is still reported.
 import "@/services/crash-reporting";
+import { captureScreen } from "@/services/posthog";
 import { queryClient } from "@/services/query-client";
 import { useLensStore } from "@/stores/lens-store";
 import { useOnboardingStore } from "@/stores/onboarding-store";
@@ -64,6 +65,13 @@ function RootNavigator() {
   useEffect(() => {
     if (ready || authCallback) SplashScreen.hideAsync();
   }, [ready, authCallback]);
+
+  // Screen views for product analytics: one effect on the router pathname
+  // covers every push and tab switch — the same single-point capture the web
+  // app does from its root route.
+  useEffect(() => {
+    captureScreen(pathname);
+  }, [pathname]);
 
   // Hold the stack back until the destination is known — rendering it first
   // would flash the wrong group for a frame on every cold start.
