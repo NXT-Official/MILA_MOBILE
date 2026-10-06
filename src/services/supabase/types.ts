@@ -598,6 +598,65 @@ export type Database = {
           },
         ];
       };
+      // Hand-written from the web migration that adds `saved_products` (wave 2,
+      // R3) until the types are regenerated against a database that has it.
+      // `snapshot` is filled by a BEFORE INSERT trigger from `products`, so the
+      // client never sends one; there is no UPDATE grant.
+      saved_products: {
+        Row: {
+          created_at: string;
+          id: string;
+          outfit_id: string | null;
+          post_item_id: string | null;
+          product_id: string | null;
+          snapshot: Json;
+          source: string;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          outfit_id?: string | null;
+          post_item_id?: string | null;
+          product_id?: string | null;
+          snapshot?: Json;
+          source: string;
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          outfit_id?: string | null;
+          post_item_id?: string | null;
+          product_id?: string | null;
+          snapshot?: Json;
+          source?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "saved_products_outfit_id_fkey";
+            columns: ["outfit_id"];
+            isOneToOne: false;
+            referencedRelation: "outfits";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "saved_products_post_item_id_fkey";
+            columns: ["post_item_id"];
+            isOneToOne: false;
+            referencedRelation: "post_items";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "saved_products_product_id_fkey";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       staff_audit_log: {
         Row: {
           action: string;

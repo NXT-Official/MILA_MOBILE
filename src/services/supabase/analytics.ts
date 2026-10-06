@@ -11,7 +11,9 @@ export type TrackedEventName =
   | "signup_completed"
   | "onboarding_completed"
   | "look_generated"
-  | "purchase_started";
+  | "purchase_started"
+  | "product_saved"
+  | "product_unsaved";
 
 // Best-effort: a failed analytics insert must never break the caller's flow
 // or surface to the user.

@@ -11,6 +11,7 @@ export const queryKeys = {
   // Mobile is a member application; those surfaces do not exist here in any form.
   subscriptionPlans: ["subscription-plans"] as const,
   savedPalettes: (userId: string | undefined) => ["saved-palettes", userId] as const,
+  savedProducts: (userId: string | undefined) => ["saved-products", userId] as const,
   similarItems: (postItemId: string) => ["similar-items", postItemId] as const,
   profilePhotoUrl: (userId: string | undefined) => ["profile-photo-url", userId] as const,
 };

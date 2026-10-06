@@ -3,6 +3,7 @@ import { supabase } from "@/services/supabase/client";
 import { fetchOutfits } from "@/services/supabase/outfits";
 import { fetchSavedPalettes } from "@/services/supabase/palettes";
 import { fetchProfile } from "@/services/supabase/profile";
+import { listSavedProducts } from "@/services/supabase/saved-products";
 
 /**
  * The member's data, assembled client-side.
@@ -28,6 +29,12 @@ export type ExportedData = {
   posts: unknown[];
   saved_palettes: unknown[];
   favourites: unknown[];
+  /**
+   * The recommended pieces she saved. Absent, not empty, while the
+   * saved-pieces table does not exist yet (the web export does the same): an
+   * unapplied migration holds nothing of hers, and is not a failed export.
+   */
+  saved_products?: unknown[];
 };
 
 export async function assembleExport(account: {
@@ -39,12 +46,13 @@ export async function assembleExport(account: {
   // Independent reads, so they go together. A failure in any one rejects the
   // whole export rather than handing her a file with a silently missing
   // section — an incomplete export that looks complete is the worse outcome.
-  const [profile, outfits, palettes, favourites, member] = await Promise.all([
+  const [profile, outfits, palettes, favourites, member, savedProducts] = await Promise.all([
     fetchProfile(userId),
     fetchOutfits(userId),
     fetchSavedPalettes(userId),
     fetchFavourites(userId),
     getMemberProfile(userId),
+    listSavedProducts(userId),
   ]);
 
   return {
@@ -55,6 +63,7 @@ export async function assembleExport(account: {
     posts: member.posts,
     saved_palettes: palettes,
     favourites,
+    ...(savedProducts.status === "ok" ? { saved_products: savedProducts.items } : {}),
   };
 }
 

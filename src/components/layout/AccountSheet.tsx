@@ -116,6 +116,12 @@ export function AccountSheet({ visible, onClose }: { visible: boolean; onClose: 
             value="Every look you have analysed"
             onPress={() => go("/history")}
           />
+          <SettingsRow
+            icon="bookmarkCheck"
+            label="Saved pieces"
+            value="Pieces Mila recommended that you kept"
+            onPress={() => go("/saved")}
+          />
           <SettingsRow icon="settings" label="Settings" onPress={() => go("/settings")} />
         </SettingsList>
       </View>

@@ -2,8 +2,10 @@ import {
   AlertCircle,
   ArrowLeft,
   ArrowRight,
+  Backpack,
   BadgeCheck,
   Bookmark,
+  BookmarkCheck,
   CalendarDays,
   Camera,
   Check,
@@ -14,10 +16,14 @@ import {
   CloudOff,
   CloudRain,
   Coins,
+  createLucideIcon,
   Download,
   ExternalLink,
   Eye,
   EyeOff,
+  Gem,
+  Glasses,
+  Handbag,
   HelpCircle,
   Image as ImageIcon,
   ImageOff,
@@ -48,10 +54,12 @@ import {
   Star,
   Sun,
   SwitchCamera,
+  Tag,
   Trash2,
   Truck,
   UserRound,
   Wand2,
+  Watch,
   WifiOff,
   Wind,
   X,
@@ -60,6 +68,32 @@ import {
 import { iconDefaults, iconSizes, type IconSize } from "@/theme/icons";
 import { useThemeColor } from "@/theme/tailwind";
 import type { ColorToken } from "@/theme/tokens";
+
+import { garmentGlyphs } from "./garment-glyphs";
+
+/**
+ * The `@lucide/lab` garment glyphs (data in `./garment-glyphs`), built with
+ * lucide's own factory so they take the same props as every icon below. Built
+ * here because this is the one file allowed to import the icon library.
+ * The copied data is ISC-licensed (c) Lucide Icons and Contributors; the full
+ * notice sits at the top of `./garment-glyphs`, as the licence requires.
+ *
+ * // src: lucide-react-native 1.30.0 · dist/types/lucide-react-native.d.ts:
+ * //   createLucideIcon(iconName: string, iconNode: IconNode)
+ */
+const Trousers = createLucideIcon("trousers", garmentGlyphs.trousers);
+const Shorts = createLucideIcon("shorts", garmentGlyphs.shorts);
+const Skirt = createLucideIcon("skirt", garmentGlyphs.skirt);
+const Dress = createLucideIcon("dress", garmentGlyphs.dress);
+const Jacket = createLucideIcon("jacket", garmentGlyphs.jacket);
+const Vest = createLucideIcon("vest", garmentGlyphs.vest);
+const Sneaker = createLucideIcon("sneaker", garmentGlyphs.sneaker);
+const HighHeel = createLucideIcon("high-heel", garmentGlyphs.highHeel);
+const Socks = createLucideIcon("socks", garmentGlyphs.socks);
+const Belt = createLucideIcon("belt", garmentGlyphs.belt);
+const Scarf = createLucideIcon("scarf", garmentGlyphs.scarf);
+const HatBowler = createLucideIcon("hat-bowler", garmentGlyphs.hatBowler);
+const GemRing = createLucideIcon("gem-ring", garmentGlyphs.gemRing);
 
 /**
  * The registry is the allow-list. Only icons named here exist in Mila, and only
@@ -145,6 +179,36 @@ export const icons = {
   prompt: Wand2,
   attach: ImagePlus,
   mic: Mic,
+  // Saved pieces. `bookmark` (above) is the unsaved state of the save toggle;
+  // the check is the saved state, so the state is carried by shape, not hue.
+  bookmarkCheck: BookmarkCheck,
+  /**
+   * Garments — the recommended-piece badge. Named for the drawing, and exactly
+   * the `GarmentIcon` names in `lib/garment-label.ts`, so a label maps to a
+   * glyph with no lookup table between them. The lucide-react-native set has
+   * no trousers, skirt or heel; those come from `./garment-glyphs`, copied
+   * from `@lucide/lab` and built with lucide's own factory.
+   */
+  shirt: Shirt,
+  trousers: Trousers,
+  shorts: Shorts,
+  skirt: Skirt,
+  dress: Dress,
+  jacket: Jacket,
+  vest: Vest,
+  sneaker: Sneaker,
+  heel: HighHeel,
+  socks: Socks,
+  belt: Belt,
+  scarf: Scarf,
+  hat: HatBowler,
+  handbag: Handbag,
+  backpack: Backpack,
+  gem: Gem,
+  ring: GemRing,
+  watch: Watch,
+  sunglasses: Glasses,
+  tag: Tag,
 } as const;
 
 export type IconName = keyof typeof icons;

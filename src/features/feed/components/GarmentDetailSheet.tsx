@@ -148,7 +148,14 @@ export function GarmentDetailSheet({
             ) : (
               <View className="flex-row flex-wrap gap-md">
                 {matches.map((match) => (
-                  <DupeMatchCard key={match.id} match={match} />
+                  // Saved as found on a feed post's garment, linked to that
+                  // post item; Lens Dupe Hunter results keep the "dupe" default.
+                  <DupeMatchCard
+                    key={match.id}
+                    match={match}
+                    saveSource="post_item"
+                    postItemId={item.id}
+                  />
                 ))}
               </View>
             )}

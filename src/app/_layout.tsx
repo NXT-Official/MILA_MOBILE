@@ -130,6 +130,7 @@ function RootNavigator() {
             <Stack.Screen name="membership/index" />
             <Stack.Screen name="history/index" />
             <Stack.Screen name="palettes/index" />
+            <Stack.Screen name="saved/index" />
             <Stack.Screen name="settings/index" />
             <Stack.Screen name="settings/account" />
             <Stack.Screen name="settings/location" />

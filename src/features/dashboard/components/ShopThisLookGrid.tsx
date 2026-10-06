@@ -2,7 +2,10 @@ import { Image } from "expo-image";
 import * as WebBrowser from "expo-web-browser";
 import { Pressable, Text, View } from "react-native";
 
+import { GarmentBadge } from "@/components/ui/GarmentBadge";
 import { Icon } from "@/components/ui/Icon";
+import { SaveProductButton } from "@/components/ui/SaveProductButton";
+import { garmentFor } from "@/lib/garment-label";
 import type { ShoppablePick } from "@/types/look";
 import { formatPrice } from "@/utils/format-price";
 
@@ -37,6 +40,9 @@ export function ShopThisLookGrid({ items }: { items: ShoppablePick[] }) {
 
 function ProductCard({ item }: { item: ShoppablePick }) {
   const verified = item.verification_status === "verified" && item.last_verified_at;
+  // The photo shows a whole outfit; the badge and the line under it say which
+  // piece of it this product is.
+  const garment = garmentFor(item.category, item.title);
 
   return (
     <View className="w-[48%] overflow-hidden rounded-card border border-border bg-surface dark:border-border/12">
@@ -57,6 +63,10 @@ function ProductCard({ item }: { item: ShoppablePick }) {
             </Text>
           </View>
         )}
+        <GarmentBadge garment={garment} />
+        <View className="absolute right-sm top-sm">
+          <SaveProductButton product={item} source="look" />
+        </View>
       </View>
 
       <View className="flex-1 gap-xs p-md">
@@ -64,7 +74,7 @@ function ProductCard({ item }: { item: ShoppablePick }) {
           {item.source === "similar" ? `Similar · ${item.category}` : item.category}
         </Text>
         <Text className="font-display text-sm leading-snug text-ink" numberOfLines={2}>
-          {item.title}
+          {`${garment.label}: ${item.title}`}
         </Text>
         <Text className="font-body-medium text-sm text-ink">
           {formatPrice(item.price, item.currency)}

@@ -47,6 +47,12 @@ jest.mock("../src/hooks/use-network-status", () => ({
 }));
 jest.mock("../src/hooks/use-countdown", () => ({ useCountdown: () => 0 }));
 jest.mock("../src/hooks/use-profile", () => ({ useProfile: () => ({ data: undefined }) }));
+// The Dupe result cards carry a save bookmark; its hook reaches the Supabase
+// client, which this suite never configures. Saving is not under test here.
+jest.mock("../src/hooks/use-saved-products", () => ({
+  useSavedProducts: () => ({ data: { status: "unavailable" } }),
+  useSetProductSaved: () => ({ mutate: jest.fn(), isPending: false }),
+}));
 jest.mock("../src/stores/auth-store", () => ({
   useAuthStore: (select: (state: { session: { user: { id: string } } }) => unknown) =>
     select({ session: { user: { id: "member" } } }),
