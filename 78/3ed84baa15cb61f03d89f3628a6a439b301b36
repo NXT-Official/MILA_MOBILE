@@ -1,0 +1,118 @@
+__tests__/account-sheet-saved-row-test.tsx
+  s_755964b2e0c3da::t_8f0f4a16b089b4 1-44
+__tests__/saved-products-service-test.ts
+  s_755964b2e0c3da::t_02b4650694019a 21-25,201,203,209-210,213-220
+  s_755964b2e0c3da::t_215dbee13cf57a 1-20,26-200,202,204-208,211-212,221-242
+src/hooks/use-saved-products.ts
+  s_755964b2e0c3da::t_a8449681ad2538 114,117-118
+  s_755964b2e0c3da::t_02b4650694019a 90,128-129,148
+  s_755964b2e0c3da::t_a0bc54dbb91825 1-89,91-113,115-116,119-127,130-147,149-167
+src/features/saved/SavedPiecesScreen.tsx
+  s_755964b2e0c3da::t_fbfb6f1d920cf1 1-216
+__tests__/garment-label-test.ts
+  s_755964b2e0c3da::t_d2d87f9f9ed3c4 1-36,39-49,51-74,76-83,85-87,91,94-115,118,123-157
+  s_755964b2e0c3da::t_7f54435880053b 119-122
+  s_755964b2e0c3da::t_4ff6fa1c56ead5 37-38,50,75,84,88-90,92-93,116-117
+__tests__/export-saved-products-test.ts
+  s_755964b2e0c3da::t_5bcabe11190f46 1-62
+src/app/_layout.tsx
+  s_755964b2e0c3da::t_cdd99b1e9b6601 133
+src/services/supabase/types.ts
+  s_755964b2e0c3da::t_f1f5b4d4359ba0 601-659
+src/constants/query-keys.ts
+  s_755964b2e0c3da::t_cca3a04e49a605 14
+src/app/saved/index.tsx
+  s_755964b2e0c3da::t_82e845c8071b75 1-5
+src/services/export.ts
+  s_755964b2e0c3da::t_49e5dde83417ab 32-37
+  s_755964b2e0c3da::t_b57a1b9eec9ed5 6
+  s_755964b2e0c3da::t_0bf1474d0231ba 49,55,66
+__tests__/garment-label-catalog-test.ts
+  s_755964b2e0c3da::t_acae56fdb3a3de 62-63
+  s_755964b2e0c3da::t_83e78b96cbb3bb 1-61,64-85
+src/components/ui/Icon.tsx
+  s_755964b2e0c3da::t_002c6c32fd1e22 19
+  s_755964b2e0c3da::t_be4eed8cf76be1 72-77,80-96
+  s_755964b2e0c3da::t_026893830781bb 78-79
+  s_755964b2e0c3da::t_9d7f2cc8db376b 57,62
+  s_755964b2e0c3da::t_c66b96ed5db67d 182-211
+  s_755964b2e0c3da::t_0722bdfed53c05 5,8
+  s_755964b2e0c3da::t_5081b74cd314e2 24-26
+  s_755964b2e0c3da::t_519858992facb6 97
+__tests__/capture-exit-copy-test.tsx
+  s_755964b2e0c3da::t_fc99c49fe70366 50-55
+__tests__/garment-badge-test.tsx
+  s_755964b2e0c3da::t_5c0c36e970302f 40-47
+  s_755964b2e0c3da::t_f91e723e666082 1-3,5-39,48-61
+  s_755964b2e0c3da::t_2e8d2c155b9d07 4
+__tests__/recommended-cards-test.tsx
+  s_755964b2e0c3da::t_c04e33852bfa1a 3-4,8-18,20,22-38,60-92,147-150
+  s_755964b2e0c3da::t_3fe479652563e2 1-2,5-7,19,21,39-59,93-146
+src/services/supabase/analytics.ts
+  s_755964b2e0c3da::t_47d9e0304e2444 14-16
+__tests__/garment-glyphs-test.ts
+  s_755964b2e0c3da::t_4ec8823a7b0d52 1-37,39
+  s_755964b2e0c3da::t_bc8d1dbb5d9eea 38
+src/components/ui/SaveProductButton.tsx
+  s_755964b2e0c3da::t_6a20843872e7b3 1-86
+__tests__/garment-detail-sheet-save-test.tsx
+  s_755964b2e0c3da::t_724ea62417a150 50,62-64
+  s_755964b2e0c3da::t_398eeaf115daaa 1-49,51-61,65-66
+__tests__/saved-route-guard-test.tsx
+  s_755964b2e0c3da::t_2117c5830e442c 1,4-5,7-20,22-25,27-61,63-65,89-96,125,127-130,132-135,137,139-144,147,149-156
+  s_755964b2e0c3da::t_ae9ad07ac73ea3 2-3,6,21,26,62,66-88,97-124,126,131,136,138,145-146,148,157
+__tests__/save-product-button-test.tsx
+  s_755964b2e0c3da::t_e011be8cc173a8 98
+  s_755964b2e0c3da::t_9736074217e9a3 96-97,99
+  s_755964b2e0c3da::t_d4527b9609b1bd 141-142,191-195,202
+  s_755964b2e0c3da::t_033bcad03e3024 2
+  s_755964b2e0c3da::t_2ae762508c65be 79-83
+  s_755964b2e0c3da::t_e02014ae88fed7 132,157,161-162,174,197
+  s_755964b2e0c3da::t_050a9edf543403 1,3-78,84-95,100-131,133-140,143-156,158-160,163-173,175-190,196,198-201,203
+__tests__/saved-pieces-screen-test.tsx
+  s_755964b2e0c3da::t_1a2c0ed8edb6ac 2,8-40,48-63,65-117,121-123,125-135,137-149,151-161,163-169,171-175,177-187,189-192
+  s_755964b2e0c3da::t_fa5c0521961419 1,3-7,41-47,64,118-120,124,136,150,162,170,176,188
+src/features/saved/components/SavedPieceCard.tsx
+  s_755964b2e0c3da::t_d3030bf384ddbe 1-97
+src/services/supabase/saved-products.ts
+  s_755964b2e0c3da::t_d7fc547c259a48 191-194,199-202,207-208
+  s_755964b2e0c3da::t_dc9d8b8c89e4ee 1-190,195-198,203-206,209
+src/features/dashboard/components/ShopThisLookGrid.tsx
+  s_755964b2e0c3da::t_d2b12a05f8eaef 66-69,77
+  s_755964b2e0c3da::t_bd2ebce9c9d178 43-45
+  s_755964b2e0c3da::t_16350dd821e922 5,7-8
+src/components/ui/garment-glyphs.ts
+  s_755964b2e0c3da::t_5f221913237067 24,29-30
+  s_755964b2e0c3da::t_08df74a930d660 19-23,25-26,28,33-34,36-37,44-45,47-63,65-79,81-90,92-102,104-114,116-125,127-139,141-151,153-163,165-175,177-194,196-207,209-212
+  s_755964b2e0c3da::t_0ae33cfc7ae7c3 1-18
+  s_755964b2e0c3da::t_4980e83d728631 27,31-32,35,38,40-43,46,64,80,91,103,115,126,140,152,164,176,195,208,213-227
+  s_755964b2e0c3da::t_91256cfe28d9dc 39
+src/components/layout/AccountSheet.tsx
+  s_755964b2e0c3da::t_55bb993bcf825a 119-124
+src/lib/garment-label.ts
+  s_755964b2e0c3da::t_ef4fa7c687ca82 1-7,24,28-69,71,73,75,77-78,80,82-83,86-88,90-102,108-109,114-117,121-122,124,149,154,157-159,195,212,214,216-218,238,240,242-244,278,280,293,301-303,305,307-308,318,320,356,358-359,392,401-403,412-413,425
+  s_755964b2e0c3da::t_f67d35901c58f3 138-144
+  s_755964b2e0c3da::t_f4b7dae9d4e951 8-23,25-27,70,72,74,76,79,81,84-85,89,103-107,110-113,118-120,123,125-137,145-148,150-153,155-156,160-194,196-211,213,215,219-237,239,241,245-277,279,281-292,294-300,304,306,309-317,319,321-355,357,360-391,393-400,404-411,414-424
+src/components/ui/DupeMatchCard.tsx
+  s_755964b2e0c3da::t_c9706a2ea52dec 4,6-7,9,23-31,33-41,44,47-64,66,69-79,83-112,114-117,119-120,122-123,125
+src/components/ui/GarmentBadge.tsx
+  s_755964b2e0c3da::t_6edb33c621aa3b 1-38
+src/features/feed/components/GarmentDetailSheet.tsx
+  s_755964b2e0c3da::t_c6153d638ff763 151-158
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "783ed84baa15cb61f03d89f3628a6a439b301b36",
+  "prompts": {},
+  "sessions": {
+    "s_755964b2e0c3da": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "41717171-e98d-4ccb-91e6-20f4d84aa5ab",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "naaxtech <naaxtech.official@gmail.com>"
+    }
+  }
+}
