@@ -1,0 +1,62 @@
+src/features/feed/DualCaptureScreen.tsx
+  s_755964b2e0c3da::t_ad7f6b8eee64bf 280-281,283
+  s_755964b2e0c3da::t_412decfde18d36 158
+__tests__/capture-exit-copy-test.tsx
+  s_755964b2e0c3da::t_0a7b8bcdc25137 84
+  s_755964b2e0c3da::t_473a3a72cb216d 260-285
+  s_755964b2e0c3da::t_dedc5fbdf009bf 55-63,72,78-83,85-93,102,104,106,109,115-116,123-124
+  s_755964b2e0c3da::t_003b5ecb52a8ab 67-70
+  s_755964b2e0c3da::t_d8e14e355a4b9c 177-223
+__tests__/account-error-copy-test.tsx
+  s_755964b2e0c3da::t_ea19cf71f6d808 140-141,143-145,149-152,163-171,174-183
+  s_755964b2e0c3da::t_fec0dc2c61006c 1-3
+  s_755964b2e0c3da::t_ebf9022875cb22 142,146-148,153-162
+__tests__/onboarding-restart-test.ts
+  s_755964b2e0c3da::t_90eacb278bfb24 31
+__tests__/account-sheet-identity-test.tsx
+  s_755964b2e0c3da::t_1b3d57a617403f 7,14,41-42,46-47,50-51,54-55,59-60,63,68-74,80
+src/services/supabase/profile.ts
+  s_755964b2e0c3da::t_9c5b4b7b922f68 107
+  s_755964b2e0c3da::t_adf97cf5fadaa3 27
+  s_755964b2e0c3da::t_8b357ccc71d025 53
+src/features/settings/AccountScreen.tsx
+  s_755964b2e0c3da::t_321eeaea75c79e 17,31-40,42-57,72-73,79,81-82
+__tests__/membership-honest-copy-test.tsx
+  s_755964b2e0c3da::t_48684a3451f36f 126-140,145-149,153-174,176-181
+  s_755964b2e0c3da::t_9e458f0af8ed6a 175
+__tests__/profile-username-test.ts
+  s_755964b2e0c3da::t_ccfe72f0083440 1-49
+src/components/layout/AccountSheet.tsx
+  s_755964b2e0c3da::t_54d26e6de00376 39-43
+  s_755964b2e0c3da::t_ae5d36085804d3 71-75
+src/types/models.ts
+  s_755964b2e0c3da::t_f03589ebd7dbeb 37-38
+  s_755964b2e0c3da::t_008d9803953dba 179
+src/features/lens/LensCaptureScreen.tsx
+  s_755964b2e0c3da::t_6fd68bd6e203c8 372-374,376
+  s_755964b2e0c3da::t_06a270d6cdffc2 264
+src/components/feedback/PaywallSheet.tsx
+  s_755964b2e0c3da::t_e69a8ba93c34b2 31-35
+  s_755964b2e0c3da::t_2c92701b741bb7 45
+  s_755964b2e0c3da::t_1f5113bb4b9f93 46
+  s_755964b2e0c3da::t_b8d399ec81c24d 9,15
+  s_755964b2e0c3da::t_8069708e980f93 36-39
+__tests__/onboarding-machine-test.ts
+  s_755964b2e0c3da::t_90eacb278bfb24 35
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "bc2857883cabcb7aab845baa36209aa149409b7e",
+  "prompts": {},
+  "sessions": {
+    "s_755964b2e0c3da": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "41717171-e98d-4ccb-91e6-20f4d84aa5ab",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "naaxtech <naaxtech.official@gmail.com>"
+    }
+  }
+}
