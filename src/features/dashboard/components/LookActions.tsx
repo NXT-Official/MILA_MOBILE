@@ -25,6 +25,7 @@ export function LookActions({
   saveError,
   canRenderVisual,
   newVisualLoading,
+  tryAnotherDisabled,
   canAskMila,
   onSave,
   onNewVisual,
@@ -38,6 +39,11 @@ export function LookActions({
   /** Photo consent — gates the style-sheet controls. */
   canRenderVisual: boolean;
   newVisualLoading: boolean;
+  /**
+   * A new look charges a credit, so this follows the primary CTA: off while a
+   * look or its visual is still on its way, and for whatever blocks the CTA.
+   */
+  tryAnotherDisabled: boolean;
   /** True once the look has a saved row to anchor. */
   canAskMila: boolean;
   onSave: () => void;
@@ -86,7 +92,12 @@ export function LookActions({
         />
       ) : null}
 
-      <Button label="Try another look" variant="secondary" onPress={onTryAnother} />
+      <Button
+        label="Try another look"
+        variant="secondary"
+        disabled={tryAnotherDisabled}
+        onPress={onTryAnother}
+      />
 
       {canAskMila ? (
         <Button label="Ask Mila about this look" variant="secondary" onPress={onAskConcierge} />

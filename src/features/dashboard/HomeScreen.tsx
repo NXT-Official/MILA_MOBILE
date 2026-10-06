@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { AccessibilityInfo, Text, View } from "react-native";
 
 import { KeepAwake } from "@/components/feedback/KeepAwake";
@@ -91,6 +91,13 @@ export function HomeScreen() {
    * disabled — see `renderingVisual` below.
    */
   const [sheetRendered, setSheetRendered] = useState(false);
+  /**
+   * Which look the screen is on. It moves every time a new look is requested,
+   * and a style sheet is asked for under the run that was current — so a sheet
+   * that lands after the member has moved to another look is dropped rather
+   * than drawn under the wrong headline and saved with it.
+   */
+  const lookRun = useRef(0);
 
   const userId = useAuthStore((s) => s.session?.user.id ?? null);
   const queryClient = useQueryClient();
@@ -135,6 +142,12 @@ export function HomeScreen() {
     renderingVisual,
   });
   const busy = generate.isPending || styleSheet.isPending || photoPreview.isPending;
+  /**
+   * "Try another look" composes — and charges for — a new look exactly as the
+   * CTA does, so it waits on everything the CTA waits on, and on a request that
+   * is already in flight.
+   */
+  const tryAnotherDisabled = blocked !== null || generate.isPending || styleSheet.isPending;
 
   /**
    * Every failure lands here. `kind` decides the response, so a code that is not
@@ -173,8 +186,13 @@ export function HomeScreen() {
     // saying "View in History" and offers no way to save the replacement.
     save.reset();
 
+    const run = lookRun.current;
+
     styleSheet.mutate(currentLook, {
       onSuccess: (result) => {
+        // The member has moved on to another look since this was asked for.
+        // Its picture belongs to nothing on screen now.
+        if (lookRun.current !== run) return;
         // `unavailable` is a successful response, not a throw — the server has
         // already re-marked the pending flag or refunded. The previous visual,
         // if there was one, stays exactly where it is.
@@ -188,7 +206,11 @@ export function HomeScreen() {
         }
       },
       onError: (error) => {
-        if (!ownsItsOwnSurface(error)) setSheetDetail(resolveApiFailure(error).message);
+        // The paywall and the rate limit belong to the account, not the look,
+        // so they still surface; the slot's own message is for the current look.
+        if (lookRun.current === run && !ownsItsOwnSurface(error)) {
+          setSheetDetail(resolveApiFailure(error).message);
+        }
         handleFailure(error);
       },
     });
@@ -220,6 +242,7 @@ export function HomeScreen() {
   function handleGenerate() {
     if (!weather.data) return;
     haptics.selection();
+    lookRun.current += 1;
     setSheetImage(null);
     setSheetAttempted(false);
     setSheetDetail(null);
@@ -337,7 +360,10 @@ export function HomeScreen() {
 
           <ClimateWidget
             weather={weather.data}
-            loading={profilePending || weather.isPending}
+            // `isLoading` (pending and fetching), not `isPending`: with no hub
+            // the query is disabled, and a disabled query stays pending forever —
+            // which would keep the skeleton up and the city picker out of reach.
+            loading={profilePending || weather.isLoading}
             hasHub={Boolean(profile?.default_location)}
             onPress={() => {
               setHubAutoLocate(false);
@@ -523,6 +549,7 @@ export function HomeScreen() {
                 saveError={save.isError ? resolveApiFailure(save.error).message : null}
                 canRenderVisual={canRenderVisual}
                 newVisualLoading={styleSheet.isPending}
+                tryAnotherDisabled={tryAnotherDisabled}
                 canAskMila={save.isSuccess}
                 onSave={handleSave}
                 onNewVisual={() => setNewVisualOpen(true)}
