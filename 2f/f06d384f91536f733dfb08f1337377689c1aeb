@@ -1,0 +1,23 @@
+__tests__/app-destination-hook-test.ts
+  s_755964b2e0c3da::t_df05bf9aafb4e8 17-25,63,68-82
+__tests__/launch-hold-test.tsx
+  s_755964b2e0c3da::t_079ed18343df35 170-190
+src/features/auth/hooks/use-app-destination.ts
+  s_755964b2e0c3da::t_848c99bc1cb704 15-22,31-32,41-44
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2ff06d384f91536f733dfb08f1337377689c1aeb",
+  "prompts": {},
+  "sessions": {
+    "s_755964b2e0c3da": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "41717171-e98d-4ccb-91e6-20f4d84aa5ab",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "naaxtech <naaxtech.official@gmail.com>"
+    }
+  }
+}
