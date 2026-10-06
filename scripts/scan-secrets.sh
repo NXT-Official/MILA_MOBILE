@@ -44,7 +44,8 @@ echo "→ scanning git history for the same pattern…"
 # not weaken the check: a real secret *value* committed in a doc would still
 # contain none of these bare names and would need its own detection anyway.
 HISTORY_SCOPE=(-- . ':(exclude)scripts/scan-secrets.sh' ':(exclude)*.md')
-if git log -p --all "${HISTORY_SCOPE[@]}" | grep -qE "$PATTERN"; then
+# Not `grep -q`: its early exit SIGPIPEs git log (141) and pipefail reports a hit as clean.
+if git log -p --all "${HISTORY_SCOPE[@]}" | grep -E "$PATTERN" >/dev/null; then
   echo "FAIL: a server-only secret name appears somewhere in git history."
   echo "      Run: git log -p --all -- . ':(exclude)scripts/scan-secrets.sh' ':(exclude)*.md' | grep -E '$PATTERN'"
   echo "      to find the commit(s), then rotate the secret and scrub history."
