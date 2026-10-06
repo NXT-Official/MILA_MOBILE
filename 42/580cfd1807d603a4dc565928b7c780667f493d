@@ -1,0 +1,33 @@
+src/features/dashboard/HomeScreen.tsx
+  s_755964b2e0c3da::t_0050eb40be346d 209-213
+  s_755964b2e0c3da::t_6d6342be05df2c 245
+  s_755964b2e0c3da::t_b4d75b6c9a13db 2
+  s_755964b2e0c3da::t_36eeb53bd25845 145-150
+  s_755964b2e0c3da::t_b4e65e4809468d 189-190,193-195
+  s_755964b2e0c3da::t_eca11835df2d65 94-100
+  s_755964b2e0c3da::t_9d0e35cdcb039f 552
+  s_755964b2e0c3da::t_a7989e3bb3d8cd 363-366
+src/features/dashboard/components/LookActions.tsx
+  s_755964b2e0c3da::t_49d43365a32758 28
+  s_755964b2e0c3da::t_78d7fad527c221 42-46
+  s_755964b2e0c3da::t_021b358e188c45 95-100
+__tests__/home-screen-test.tsx
+  s_755964b2e0c3da::t_23ea606a830741 1-318
+  s_755964b2e0c3da::t_47b9ca00398add 319-337
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "42580cfd1807d603a4dc565928b7c780667f493d",
+  "prompts": {},
+  "sessions": {
+    "s_755964b2e0c3da": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "41717171-e98d-4ccb-91e6-20f4d84aa5ab",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "naaxtech <naaxtech.official@gmail.com>"
+    }
+  }
+}
