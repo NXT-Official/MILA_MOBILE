@@ -1,5 +1,6 @@
 import * as Sentry from "@sentry/react-native";
 import type { ErrorBoundaryProps } from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import { View } from "react-native";
 
@@ -16,11 +17,20 @@ import { ErrorState } from "@/components/ui/ErrorState";
  *
  * Rendered in place of the whole route tree, outside the providers the root
  * layout mounts, so it leans on nothing but the design tokens.
+ *
+ * The root layout holds the native splash until its navigator hides it. A screen
+ * that throws on the first render replaces that navigator, so the hide never
+ * runs — this closes the splash itself, or the retry screen sits behind one that
+ * never lifts.
  */
 export function AppErrorBoundary({ error, retry }: ErrorBoundaryProps) {
   useEffect(() => {
     Sentry.captureException(error);
   }, [error]);
+
+  useEffect(() => {
+    void SplashScreen.hideAsync().catch(() => undefined);
+  }, []);
 
   return (
     <View className="flex-1 items-center justify-center bg-canvas">

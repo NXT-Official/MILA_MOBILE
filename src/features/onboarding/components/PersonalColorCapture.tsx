@@ -13,7 +13,9 @@ import { Icon } from "@/components/ui/Icon";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { queryKeys } from "@/constants/query-keys";
 import { useHaptics } from "@/hooks/use-haptics";
+import { useMySubscription } from "@/hooks/use-my-subscription";
 import { resolvePersonalColorFailure, type PersonalColorFailure } from "@/lib/personal-color-copy";
+import { resolveMembership } from "@/lib/subscription-status";
 import { analyzePersonalColor } from "@/services/api/analysis";
 import { resolveApiFailure } from "@/services/api/client";
 import {
@@ -62,6 +64,9 @@ export function PersonalColorCapture({
   const userId = useAuthStore((s) => s.session?.user.id ?? null);
   const queryClient = useQueryClient();
   const haptics = useHaptics();
+  // The same source the paywall sheet reads: a daily reset is promised only to a
+  // member whose plan is in force, and not while that is still unknown.
+  const planInForce = resolveMembership(useMySubscription().data).inForce;
 
   // Read on mount, never prompt: the briefing owns the request, so the system
   // dialog arrives after the member has read why (§10).
@@ -316,7 +321,11 @@ export function PersonalColorCapture({
             setPaywallOpen(false);
             fail({
               kind: "paywall",
-              message: "You're out of studio credits for today. They reset tomorrow.",
+              // Only a plan in force refills credits; a free member has no
+              // daily allowance, so she is not promised one.
+              message: planInForce
+                ? "You're out of studio credits for today. They reset tomorrow."
+                : "You're out of studio credits.",
             });
           }}
         />

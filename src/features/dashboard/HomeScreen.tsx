@@ -123,16 +123,18 @@ export function HomeScreen() {
   const canRenderVisual = Boolean(profile?.photo_consent_at);
 
   /**
-   * The visual in flight: the server is rendering the sheet, or its image has
-   * arrived and is not on screen yet. The CTA stays disabled the whole time —
-   * a second tap would compose (and pay for) another look on top of the picture
-   * already on its way. A look with no consented photo has no visual to wait
-   * for, so it never blocks.
+   * The visual in flight: the server is rendering the sheet or the portrait
+   * preview, or the sheet's image has arrived and is not on screen yet. The CTA
+   * stays disabled the whole time — a second tap would compose (and pay for)
+   * another look on top of the picture already on its way. A look with no
+   * consented photo has no visual to wait for, so it never blocks.
    */
   const renderingVisual =
     Boolean(look) &&
     canRenderVisual &&
-    (styleSheet.isPending || (Boolean(sheetImage) && !sheetRendered));
+    (styleSheet.isPending ||
+      photoPreview.isPending ||
+      (Boolean(sheetImage) && !sheetRendered));
 
   const blocked = resolveBlockedReason({
     online,
@@ -147,7 +149,8 @@ export function HomeScreen() {
    * CTA does, so it waits on everything the CTA waits on, and on a request that
    * is already in flight.
    */
-  const tryAnotherDisabled = blocked !== null || generate.isPending || styleSheet.isPending;
+  const tryAnotherDisabled =
+    blocked !== null || generate.isPending || styleSheet.isPending || photoPreview.isPending;
 
   /**
    * Every failure lands here. `kind` decides the response, so a code that is not
@@ -221,8 +224,13 @@ export function HomeScreen() {
     setPreviewAttempted(true);
     save.reset();
 
+    const run = lookRun.current;
+
     photoPreview.mutate(currentLook, {
       onSuccess: (result) => {
+        // The member has moved on to another look since this was asked for.
+        // Its picture belongs to nothing on screen now.
+        if (lookRun.current !== run) return;
         if (result.mode === "photo_edit") {
           setPreviewImage(result.imageDataUri);
           setPreviewDetail(null);
@@ -233,7 +241,11 @@ export function HomeScreen() {
         }
       },
       onError: (error) => {
-        if (!ownsItsOwnSurface(error)) setPreviewDetail(resolveApiFailure(error).message);
+        // The account-wide surfaces (paywall, rate limit) still surface; the
+        // slot's own message is for the current look.
+        if (lookRun.current === run && !ownsItsOwnSurface(error)) {
+          setPreviewDetail(resolveApiFailure(error).message);
+        }
         handleFailure(error);
       },
     });

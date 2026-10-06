@@ -108,12 +108,22 @@ describe("SeasonTag", () => {
 describe("CreditsMeter", () => {
   it("announces the balance as a count", async () => {
     const s = await render(<CreditsMeter balance={12} allowance={null} loading={false} />);
-    expect(s.getByLabelText(/^12 credits remaining\. Resets in \d+h \d+m\.$/)).toBeTruthy();
+    expect(s.getByLabelText(/^12 credits remaining\.$/)).toBeTruthy();
   });
 
   it("singularises one credit", async () => {
     const s = await render(<CreditsMeter balance={1} allowance={null} loading={false} />);
-    expect(s.getByLabelText(/^1 credit remaining\. Resets in \d+h \d+m\.$/)).toBeTruthy();
+    expect(s.getByLabelText(/^1 credit remaining\.$/)).toBeTruthy();
+  });
+
+  it("counts down to the reset only when a plan owes a daily allowance", async () => {
+    const s = await render(<CreditsMeter balance={12} allowance={30} loading={false} />);
+    expect(s.getByText(/^Resets in \d+h \d+m\.$/)).toBeTruthy();
+  });
+
+  it("promises no reset to a member whose plan owes no allowance", async () => {
+    const s = await render(<CreditsMeter balance={12} allowance={null} loading={false} />);
+    expect(s.queryByText(/reset/i)).toBeNull();
   });
 
   it("names the plan's allowance when there is one", async () => {
@@ -126,6 +136,14 @@ describe("CreditsMeter", () => {
     const s = await render(<CreditsMeter balance={0} allowance={30} loading={false} />);
     expect(s.getByLabelText(/They reset tomorrow\.$/)).toBeTruthy();
     expect(s.getByText("They reset tomorrow.")).toBeTruthy();
+  });
+
+  it("does not say an empty bucket comes back when no plan refills it", async () => {
+    const s = await render(<CreditsMeter balance={0} allowance={null} loading={false} />);
+    expect(s.getByLabelText(/You've used all your credits\.$/)).toBeTruthy();
+    expect(s.getByText("You've used all your credits.")).toBeTruthy();
+    expect(s.queryByText(/reset/i)).toBeNull();
+    expect(s.queryByLabelText(/reset/i)).toBeNull();
   });
 
   it("treats a null balance as zero rather than blank", async () => {

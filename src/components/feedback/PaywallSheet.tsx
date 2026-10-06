@@ -22,27 +22,29 @@ import { resolveMembership } from "@/lib/subscription-status";
  * code and by nothing else: no screen inspects a local balance to decide
  * whether to show it.
  *
- * Payments are not live yet, so the copy states what is true — credits reset
- * daily and memberships are coming — and the plans below are information, not
- * an offer. The button leads to the membership screen, which says the same.
+ * Payments are not live yet, so the copy states what is true — a plan refills
+ * its member's credits daily, a free member has no allowance to refill, and
+ * memberships are coming — and the plans below are information, not an offer.
+ * The button leads to the membership screen, which says the same.
  */
 export function PaywallSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const { data: plans, isPending, isError, refetch } = useSubscriptionPlans();
   const subscription = useMySubscription();
 
+  // Only a plan in force refills credits each day. Everyone else — no plan, a
+  // lapsed one, or a subscription that is still loading or unreadable — is told
+  // plainly that she has used them, never that they come back tomorrow.
+  const planInForce = resolveMembership(subscription.data).inForce;
   // "Memberships open soon" is only for someone who has none — and only once we
   // know that. A member who holds a plan (bought or granted by staff), or whose
   // subscription is still loading or unreadable, is told nothing about it.
-  const showMembershipsSoon =
-    !subscription.isPending &&
-    !subscription.isError &&
-    !resolveMembership(subscription.data).inForce;
+  const showMembershipsSoon = !subscription.isPending && !subscription.isError && !planInForce;
 
   return (
     <Sheet visible={visible} onClose={onClose} title="You're out of credits">
       <View className="gap-lg">
         <Text className="font-body text-base text-body">
-          Your credits reset tomorrow.
+          {planInForce ? "Your credits reset tomorrow." : "You've used all your credits."}
           {showMembershipsSoon ? " Memberships open soon. Your stylist is getting ready." : ""}
         </Text>
 

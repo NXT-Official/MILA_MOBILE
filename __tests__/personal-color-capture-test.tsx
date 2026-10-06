@@ -17,6 +17,14 @@ jest.mock("../src/components/feedback/PaywallSheet", () =>
 jest.mock("../src/hooks/use-haptics", () => ({
   useHaptics: () => ({ selection: jest.fn(), success: jest.fn() }),
 }));
+const mockSubscription = {
+  data: null as unknown,
+  isPending: false,
+  isError: false,
+};
+jest.mock("../src/hooks/use-my-subscription", () => ({
+  useMySubscription: () => mockSubscription,
+}));
 jest.mock("../src/stores/auth-store", () => ({
   useAuthStore: (select: (state: { session: { user: { id: string } } }) => unknown) =>
     select({ session: { user: { id: "member" } } }),
@@ -97,6 +105,9 @@ beforeEach(() => {
   jest.mocked(camera.requestPermission).mockResolvedValue("granted");
   jest.mocked(camera.openSettings).mockResolvedValue(undefined);
   jest.mocked(camera.pickFromLibrary).mockResolvedValue(null);
+  mockSubscription.data = null;
+  mockSubscription.isPending = false;
+  mockSubscription.isError = false;
 });
 
 test("the camera only opens after the light check", async () => {
@@ -151,7 +162,7 @@ test("out of credits opens the paywall sheet, never a generic error", async () =
   await waitFor(() => expect(screen.getByText("paywall stub")).toBeTruthy());
 });
 
-test("after the paywall is dismissed she is told her credits reset, not that a membership will refresh them", async () => {
+async function dismissCreditsPaywall() {
   analyze.mockResolvedValue({
     success: false,
     error: "ANALYSIS_CREDITS_EXHAUSTED",
@@ -162,9 +173,41 @@ test("after the paywall is dismissed she is told her credits reset, not that a m
   await fireEvent.press(screen.getByLabelText("Take a photo"));
   await waitFor(() => expect(screen.getByText("paywall stub")).toBeTruthy());
   await fireEvent.press(screen.getByLabelText("Dismiss paywall"));
+  return screen;
+}
+
+test("after the paywall is dismissed a member whose plan is in force is told her credits reset", async () => {
+  mockSubscription.data = {
+    status: "active",
+    cancel_at_period_end: false,
+    current_period_end: "2026-11-01T00:00:00Z",
+    paddle_subscription_id: "sub_1",
+  };
+  const screen = await dismissCreditsPaywall();
 
   expect(screen.getByText("You're out of studio credits for today. They reset tomorrow.")).toBeTruthy();
   expect(screen.queryByText(/membership refreshes/i)).toBeNull();
   expect(screen.queryByText(/ANALYSIS_/)).toBeNull();
   expect(screen.getByRole("button", { name: "Choose my season instead" })).toBeTruthy();
+});
+
+// A free member has no daily allowance: nothing resets for her, and she is the
+// one who lands here.
+test("after the paywall is dismissed a member with no plan is not promised a reset", async () => {
+  const screen = await dismissCreditsPaywall();
+
+  expect(screen.getByText("You're out of studio credits.")).toBeTruthy();
+  expect(screen.queryByText(/reset/i)).toBeNull();
+  expect(screen.queryByText(/tomorrow/i)).toBeNull();
+  expect(screen.queryByText(/ANALYSIS_/)).toBeNull();
+  expect(screen.getByRole("button", { name: "Choose my season instead" })).toBeTruthy();
+});
+
+test("while her membership is unknown she is not promised a reset either", async () => {
+  mockSubscription.data = undefined;
+  mockSubscription.isPending = true;
+  const screen = await dismissCreditsPaywall();
+
+  expect(screen.getByText("You're out of studio credits.")).toBeTruthy();
+  expect(screen.queryByText(/reset/i)).toBeNull();
 });

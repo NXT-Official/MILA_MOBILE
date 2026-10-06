@@ -12,10 +12,11 @@ import type { DashboardProfile } from "@/types/models";
  *    forever — so the screen has to read "loading" as "pending AND fetching",
  *    or the city picker never appears and the CTA never explains itself.
  * 2. Nothing can spend a second credit, or attach a picture to the wrong
- *    headline, while the first look's style sheet is still being drawn.
+ *    headline, while the first look's style sheet or portrait preview is still
+ *    being drawn.
  *
  * The weather hook is the real one over a real query client: the bug lives in
- * what a disabled query reports, which a stub would only restate. The two
+ * what a disabled query reports, which a stub would only restate. The
  * mutations are stubs whose `mutate` records its callbacks, so a test can land
  * a result at exactly the moment it chooses. Leaf widgets that need a native
  * module (sheets, the camera widget) are stubbed; the CTA, the climate widget
@@ -73,6 +74,7 @@ const mockState = {
     reset: jest.fn(),
   },
   styleSheet: { isPending: false, mutate: jest.fn() },
+  photoPreview: { isPending: false, mutate: jest.fn() },
 };
 
 jest.mock("../src/hooks/use-profile", () => ({
@@ -103,7 +105,7 @@ jest.mock("../src/features/dashboard/hooks/use-style-sheet", () => ({
   useStyleSheet: () => ({ ...mockState.styleSheet }),
 }));
 jest.mock("../src/features/dashboard/hooks/use-photo-preview", () => ({
-  usePhotoPreview: () => ({ isPending: false, mutate: jest.fn() }),
+  usePhotoPreview: () => ({ ...mockState.photoPreview }),
 }));
 jest.mock("../src/features/dashboard/hooks/use-save-look", () => ({
   useSaveLook: () => ({
@@ -209,6 +211,7 @@ beforeEach(() => {
   mockState.generate.isError = false;
   mockState.generate.error = null;
   mockState.styleSheet.isPending = false;
+  mockState.photoPreview.isPending = false;
   fetchWeather.mockResolvedValue(WEATHER);
 });
 
@@ -333,5 +336,85 @@ describe("Try another look", () => {
     await refresh();
 
     expect(isDisabled(saveButton())).toBe(true);
+  });
+
+  describe("while a portrait preview is being drawn", () => {
+    it("is disabled, and does not spend a credit", async () => {
+      await withLookOnScreen();
+      mockState.photoPreview.isPending = true;
+      await refresh();
+      mockState.generate.mutate.mockClear();
+
+      await fireEvent.press(tryAnotherButton());
+
+      expect(isDisabled(tryAnotherButton())).toBe(true);
+      expect(mockState.generate.mutate).not.toHaveBeenCalled();
+    });
+
+    it("keeps Create my look disabled, with the reason on screen", async () => {
+      await withLookOnScreen();
+      mockState.photoPreview.isPending = true;
+      await refresh();
+      mockState.generate.mutate.mockClear();
+
+      const cta = await createButton();
+      await fireEvent.press(cta);
+
+      expect(isDisabled(cta)).toBe(true);
+      expect(mockState.generate.mutate).not.toHaveBeenCalled();
+      expect(screen.getAllByText("Your look is still rendering. One moment.").length).toBeGreaterThan(0);
+    });
+
+    it("lets both go again once the preview has settled", async () => {
+      await withLookOnScreen();
+      mockState.photoPreview.isPending = true;
+      await refresh();
+      mockState.photoPreview.isPending = false;
+      await refresh();
+
+      expect(isDisabled(tryAnotherButton())).toBe(false);
+      expect(isDisabled(await createButton())).toBe(false);
+    });
+  });
+
+  describe("a portrait preview for a look she has moved on from", () => {
+    const previewButton = () => screen.getByRole("button", { name: "Generate portrait preview" });
+
+    /** Look A's preview is in flight, then look B is on screen and has asked for its own. */
+    async function withPreviewsForBothLooks() {
+      await withLookOnScreen();
+      await fireEvent.press(previewButton());
+      const previewForA = mockState.photoPreview.mutate.mock.calls[0][1];
+
+      await createLook(LOOK_B, async () => fireEvent.press(tryAnotherButton()));
+      await fireEvent.press(previewButton());
+      const previewForB = mockState.photoPreview.mutate.mock.calls[1][1];
+
+      return { previewForA, previewForB };
+    }
+
+    it("is dropped when it lands, so it is never saved under the new headline", async () => {
+      const { previewForA, previewForB } = await withPreviewsForBothLooks();
+
+      await act(async () => previewForA.onSuccess({ mode: "photo_edit", imageDataUri: IMAGE_A }));
+      await refresh();
+      expect(isDisabled(saveButton())).toBe(true);
+
+      await act(async () => previewForB.onSuccess({ mode: "photo_edit", imageDataUri: IMAGE_B }));
+      await refresh();
+      expect(isDisabled(saveButton())).toBe(false);
+    });
+
+    it("does not report its failure under the new look", async () => {
+      const { previewForA, previewForB } = await withPreviewsForBothLooks();
+
+      await act(async () => previewForA.onError(new Error("render failed")));
+      await refresh();
+      expect(screen.queryByText("Something went wrong.")).toBeNull();
+
+      await act(async () => previewForB.onError(new Error("render failed")));
+      await refresh();
+      expect(screen.getByText("Something went wrong.")).toBeTruthy();
+    });
   });
 });

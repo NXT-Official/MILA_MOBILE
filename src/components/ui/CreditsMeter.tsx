@@ -48,12 +48,21 @@ export function CreditsMeter({
   const label = `${count} ${count === 1 ? "credit" : "credits"} remaining${
     allowance ? ` of ${allowance} today` : ""
   }`;
+  // Only a plan's daily allowance comes back. With none, nothing resets for her,
+  // so the meter says nothing about a reset — and an empty one says so plainly.
+  const resetLine = allowance
+    ? empty
+      ? "They reset tomorrow."
+      : `Resets in ${resetIn}.`
+    : empty
+      ? "You've used all your credits."
+      : null;
 
   return (
     <View
       accessible
       accessibilityRole="text"
-      accessibilityLabel={`${label}. ${empty ? "They reset tomorrow." : `Resets in ${resetIn}.`}`}
+      accessibilityLabel={resetLine ? `${label}. ${resetLine}` : `${label}.`}
       className="gap-sm rounded-panel border border-border bg-surface p-lg dark:border-border/12"
     >
       <Text className="font-body-semibold text-section tracking-section uppercase text-muted">
@@ -71,9 +80,7 @@ export function CreditsMeter({
               : "credits left"}
         </Text>
       </View>
-      <Text className="font-body text-sm text-muted">
-        {empty ? "They reset tomorrow." : `Resets in ${resetIn}.`}
-      </Text>
+      {resetLine ? <Text className="font-body text-sm text-muted">{resetLine}</Text> : null}
     </View>
   );
 }

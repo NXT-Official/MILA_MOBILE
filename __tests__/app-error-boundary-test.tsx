@@ -1,5 +1,6 @@
 import * as Sentry from "@sentry/react-native";
 import { fireEvent, render } from "@testing-library/react-native";
+import * as SplashScreen from "expo-splash-screen";
 
 import { AppErrorBoundary } from "@/components/feedback/AppErrorBoundary";
 
@@ -13,12 +14,15 @@ import { AppErrorBoundary } from "@/components/feedback/AppErrorBoundary";
  */
 
 jest.mock("@sentry/react-native", () => ({ captureException: jest.fn() }));
+jest.mock("expo-splash-screen", () => ({ hideAsync: jest.fn() }));
 
 const capture = jest.mocked(Sentry.captureException);
+const hideSplash = jest.mocked(SplashScreen.hideAsync);
 const crash = new Error("Cannot read properties of undefined (reading 'season')");
 
 beforeEach(() => {
   jest.clearAllMocks();
+  hideSplash.mockResolvedValue(undefined);
 });
 
 test("tells her in plain language and offers a way forward", async () => {
@@ -43,6 +47,27 @@ test("retry asks the router to render the screen again", async () => {
   await fireEvent.press(screen.getByRole("button", { name: "Try again" }));
 
   expect(retry).toHaveBeenCalledTimes(1);
+});
+
+/**
+ * The root layout holds the native splash until `RootNavigator` hides it. A
+ * screen that throws on the first render replaces that tree with this one, so
+ * the hide never runs — and the retry screen would sit behind a splash that
+ * never closes.
+ */
+test("closes the splash so the retry screen is visible on a cold start", async () => {
+  await render(<AppErrorBoundary error={crash} retry={jest.fn()} />);
+
+  expect(hideSplash).toHaveBeenCalledTimes(1);
+});
+
+test("a splash that cannot be hidden still leaves the retry screen standing", async () => {
+  hideSplash.mockRejectedValue(new Error("No native splash screen registered"));
+
+  const screen = await render(<AppErrorBoundary error={crash} retry={jest.fn()} />);
+  await screen.rerender(<AppErrorBoundary error={crash} retry={jest.fn()} />);
+
+  expect(screen.getByRole("button", { name: "Try again" })).toBeTruthy();
 });
 
 test("reports the error once, and again for a different one", async () => {
