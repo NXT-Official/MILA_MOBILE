@@ -36,6 +36,17 @@ export const supabase = createClient<Database>(
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: false, // no browser URL to parse
+      // No `lock: processLock`, on purpose. In the installed auth-js the
+      // option is @deprecated and opts into a legacy path that wraps every auth
+      // call in a lock with a 5 s acquire timeout: a refresh slower than that
+      // on a weak connection makes every concurrent getSession() (one per API
+      // request) reject. The default lockless path already single-flights
+      // refreshes and discards a refresh that races a sign-out. What a lock
+      // used to protect here, the chunked session in SecureStore, is now
+      // ordered and atomic inside `supabaseStorage` itself.
+      // `auth-session-lockless-test` pins this against the installed library.
+      // src: node_modules/@supabase/auth-js/migrations/lockless-coordination.md · 2.112.2
+      // src: node_modules/@supabase/auth-js/dist/module/lib/locks.js `processLock` · 2.112.2
     },
   },
 );

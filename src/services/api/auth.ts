@@ -1,4 +1,8 @@
-import type { Session } from "@supabase/supabase-js";
+import {
+  isAuthRefreshDiscardedError,
+  isAuthRetryableFetchError,
+  type Session,
+} from "@supabase/supabase-js";
 import { makeRedirectUri } from "expo-auth-session";
 import Constants from "expo-constants";
 import * as WebBrowser from "expo-web-browser";
@@ -205,8 +209,43 @@ export async function signOut(): Promise<void> {
   // Never swallow this. Supabase returns without clearing the stored session
   // when it cannot read it, so a discarded error is a member who tapped "Sign
   // out", saw the spinner stop, and is still signed in with nothing to retry.
-  const { error } = await supabase.auth.signOut();
+  //
+  // `local`: this phone only. auth-js defaults to `global`, which revokes every
+  // session she has, so signing out here would sign her out of the website and
+  // her other devices too. Account deletion is the one path that ends every
+  // session, and it calls signOut on its own (use-account-actions).
+  // src: node_modules/@supabase/auth-js/dist/module/GoTrueClient.js `signOut` docblock · 2.112.2
+  const { error } = await supabase.auth.signOut({ scope: "local" });
   if (error) throw new ApiError("INTERNAL", "Mila couldn't sign you out. Please try again.", 500);
+}
+
+/**
+ * What the launch gate may conclude from the session on this device.
+ *
+ * `retry` means "unknown, ask again": the stored session needed a refresh and
+ * the network was down (auth-js keeps the session and reports a retryable
+ * error), the refresh was discarded because storage changed under it, or the
+ * secure store itself threw. None of those is "signed out", and routing her to
+ * login on one is how a lift signed members out.
+ * src: node_modules/@supabase/auth-js/dist/module/GoTrueClient.js `__loadSession`, `_callRefreshToken` · 2.112.2
+ */
+export type RestoredSession = { status: "resolved"; session: Session | null } | { status: "retry" };
+
+export async function restoreSession(): Promise<RestoredSession> {
+  let result: Awaited<ReturnType<typeof supabase.auth.getSession>>;
+  try {
+    result = await supabase.auth.getSession();
+  } catch {
+    return { status: "retry" };
+  }
+  const { data, error } = result;
+  if (data.session) return { status: "resolved", session: data.session };
+  if (isAuthRetryableFetchError(error) || isAuthRefreshDiscardedError(error)) {
+    return { status: "retry" };
+  }
+  // No stored session, or the server rejected the refresh token (auth-js has
+  // already removed it): she really is signed out.
+  return { status: "resolved", session: null };
 }
 
 export async function changeEmail(email: string): Promise<void> {

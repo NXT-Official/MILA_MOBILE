@@ -32,6 +32,14 @@ test("resolves when Supabase clears the session", async () => {
   await expect(signOut()).resolves.toBeUndefined();
 });
 
+test("signs out this device only, never her other phones or the website", async () => {
+  // auth-js defaults signOut() to scope "global", which revokes every session
+  // the member has. Signing out of one phone must not sign her out elsewhere.
+  mockSignOut.mockResolvedValue({ error: null });
+  await signOut();
+  expect(mockSignOut).toHaveBeenCalledWith({ scope: "local" });
+});
+
 test("throws when Supabase reports an error, so the button cannot lie", async () => {
   mockSignOut.mockResolvedValue({ error: { message: "network request failed" } });
   await expect(signOut()).rejects.toBeInstanceOf(ApiError);
