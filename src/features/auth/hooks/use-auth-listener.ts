@@ -12,17 +12,11 @@ import { useOnboardingStore } from "@/stores/onboarding-store";
 const FIRST_RETRY_MS = 1_000;
 const MAX_RETRY_MS = 30_000;
 /**
- * Failed secure-store reads in a row, with the app open, before the launch
- * gives up and shows login. A network failure never counts: it retries for as
- * long as it lasts.
+ * Failed secure-store reads in a row, with the app open, before login is shown
+ * while the restore keeps trying. A network failure never counts: it retries
+ * for as long as it lasts.
  */
 const MAX_UNREADABLE_READS = 3;
-/**
- * How long the startup restore may go without an answer before the splash
- * gives way to the offline holding view. A healthy launch answers well inside
- * this; an offline one can take ~30 s just for auth-js's own first attempt.
- */
-const LAUNCH_STALL_MS = 5_000;
 
 /**
  * Mirrors Supabase's session into the store and keeps the query cache honest.
@@ -38,18 +32,20 @@ const LAUNCH_STALL_MS = 5_000;
  * moment to login is what used to sign members out in a lift.
  *
  * The one exception is a secure store that cannot be read at all (a keystore
- * entry that no longer decrypts). Retrying that forever would trap her on the
- * splash with no way to sign in, so after MAX_UNREADABLE_READS failures in a
- * row while the app is open she is shown login. Nothing is deleted: a later
- * sign-in overwrites the entry (`auth-storage.ts` writes over a header it
- * cannot read). Failures while the app is in the background do not count, as
- * iOS refuses keychain reads on a locked phone.
+ * entry that does not decrypt, often only for a few seconds after a reboot).
+ * Holding the splash on that would trap her, so after MAX_UNREADABLE_READS
+ * failures in a row while the app is open she is shown login, exactly as the
+ * holding view's "Sign in again" does: nothing is deleted and this loop keeps
+ * restoring at its backoff, so a keystore that recovers still opens the app,
+ * and a sign-in in the meantime replaces the entry (`auth-storage.ts` writes
+ * over a header it cannot read). Failures while the app is in the background
+ * do not count, as iOS refuses keychain reads on a locked phone.
  *
- * A launch still undecided after LAUNCH_STALL_MS is marked `launchStalled`, and
- * the root layout swaps the splash for the offline holding view. Its "Try
- * again" (`requestLaunchRetry`) starts an attempt here; its "Sign in again"
- * (`signInWhileRestoring`) opens login while this loop keeps restoring, so a
- * later success still opens the app.
+ * The holding view itself is armed by the launch gate (`use-launch-hold`) for
+ * any time the launch is not ready. Its "Try again" (`requestLaunchRetry`)
+ * starts an attempt here; its "Sign in again" (`signInWhileRestoring`) opens
+ * login while this loop keeps restoring, so a later success still opens the
+ * app.
  */
 export function useAuthListener() {
   const setSession = useAuthStore((s) => s.setSession);
@@ -62,18 +58,14 @@ export function useAuthListener() {
     let unreadableReads = 0;
     let inFlight = false;
     let rerunWhenDone = false;
+    let handedToLogin = false;
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
     const launch = useAuthStore.getState();
-
-    const stallTimer = setTimeout(() => {
-      if (!settled && useAuthStore.getState().loading) launch.setLaunchStalled(true);
-    }, LAUNCH_STALL_MS);
 
     const settle = (session: Session | null) => {
       settled = true;
       if (retryTimer) clearTimeout(retryTimer);
       retryTimer = null;
-      clearTimeout(stallTimer);
       setSession(session);
     };
 
@@ -96,9 +88,10 @@ export function useAuthListener() {
       } else {
         unreadableReads = 0;
       }
-      if (unreadableReads >= MAX_UNREADABLE_READS) {
-        settle(null);
-        return;
+      if (unreadableReads >= MAX_UNREADABLE_READS && !handedToLogin) {
+        // Login now, without deleting anything, and keep restoring below.
+        handedToLogin = true;
+        launch.signInWhileRestoring();
       }
 
       if (rerunWhenDone) {
@@ -160,7 +153,7 @@ export function useAuthListener() {
     return () => {
       active = false;
       if (retryTimer) clearTimeout(retryTimer);
-      clearTimeout(stallTimer);
+      if (inFlight) launch.setLaunchAttempting(false);
       unsubscribeRetry();
       appState.remove();
       subscription.subscription.unsubscribe();

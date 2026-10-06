@@ -135,7 +135,7 @@ describe("a deadline on auth requests", () => {
   });
 
   it("does not abort an auth request that answers in time", async () => {
-    baseFetch.mockResolvedValue(respond('{"ok":true}', 200));
+    baseFetch.mockResolvedValue(respond('{"access_token":"a","refresh_token":"r","expires_in":3600}', 200));
     await expect(supabaseFetch(TOKEN, { method: "POST" })).resolves.toBeInstanceOf(Response);
     expect(baseFetch.mock.calls[0][1]?.signal?.aborted).toBe(false);
   });
@@ -169,5 +169,89 @@ describe("everything else", () => {
       await expect(supabaseFetch(url, init)).resolves.toBe(original);
       expect(baseFetch).toHaveBeenLastCalledWith(url, init);
     }
+  });
+});
+
+describe("JSON replies to the token request that did not come from the auth server", () => {
+  // auth-js turns a JSON 4xx into a fatal AuthApiError and a 2xx without a
+  // session into AuthSessionMissingError, and either deletes the session.
+  // src: node_modules/@supabase/auth-js/dist/module/lib/fetch.js `handleError`, `hasSession` · 2.112.2
+  it.each([
+    ["a 200 that is not a session", 200, '{"status":"login_required"}'],
+    ["a 200 with JSON null", 200, "null"],
+    ["the gateway's 401 Invalid API key", 401, '{"message":"Invalid API key","hint":"Double check your Supabase `anon` or `service_role` API key."}'],
+    ["a firewall's JSON 403", 403, '{"error":"Forbidden"}'],
+    ["a 400 with no auth error code", 400, '{"msg":"Bad request"}'],
+    ["a 505 with no auth error code", 505, '{"message":"HTTP version not supported"}'],
+  ])("%s fails as a network error", async (_name, status, body) => {
+    baseFetch.mockResolvedValue(respond(body, status));
+    await expect(supabaseFetch(TOKEN, { method: "POST" })).rejects.toBeInstanceOf(TypeError);
+  });
+
+  it.each([
+    [
+      "a revoked session (session_not_found, current API shape)",
+      403,
+      '{"code":"session_not_found","message":"Session from session_id claim in JWT does not exist"}',
+    ],
+    [
+      "a reused refresh token (refresh_token_already_used, current API shape)",
+      400,
+      '{"code":"refresh_token_already_used","message":"Invalid Refresh Token: Already Used"}',
+    ],
+    ["a validation error (current API shape)", 422, '{"code":"validation_failed","message":"Invalid grant"}'],
+    ["a JSON 503 from the auth server, which auth-js retries itself", 503, '{"code":"unexpected_failure","message":"Unavailable"}'],
+  ])("%s still reaches auth-js unchanged", async (_name, status, body) => {
+    baseFetch.mockResolvedValue(
+      new Response(body, {
+        status,
+        headers: { "Content-Type": "application/json", "X-Supabase-Api-Version": "2024-01-01" },
+      }),
+    );
+    const response = await supabaseFetch(TOKEN, { method: "POST" });
+    expect(response.status).toBe(status);
+    expect(await response.json()).toEqual(JSON.parse(body));
+  });
+});
+
+describe("the deadline only where cutting a request off is safe", () => {
+  beforeEach(() => jest.useFakeTimers());
+  afterEach(() => jest.useRealTimers());
+
+  function stall(_input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+    return new Promise((_resolve, reject) => {
+      init?.signal?.addEventListener("abort", () => reject(new Error("Aborted")));
+    });
+  }
+
+  // Each of these is sent once and may already have taken effect on the server
+  // (a session created, an email sent, a single-use captcha or code spent).
+  it.each([
+    ["a password sign-in", `${PROJECT}/auth/v1/token?grant_type=password`, "POST"],
+    ["a code exchange", `${PROJECT}/auth/v1/token?grant_type=pkce`, "POST"],
+    ["a sign-up", `${PROJECT}/auth/v1/signup`, "POST"],
+    ["a password reset email", `${PROJECT}/auth/v1/recover`, "POST"],
+    ["a one-time code", `${PROJECT}/auth/v1/otp`, "POST"],
+    ["an account update", `${PROJECT}/auth/v1/user`, "PUT"],
+  ])("%s is never cut off", async (_name, url, method) => {
+    baseFetch.mockImplementation(stall);
+    let settled = false;
+    void supabaseFetch(url, { method }).then(
+      () => (settled = true),
+      () => (settled = true),
+    );
+
+    await jest.advanceTimersByTimeAsync(5 * AUTH_REQUEST_TIMEOUT_MS);
+
+    expect(settled).toBe(false);
+  });
+
+  it("a read of her account (GET /user) is cut off, since it can simply be asked again", async () => {
+    baseFetch.mockImplementation(stall);
+    const request = supabaseFetch(`${PROJECT}/auth/v1/user`, { method: "GET" });
+    const outcome = expect(request).rejects.toThrow();
+
+    await jest.advanceTimersByTimeAsync(AUTH_REQUEST_TIMEOUT_MS);
+    await outcome;
   });
 });

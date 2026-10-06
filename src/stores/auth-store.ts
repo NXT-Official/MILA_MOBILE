@@ -23,10 +23,11 @@ type AuthState = {
    */
   recovery: boolean;
   /**
-   * The startup restore has gone a few seconds without an answer (no
-   * connection, a captive portal). The launch gate lifts the splash and shows
-   * the offline holding view instead of a splash that never moves. Cleared the
-   * moment the session is known.
+   * The launch gate has held for a few seconds without being ready (no
+   * connection, a captive portal, a profile request that never answers). The
+   * gate lifts the splash and shows the offline holding view instead of a
+   * splash that never moves. Owned by `use-launch-hold`, which clears it the
+   * moment the gate is ready.
    */
   launchStalled: boolean;
   /** A startup restore attempt is out right now; "Try again" shows it as busy. */
@@ -53,7 +54,10 @@ export const useAuthStore = create<AuthState>((set) => ({
   launchStalled: false,
   launchAttempting: false,
   launchRetryRequests: 0,
-  setSession: (session) => set({ session, loading: false, launchStalled: false }),
+  // Leaves `launchStalled` to the gate: a restore that lands while her
+  // profile is still on its way must not drop the holding view into a bare
+  // spinner (use-launch-hold).
+  setSession: (session) => set({ session, loading: false }),
   setRecovery: (recovery) => set({ recovery }),
   setLaunchStalled: (launchStalled) => set({ launchStalled }),
   setLaunchAttempting: (launchAttempting) => set({ launchAttempting }),

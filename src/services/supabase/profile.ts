@@ -126,15 +126,41 @@ function buildDashboardProfile(data: ProfileRow | null): DashboardProfile {
   };
 }
 
-export async function fetchProfile(userId: string): Promise<DashboardProfile> {
-  const { data, error } = await supabase
-    .from("profiles")
-    .select(PROFILE_READ_COLUMNS)
-    .eq("id", userId)
-    .maybeSingle();
+/**
+ * A profile read that has not answered by now is treated as failed, so the
+ * query's normal retry runs. React Native's fetch sets no timeout, and the
+ * launch gate waits on this read: on a stalled connection it never answered,
+ * and the app stayed on its splash (re-review N2).
+ */
+export const PROFILE_READ_TIMEOUT_MS = 15_000;
 
-  if (error) throw error;
-  return buildDashboardProfile(data as ProfileRow | null);
+/**
+ * `signal` is the query's own (TanStack aborts it when a fetch is cancelled or
+ * superseded); the deadline is added to it. postgrest-js reports an aborted
+ * request as `{ error }`, which is thrown below like any other failure.
+ * src: node_modules/@supabase/postgrest-js/dist/index.d.cts `abortSignal` · 2.112.2
+ */
+export async function fetchProfile(userId: string, signal?: AbortSignal): Promise<DashboardProfile> {
+  const deadline = new AbortController();
+  const timer = setTimeout(() => deadline.abort(), PROFILE_READ_TIMEOUT_MS);
+  const forwardAbort = () => deadline.abort();
+  if (signal?.aborted) deadline.abort();
+  else signal?.addEventListener("abort", forwardAbort);
+
+  try {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select(PROFILE_READ_COLUMNS)
+      .eq("id", userId)
+      .abortSignal(deadline.signal)
+      .maybeSingle();
+
+    if (error) throw error;
+    return buildDashboardProfile(data as ProfileRow | null);
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener("abort", forwardAbort);
+  }
 }
 
 /**

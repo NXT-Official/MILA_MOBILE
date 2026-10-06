@@ -23,7 +23,9 @@ export function useProfile() {
     queryKey: queryKeys.profile(userId ?? undefined),
     enabled: Boolean(userId),
     staleTime: 5 * 60_000,
-    queryFn: () => fetchProfile(userId as string),
+    // The query's signal lets a cancelled or superseded read stop at once;
+    // fetchProfile adds its own deadline so a stalled one fails and retries.
+    queryFn: ({ signal }) => fetchProfile(userId as string, signal),
   });
 
   // Foreground refetch (§6). `refetchOnWindowFocus` is off in the client

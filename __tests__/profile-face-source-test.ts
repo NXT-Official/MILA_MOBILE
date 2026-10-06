@@ -16,7 +16,13 @@ function mockProfile(face: string | null, colorProfile: { calibrationSource?: st
     skin_undertone: "Cool", color_season: "Winter", face_shape: face,
     body_type: "Hourglass", hair_type: "Straight", hair_length: "Long", gender: "Female", skin_depth: "Light",
   }, error: null });
-  const query = { select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), maybeSingle };
+  // `abortSignal`: the read carries a deadline (fetchProfile's abort signal).
+  const query = {
+    select: jest.fn().mockReturnThis(),
+    eq: jest.fn().mockReturnThis(),
+    abortSignal: jest.fn().mockReturnThis(),
+    maybeSingle,
+  };
   jest.mocked(supabase.from).mockReturnValue(query as unknown as ReturnType<typeof supabase.from>);
 }
 

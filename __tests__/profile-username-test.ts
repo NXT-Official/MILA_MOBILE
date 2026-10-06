@@ -20,6 +20,8 @@ function mockRow(row: Record<string, unknown> | null) {
   const query = {
     select: jest.fn().mockReturnThis(),
     eq: jest.fn().mockReturnThis(),
+    // The read carries a deadline (fetchProfile's abort signal).
+    abortSignal: jest.fn().mockReturnThis(),
     maybeSingle: jest.fn().mockResolvedValue({ data: row, error: null }),
   };
   jest.mocked(supabase.from).mockReturnValue(query as unknown as ReturnType<typeof supabase.from>);

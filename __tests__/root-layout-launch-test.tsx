@@ -75,11 +75,12 @@ jest.mock("@/theme/theme-provider", () => ({
   ThemeProvider: ({ children }: { children: unknown }) => children,
 }));
 
-import { render, screen } from "@testing-library/react-native";
+import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import * as SplashScreen from "expo-splash-screen";
 
 import RootLayout from "@/app/_layout";
 import { useAppDestination } from "@/features/auth/hooks/use-app-destination";
+import { queryClient } from "@/services/query-client";
 import { useAuthStore } from "@/stores/auth-store";
 
 const destination = useAppDestination as jest.Mock;
@@ -103,7 +104,7 @@ it("keeps the splash up while the launch is still being decided", async () => {
   await render(<RootLayout />);
 
   expect(hideSplash).not.toHaveBeenCalled();
-  expect(screen.queryByText("Can't reach Mila right now")).toBeNull();
+  expect(screen.queryByText("Still trying to reach Mila")).toBeNull();
 });
 
 it("lifts the splash and shows the offline holding view once the launch stalls", async () => {
@@ -113,7 +114,7 @@ it("lifts the splash and shows the offline holding view once the launch stalls",
   await render(<RootLayout />);
 
   expect(hideSplash).toHaveBeenCalled();
-  expect(screen.getByText("Can't reach Mila right now")).toBeTruthy();
+  expect(screen.getByText("Still trying to reach Mila")).toBeTruthy();
   expect(screen.getByRole("button", { name: "Try again" })).toBeTruthy();
   expect(screen.getByRole("button", { name: "Sign in again" })).toBeTruthy();
   // The stack is held back until the destination is known.
@@ -147,5 +148,24 @@ it("renders the stack, with every screen it declares, once she is in the app", a
   ]) {
     expect(screen.getByText(`screen:${name}`)).toBeTruthy();
   }
-  expect(screen.queryByText("Can't reach Mila right now")).toBeNull();
+  expect(screen.queryByText("Still trying to reach Mila")).toBeNull();
+});
+
+it("shows the profile-stage holding view once she is signed in and only her profile is waiting", async () => {
+  const retryProfile = jest.spyOn(queryClient, "refetchQueries").mockResolvedValue(undefined);
+  destination.mockReturnValue({ ready: false, destination: "/" });
+  useAuthStore.setState({
+    loading: false,
+    session: { access_token: "a", refresh_token: "r", user: { id: "member" } } as never,
+    launchStalled: true,
+  });
+
+  await render(<RootLayout />);
+
+  expect(hideSplash).toHaveBeenCalled();
+  expect(screen.getByText("Still trying to reach Mila")).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Sign in again" })).toBeNull();
+  fireEvent.press(screen.getByRole("button", { name: "Try again" }));
+  await act(async () => undefined);
+  expect(retryProfile).toHaveBeenCalledWith({ queryKey: ["profile", "member"] });
 });

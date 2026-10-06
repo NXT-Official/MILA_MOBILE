@@ -30,8 +30,8 @@ beforeEach(() => {
 it("says what is happening in plain words, with no dashes as punctuation", async () => {
   await render(<LaunchOfflineScreen />);
 
-  expect(screen.getByText("Can't reach Mila right now")).toBeTruthy();
-  expect(screen.getByText("We'll keep trying. Mila opens on its own once you're connected.")).toBeTruthy();
+  expect(screen.getByText("Still trying to reach Mila")).toBeTruthy();
+  expect(screen.getByText("Your connection seems slow or offline. Mila opens on its own as soon as it gets through.")).toBeTruthy();
   // Every string in the tree, accessibility hints included.
   expect(JSON.stringify(screen.toJSON())).not.toMatch(/[–—]/);
 });
@@ -62,4 +62,34 @@ it("Sign in again opens login and keeps the session on this phone", async () => 
   fireEvent.press(signIn);
 
   expect(useAuthStore.getState()).toMatchObject({ loading: false, session: null, launchStalled: false });
+});
+
+describe("once she is signed in and only her profile is waiting", () => {
+  it("offers Try again only: Sign in again makes no sense when she is signed in", async () => {
+    await render(<LaunchOfflineScreen profile={{ retry: jest.fn(), retrying: false }} />);
+
+    expect(screen.getByText("Still trying to reach Mila")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Try again" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Sign in again" })).toBeNull();
+  });
+
+  it("Try again asks for her profile again, not for a session restore", async () => {
+    const retry = jest.fn();
+    await render(<LaunchOfflineScreen profile={{ retry, retrying: false }} />);
+
+    fireEvent.press(screen.getByRole("button", { name: "Try again" }));
+
+    expect(retry).toHaveBeenCalledTimes(1);
+    expect(useAuthStore.getState().launchRetryRequests).toBe(0);
+  });
+
+  it("Try again shows it is busy while her profile is being asked for", async () => {
+    const retry = jest.fn();
+    await render(<LaunchOfflineScreen profile={{ retry, retrying: true }} />);
+
+    const button = screen.getByRole("button", { name: "Try again" });
+    expect(button.props.accessibilityState).toMatchObject({ busy: true, disabled: true });
+    fireEvent.press(button);
+    expect(retry).not.toHaveBeenCalled();
+  });
 });

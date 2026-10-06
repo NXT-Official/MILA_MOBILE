@@ -253,4 +253,50 @@ describe("a launch refresh answered by something other than the auth server", ()
     expect(stored).toBeNull();
     expect(events).toContain("SIGNED_OUT");
   });
+
+  /** A reply carrying the API version header GoTrue sends on every response. */
+  function goTrueReply(body: string, status: number) {
+    return () =>
+      Promise.resolve(
+        new Response(body, {
+          status,
+          headers: { "Content-Type": "application/json", "X-Supabase-Api-Version": "2024-01-01" },
+        }),
+      );
+  }
+
+  it.each([
+    ["a 200 that is not a session", reply('{"status":"login_required"}', 200, "application/json")],
+    ["a 200 with JSON null", reply("null", 200, "application/json")],
+    [
+      "the gateway's 401 Invalid API key",
+      reply('{"message":"Invalid API key","hint":"Double check your Supabase `anon` or `service_role` API key."}', 401, "application/json"),
+    ],
+    ["a firewall's JSON 403", reply('{"error":"Forbidden"}', 403, "application/json")],
+  ])("JSON that is not from the auth server (%s) keeps her session", async (_name, answer) => {
+    const { data, error, events, stored } = await launchWith(answer);
+
+    expect(data.session).toBeNull();
+    expect(isAuthRetryableFetchError(error)).toBe(true);
+    expect(stored?.refresh_token).toBe("old-refresh");
+    expect(events).not.toContain("SIGNED_OUT");
+  });
+
+  it.each([
+    [
+      "a revoked session (session_not_found)",
+      goTrueReply('{"code":"session_not_found","message":"Session from session_id claim in JWT does not exist"}', 403),
+    ],
+    [
+      "a reused refresh token (refresh_token_already_used)",
+      goTrueReply('{"code":"refresh_token_already_used","message":"Invalid Refresh Token: Already Used"}', 400),
+    ],
+  ])("%s in the auth server's current shape still signs her out", async (_name, answer) => {
+    const { data, error, events, stored } = await launchWith(answer);
+
+    expect(data.session).toBeNull();
+    expect(isAuthRetryableFetchError(error)).toBe(false);
+    expect(stored).toBeNull();
+    expect(events).toContain("SIGNED_OUT");
+  });
 });

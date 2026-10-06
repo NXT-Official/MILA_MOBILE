@@ -17,6 +17,12 @@ jest.mock("../src/services/supabase/client", () => ({
   supabase: { auth: { getSession: jest.fn(), onAuthStateChange: jest.fn(), signOut: jest.fn() } },
 }));
 
+// The launch gate's profile read, for the tests that mount the gate too.
+jest.mock("../src/services/supabase/profile", () => ({
+  fetchProfile: jest.fn(),
+  updateStyleProfile: jest.fn(),
+}));
+
 jest.mock("../src/constants/env", () => ({
   env: {
     API_BASE_URL: "https://api.test",
@@ -38,8 +44,11 @@ import { act, renderHook } from "@testing-library/react-native";
 import type { ReactNode } from "react";
 import { AppState, type AppStateStatus } from "react-native";
 
+import { useAppDestination } from "@/features/auth/hooks/use-app-destination";
 import { useAuthListener } from "@/features/auth/hooks/use-auth-listener";
+import { useLaunchHold } from "@/features/auth/hooks/use-launch-hold";
 import { supabase } from "@/services/supabase/client";
+import { fetchProfile } from "@/services/supabase/profile";
 import { useAuthStore } from "@/stores/auth-store";
 import { useOnboardingStore } from "@/stores/onboarding-store";
 
@@ -62,6 +71,39 @@ let queryClient: QueryClient;
 
 function wrapper({ children }: { children: ReactNode }) {
   return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+}
+
+const completeProfile = {
+  body_type: "Hourglass",
+  color_season: "Autumn True",
+  color_season_base: "Autumn",
+  skin_undertone: "Warm",
+  face_shape: "Oval",
+  hair_type: "Wavy",
+  gender: "Female",
+  hair_length: "Long",
+  skin_depth: "Medium",
+  color_profile: { season: "Autumn" },
+  suspended: false,
+};
+
+/**
+ * The listener with the launch gate around it, as the root layout runs them:
+ * the gate owns the 5 s holding-view timer for any time the launch is not
+ * ready (restore pending or profile pending).
+ */
+function useListenerWithGate() {
+  useAuthListener();
+  const { ready } = useAppDestination();
+  useLaunchHold(!ready);
+}
+
+async function mountWithGate() {
+  const view = await renderHook(() => useListenerWithGate(), { wrapper });
+  await act(async () => {
+    await Promise.resolve();
+  });
+  return view;
 }
 
 async function mount() {
@@ -92,6 +134,7 @@ beforeEach(() => {
   jest.useFakeTimers();
   queryClient = new QueryClient();
   getSession.mockReset();
+  (fetchProfile as jest.Mock).mockReset().mockResolvedValue(completeProfile);
   onAuthStateChange.mockReset();
   unsubscribe.mockReset();
   removeAppStateListener.mockReset();
@@ -226,7 +269,7 @@ describe("coming back to the app", () => {
 describe("a session that cannot be read from this device", () => {
   const unreadable = () => Promise.reject(new Error("could not decrypt"));
 
-  it("after three failed reads in a row with the app open, goes to login so she can sign in again", async () => {
+  it("after three failed reads in a row with the app open, opens login but keeps restoring, so a recovered keystore still opens the app", async () => {
     getSession.mockImplementation(unreadable);
 
     await mount();
@@ -239,8 +282,24 @@ describe("a session that cannot be read from this device", () => {
     // Nothing is deleted: a later successful sign-in simply overwrites it.
     expect(supabase.auth.signOut).not.toHaveBeenCalled();
 
+    // A slow keystore after a reboot recovers: the next restore wins.
+    getSession.mockResolvedValue(signedIn);
+    await advance(30_000);
+    expect(useAuthStore.getState()).toMatchObject({ loading: false, session });
+  });
+
+  it("after handing her to login, a sign-in ends the background restore", async () => {
+    getSession.mockImplementation(unreadable);
+    await mount();
+    await advance(3_000);
+    expect(useAuthStore.getState()).toMatchObject({ loading: false, session: null });
+
+    await act(async () => emit("SIGNED_IN", session));
+    const attempts = getSession.mock.calls.length;
     await advance(5 * 60_000);
-    expect(getSession).toHaveBeenCalledTimes(3);
+
+    expect(useAuthStore.getState().session).toBe(session);
+    expect(getSession).toHaveBeenCalledTimes(attempts);
   });
 
   it("does not count reads that fail while the app is in the background (a locked phone)", async () => {
@@ -364,7 +423,7 @@ describe("a launch that stays unanswered (the offline holding view)", () => {
   it("is marked stalled after 5 s without an answer, so the splash can give way", async () => {
     getSession.mockImplementation(() => new Promise(() => undefined));
 
-    await mount();
+    await mountWithGate();
     await advance(4_900);
     expect(useAuthStore.getState().launchStalled).toBe(false);
     await advance(200);
@@ -375,7 +434,7 @@ describe("a launch that stays unanswered (the offline holding view)", () => {
   it("is never marked stalled when the answer comes in time", async () => {
     getSession.mockResolvedValue(signedIn);
 
-    await mount();
+    await mountWithGate();
     await advance(10_000);
 
     expect(useAuthStore.getState().launchStalled).toBe(false);
@@ -397,7 +456,7 @@ describe("a launch that stays unanswered (the offline holding view)", () => {
 
   it("Try again starts an attempt straight away and clears the holding view once it lands", async () => {
     getSession.mockImplementation(async () => offline());
-    await mount();
+    await mountWithGate();
     await advance(5_000);
     expect(useAuthStore.getState().launchStalled).toBe(true);
     const attempts = getSession.mock.calls.length;
@@ -410,12 +469,14 @@ describe("a launch that stays unanswered (the offline holding view)", () => {
     });
 
     expect(getSession).toHaveBeenCalledTimes(attempts + 1);
+    // Her profile loads, the gate opens, and the holding view goes with it.
+    await advance(10);
     expect(useAuthStore.getState()).toMatchObject({ loading: false, session, launchStalled: false });
   });
 
   it("Sign in again opens login without deleting anything, and a later restore still wins", async () => {
     getSession.mockImplementation(async () => offline());
-    await mount();
+    await mountWithGate();
     await advance(5_000);
 
     await act(async () => useAuthStore.getState().signInWhileRestoring());
@@ -432,7 +493,7 @@ describe("a launch that stays unanswered (the offline holding view)", () => {
 
   it("a sign-in after Sign in again ends the background restore", async () => {
     getSession.mockImplementation(async () => offline());
-    await mount();
+    await mountWithGate();
     await advance(5_000);
     await act(async () => useAuthStore.getState().signInWhileRestoring());
 

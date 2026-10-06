@@ -15,17 +15,27 @@
  * src: node_modules/@supabase/auth-js/dist/module/lib/fetch.js `_handleRequest`, `handleError`, `NETWORK_ERROR_CODES` · 2.112.2
  * src: node_modules/@supabase/auth-js/dist/module/GoTrueClient.js `_callRefreshToken` · 2.112.2
  *
- * On a `/token` request this turns those replies into a thrown TypeError, the
- * shape of a network failure, so auth-js keeps the session and retries. A real
- * auth-server answer (JSON, any other status) passes through unchanged: a
- * revoked refresh token (400 `refresh_token_not_found` / `invalid_grant`)
- * still signs her out.
+ * A JSON reply is no proof either: a 200 without a session becomes
+ * `AuthSessionMissingError`, and the Supabase gateway's 401 "Invalid API key"
+ * or a firewall's JSON 403 becomes a fatal `AuthApiError`, and each deleted it.
+ * src: node_modules/@supabase/auth-js/dist/module/lib/fetch.js `hasSession` · 2.112.2
  *
- * Every auth request also gets a deadline. React Native's fetch sets no
- * timeout, so a stalled connection can hold a refresh open for minutes, and
- * while it hangs auth-js single-flights every later attempt onto it. The body
- * is read inside the deadline too, so a reply that stalls mid-body is cut off
- * as well. An abort is a thrown fetch, which auth-js classes as retryable.
+ * So on a `/token` request only two kinds of reply reach auth-js: a session,
+ * and an error in the auth server's own shape (see `isAuthServerError`).
+ * Anything else becomes a thrown TypeError, the shape of a network failure, so
+ * auth-js keeps the session and retries. A revoked refresh token
+ * (`refresh_token_not_found`, `refresh_token_already_used`,
+ * `session_not_found`, legacy `invalid_grant`) still signs her out.
+ *
+ * Requests that are safe to send again (the refresh, and reads) also get a
+ * deadline. React Native's fetch sets no timeout, so a stalled connection can
+ * hold a refresh open for minutes, and while it hangs auth-js single-flights
+ * every later attempt onto it. The body is read inside the deadline too, so a
+ * reply that stalls mid-body is cut off as well. An abort is a thrown fetch,
+ * which auth-js classes as retryable. A sign-in, sign-up, reset email, code
+ * exchange or account update is sent once and may already have taken effect
+ * (a session made, an email sent, a single-use captcha or code spent), so it is
+ * never cut off.
  */
 type Fetch = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 
@@ -42,19 +52,72 @@ const NOT_FROM_AUTH_SERVER = new Set([407, 408, 429, 511]);
 /** A Response with one of these statuses may not carry a body. */
 const NULL_BODY_STATUSES = new Set([101, 204, 205, 304]);
 
+/**
+ * Server and gateway failures auth-js already retries, whatever the body.
+ * src: node_modules/@supabase/auth-js/dist/module/lib/fetch.js `NETWORK_ERROR_CODES` · 2.112.2
+ */
+const RETRIED_BY_AUTH_JS = new Set([
+  500, 501, 502, 503, 504, 520, 521, 522, 523, 524, 525, 526, 527, 528, 529, 530,
+]);
+
+/** Auth error codes are snake_case (`refresh_token_not_found`, `invalid_grant`). */
+const AUTH_ERROR_CODE = /^[a-z][a-z0-9_]*$/;
+
 function requestUrl(input: RequestInfo | URL): string | null {
   if (typeof input === "string") return input;
   if (input instanceof URL) return input.href;
   return typeof input?.url === "string" ? input.url : null;
 }
 
-function isJson(body: string): boolean {
+/** The parsed body, or `undefined` when it is not JSON. */
+function parseJson(body: string): unknown {
   try {
-    JSON.parse(body);
-    return true;
+    return JSON.parse(body);
   } catch {
-    return false;
+    return undefined;
   }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/**
+ * The session shape auth-js accepts from `/token`.
+ * src: node_modules/@supabase/auth-js/dist/module/lib/fetch.js `hasSession` · 2.112.2
+ */
+function isSession(data: unknown): boolean {
+  return isRecord(data) && !!data.access_token && !!data.refresh_token && !!data.expires_in;
+}
+
+/**
+ * An error in one of the auth server's own shapes. auth-js reads a string
+ * `code` (current API, which it asks for on every request) or a string
+ * `error_code` (older bodies); the OAuth form pairs `error` with
+ * `error_description`. A gateway's `{"message": ...}` or a firewall's
+ * `{"error":"Forbidden"}` carries none of these. Codes are checked by shape,
+ * not against a list: auth-js notes the server may send codes newer than its
+ * own list (`lib/error-codes.d.ts`).
+ * src: node_modules/@supabase/auth-js/dist/module/lib/fetch.js `handleError`; lib/error-codes.d.ts `ErrorCode` · 2.112.2
+ */
+function isAuthServerError(data: unknown): boolean {
+  if (!isRecord(data)) return false;
+  if (typeof data.error_code === "string" && AUTH_ERROR_CODE.test(data.error_code)) return true;
+  if (typeof data.code === "string" && AUTH_ERROR_CODE.test(data.code)) return true;
+  return (
+    typeof data.error === "string" &&
+    AUTH_ERROR_CODE.test(data.error) &&
+    typeof data.error_description === "string"
+  );
+}
+
+/** Whether a `/token` reply came from the auth server (see the file comment). */
+function isFromAuthServer(status: number, body: string): boolean {
+  if (NOT_FROM_AUTH_SERVER.has(status)) return false;
+  const data = parseJson(body);
+  if (data === undefined) return false;
+  if (status >= 200 && status < 300) return isSession(data);
+  return RETRIED_BY_AUTH_JS.has(status) || isAuthServerError(data);
 }
 
 export function createSupabaseFetch(
@@ -73,9 +136,11 @@ export function createSupabaseFetch(
     const url = requestUrl(input);
     if (url === null || !url.startsWith(authPrefix)) return baseFetch(input, init);
     const isTokenRequest = url === tokenUrl || url.startsWith(`${tokenUrl}?`);
+    const isRefresh = isTokenRequest && new URL(url).searchParams.get("grant_type") === "refresh_token";
+    const isRead = (init?.method ?? "GET").toUpperCase() === "GET";
 
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const timer = isRefresh || isRead ? setTimeout(() => controller.abort(), timeoutMs) : null;
     const callerSignal = init?.signal ?? null;
     const forwardAbort = () => controller.abort();
     if (callerSignal?.aborted) controller.abort();
@@ -85,9 +150,9 @@ export function createSupabaseFetch(
       const response = await baseFetch(input, { ...init, signal: controller.signal });
       const body = await response.text();
 
-      if (isTokenRequest && (NOT_FROM_AUTH_SERVER.has(response.status) || !isJson(body))) {
+      if (isTokenRequest && !isFromAuthServer(response.status, body)) {
         throw new TypeError(
-          `Network request failed: the sign-in refresh was answered by something other than the auth server (HTTP ${response.status}).`,
+          `Network request failed: the sign-in request was answered by something other than the auth server (HTTP ${response.status}).`,
         );
       }
 
@@ -97,7 +162,7 @@ export function createSupabaseFetch(
         headers: response.headers,
       });
     } finally {
-      clearTimeout(timer);
+      if (timer !== null) clearTimeout(timer);
       callerSignal?.removeEventListener("abort", forwardAbort);
     }
   };
