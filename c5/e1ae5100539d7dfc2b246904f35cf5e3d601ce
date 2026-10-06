@@ -1,0 +1,32 @@
+__tests__/auth-callback-screen-test.tsx
+  s_755964b2e0c3da::t_00262ed653cdd1 15-19
+__tests__/auth-callback-holding-test.tsx
+  s_755964b2e0c3da::t_59286b526bcbf8 1-124,126-141
+  s_755964b2e0c3da::t_22df8f75108baa 125
+src/features/auth/AuthCallbackScreen.tsx
+  s_755964b2e0c3da::t_84d5bbf306f101 13-14,54-59,63-74
+src/features/auth/hooks/use-launch-hold.ts
+  s_755964b2e0c3da::t_2e0aadee3eaf5f 56-63
+__tests__/launch-hold-test.tsx
+  s_755964b2e0c3da::t_ff7f66bcaef871 30,191-210
+__tests__/launch-offline-screen-test.tsx
+  s_755964b2e0c3da::t_839579844f478c 42,53,62,80,92
+__tests__/root-layout-launch-test.tsx
+  s_755964b2e0c3da::t_e9b172f37bcbda 168
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c5e1ae5100539d7dfc2b246904f35cf5e3d601ce",
+  "prompts": {},
+  "sessions": {
+    "s_755964b2e0c3da": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "41717171-e98d-4ccb-91e6-20f4d84aa5ab",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "naaxtech <naaxtech.official@gmail.com>"
+    }
+  }
+}
