@@ -12,6 +12,14 @@ export { resolveDestination, type Destination };
  * Resolves where the app should be. `ready` is false until both the session and
  * (when signed in) the profile have settled — the splash stays up until then so
  * no guard redirect is ever visible.
+ *
+ * Settled means READ. A profile read that failed with no row to judge
+ * (network, timeout, server error) is not an answer about her profile, so it
+ * never routes anyone to onboarding: `ready` stays false, the gate keeps
+ * holding, and its holding view offers Try again (`use-launch-hold`).
+ * Onboarding is only for a profile that was read and is genuinely incomplete.
+ * Owner ruling, 2026-10-07: a finished member sent back through onboarding
+ * reads as her answers having been lost.
  */
 export function useAppDestination(): { ready: boolean; destination: Destination } {
   const session = useAuthStore((s) => s.session);
@@ -20,7 +28,8 @@ export function useAppDestination(): { ready: boolean; destination: Destination 
   const { data: profile, isPending, isError } = useProfile();
 
   const hasSession = Boolean(session);
-  const profileSettled = !hasSession || !isPending;
+  const profileReadFailed = hasSession && isError && !profile;
+  const profileSettled = !hasSession || (!isPending && !profileReadFailed);
 
   const destination = resolveDestination({
     hasSession,
@@ -29,10 +38,10 @@ export function useAppDestination(): { ready: boolean; destination: Destination 
     // Judge the profile she has. A failed refetch (every foreground makes one)
     // keeps the last good row in the cache, so `isError` alone says nothing
     // about whether she finished onboarding — treating it as incomplete sent a
-    // member who had to a screen she was stuck on. Only an error with no row at
-    // all has nothing to judge; that falls through as incomplete so onboarding
-    // can re-fetch and recover rather than strand her on a blank screen.
-    profileComplete: isError && !profile ? false : isStyleProfileComplete(toStyleProfileRow(profile)),
+    // member who had to a screen she was stuck on. An error with no row at all
+    // has nothing to judge, and is held above (`profileReadFailed`) rather than
+    // read as incomplete.
+    profileComplete: isStyleProfileComplete(toStyleProfileRow(profile)),
   });
 
   return { ready: !authLoading && profileSettled, destination };

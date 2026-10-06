@@ -167,3 +167,24 @@ it("never shows the holding view when the launch is ready in time", async () => 
   expect(latestFrame()?.hold.stalled).toBe(false);
   expect(useAuthStore.getState().launchStalled).toBe(false);
 });
+
+it("a first profile read that fails after its retries keeps her on the holding view, never onboarding", async () => {
+  mockFetchProfile.mockRejectedValue(new Error("AbortError: Aborted"));
+
+  await mount();
+  await advance(5_000);
+
+  expect(latestFrame()?.ready).toBe(false);
+  expect(latestFrame()?.hold).toMatchObject({ stalled: true, stage: "profile" });
+  expect(frames.some((f) => f.ready && f.destination === "/onboarding/welcome")).toBe(false);
+
+  // Try again, and this time the read lands: home, not onboarding.
+  mockFetchProfile.mockResolvedValue(completeProfile);
+  await act(async () => {
+    latestFrame()?.hold.retryProfile();
+  });
+  await advance(10);
+
+  expect(latestFrame()).toMatchObject({ ready: true, destination: "/" });
+  expect(frames.some((f) => f.ready && f.destination === "/onboarding/welcome")).toBe(false);
+});
