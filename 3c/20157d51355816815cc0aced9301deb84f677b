@@ -1,0 +1,44 @@
+__tests__/auth-storage-atomic-test.ts
+  s_755964b2e0c3da::t_ac6996e794a239 1-303,353-354,358-380,385-431
+  s_755964b2e0c3da::t_4360572aecf018 317-326
+  s_755964b2e0c3da::t_87a22fc2be413b 355-357
+  s_755964b2e0c3da::t_518f8273a23d14 304-316,327-352
+  s_755964b2e0c3da::t_39c59573777798 381-384
+src/services/api/auth.ts
+  s_755964b2e0c3da::t_ef1fb3ba5936d5 212-218,222-248
+  s_755964b2e0c3da::t_6b17d18349f4e7 1-5
+  s_755964b2e0c3da::t_c04dea70f5125e 249-250
+__tests__/sign-out-test.ts
+  s_755964b2e0c3da::t_48e3fe9196a4d8 35-42
+__tests__/sign-in-transition-test.tsx
+  s_755964b2e0c3da::t_5c06c95d3522db 1-77,79-80,82-172
+  s_755964b2e0c3da::t_8e812087bbea7d 78,81
+src/services/supabase/auth-storage.ts
+  s_755964b2e0c3da::t_b639ba02b854ba 11-25,29-116,118-146,148-152,154-157,159-161,163-175,184,187,190-192,205-209
+  s_755964b2e0c3da::t_70083247eb8351 176-183,185-186,188-189,193-204,210-212
+src/features/auth/hooks/use-auth-listener.ts
+  s_755964b2e0c3da::t_915d0f174ab162 1,4,6,11-14,18,20-26,34-43,45-67,71-77,90-91
+src/services/supabase/client.ts
+  s_755964b2e0c3da::t_6f31d760521885 39-49
+__tests__/auth-session-lockless-test.ts
+  s_755964b2e0c3da::t_3f34668958b408 1-82,85-156
+  s_755964b2e0c3da::t_a75ba3057f28e1 83-84
+__tests__/auth-listener-restore-test.tsx
+  s_755964b2e0c3da::t_ba7da28ba5dee6 1-258
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3c20157d51355816815cc0aced9301deb84f677b",
+  "prompts": {},
+  "sessions": {
+    "s_755964b2e0c3da": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "41717171-e98d-4ccb-91e6-20f4d84aa5ab",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "naaxtech <naaxtech.official@gmail.com>"
+    }
+  }
+}
