@@ -165,7 +165,7 @@ it("shows the profile-stage holding view once she is signed in and only her prof
   expect(hideSplash).toHaveBeenCalled();
   expect(screen.getByText("Still trying to reach Mila")).toBeTruthy();
   expect(screen.queryByRole("button", { name: "Sign in again" })).toBeNull();
-  fireEvent.press(screen.getByRole("button", { name: "Try again" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Try again" }));
   await act(async () => undefined);
   expect(retryProfile).toHaveBeenCalledWith({ queryKey: ["profile", "member"] });
 });

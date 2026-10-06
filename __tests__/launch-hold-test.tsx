@@ -27,7 +27,7 @@ jest.mock("../src/constants/env", () => ({
 
 import type { Session } from "@supabase/supabase-js";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, render } from "@testing-library/react-native";
+import { act, render, renderHook } from "@testing-library/react-native";
 
 import { useAppDestination } from "@/features/auth/hooks/use-app-destination";
 import { useAuthListener } from "@/features/auth/hooks/use-auth-listener";
@@ -187,4 +187,24 @@ it("a first profile read that fails after its retries keeps her on the holding v
 
   expect(latestFrame()).toMatchObject({ ready: true, destination: "/" });
   expect(frames.some((f) => f.ready && f.destination === "/onboarding/welcome")).toBe(false);
+});
+
+it("a hold that unmounts while stalled clears the flag, so the next hold waits its own 5 s", async () => {
+  // Two screens arm the hold: the root layout and the auth callback screen.
+  // One leaving while stalled must not leave the next one stalled at once.
+  const client = new QueryClient();
+  const wrapper = ({ children }: { children: React.ReactNode }) => (
+    <QueryClientProvider client={client}>{children}</QueryClientProvider>
+  );
+  const first = await renderHook(() => useLaunchHold(true), { wrapper });
+  await advance(5_000);
+  expect(useAuthStore.getState().launchStalled).toBe(true);
+
+  await first.unmount();
+  expect(useAuthStore.getState().launchStalled).toBe(false);
+
+  const second = await renderHook(() => useLaunchHold(true), { wrapper });
+  expect(second.result.current.stalled).toBe(false);
+  await advance(5_000);
+  expect(second.result.current.stalled).toBe(true);
 });

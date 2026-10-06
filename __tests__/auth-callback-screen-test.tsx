@@ -12,6 +12,11 @@ jest.mock("../src/services/api/auth", () => ({
   GOOGLE_NATIVE_BUILD_REQUIRED: "Google sign-in needs the installed Mila app. Use email and password here.",
 }));
 jest.mock("../src/features/auth/hooks/use-app-destination", () => ({ useAppDestination: jest.fn() }));
+// The launch hold (holding view after 5 s) is covered with the real hook in
+// auth-callback-holding-test; here the gate is mocked, so the hold is too.
+jest.mock("../src/features/auth/hooks/use-launch-hold", () => ({
+  useLaunchHold: () => ({ stalled: false, stage: "profile", retryProfile: jest.fn(), profileRetrying: false }),
+}));
 jest.mock("../src/components/layout/Screen", () => ({
   Screen: ({ children }: { children: React.ReactNode }) => children,
 }));

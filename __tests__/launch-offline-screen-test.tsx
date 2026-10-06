@@ -39,7 +39,7 @@ it("says what is happening in plain words, with no dashes as punctuation", async
 it("Try again asks for an attempt now", async () => {
   await render(<LaunchOfflineScreen />);
 
-  fireEvent.press(screen.getByRole("button", { name: "Try again" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Try again" }));
 
   expect(useAuthStore.getState().launchRetryRequests).toBe(1);
 });
@@ -50,7 +50,7 @@ it("Try again shows it is busy while an attempt is out, and cannot be pressed tw
 
   const retry = screen.getByRole("button", { name: "Try again" });
   expect(retry.props.accessibilityState).toMatchObject({ busy: true, disabled: true });
-  fireEvent.press(retry);
+  await fireEvent.press(retry);
   expect(useAuthStore.getState().launchRetryRequests).toBe(0);
 });
 
@@ -59,7 +59,7 @@ it("Sign in again opens login and keeps the session on this phone", async () => 
 
   const signIn = screen.getByRole("button", { name: "Sign in again" });
   expect(signIn.props.accessibilityHint).toBe("Opens the sign-in screen. Nothing on this phone is deleted.");
-  fireEvent.press(signIn);
+  await fireEvent.press(signIn);
 
   expect(useAuthStore.getState()).toMatchObject({ loading: false, session: null, launchStalled: false });
 });
@@ -77,7 +77,7 @@ describe("once she is signed in and only her profile is waiting", () => {
     const retry = jest.fn();
     await render(<LaunchOfflineScreen profile={{ retry, retrying: false }} />);
 
-    fireEvent.press(screen.getByRole("button", { name: "Try again" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Try again" }));
 
     expect(retry).toHaveBeenCalledTimes(1);
     expect(useAuthStore.getState().launchRetryRequests).toBe(0);
@@ -89,7 +89,7 @@ describe("once she is signed in and only her profile is waiting", () => {
 
     const button = screen.getByRole("button", { name: "Try again" });
     expect(button.props.accessibilityState).toMatchObject({ busy: true, disabled: true });
-    fireEvent.press(button);
+    await fireEvent.press(button);
     expect(retry).not.toHaveBeenCalled();
   });
 });

@@ -53,7 +53,14 @@ export function useLaunchHold(holding: boolean): LaunchHold {
       return undefined;
     }
     const timer = setTimeout(() => setLaunchStalled(true), LAUNCH_STALL_MS);
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      // Two screens arm the hold (the root layout, and the auth callback
+      // screen whose route the layout does not hold). One that leaves while
+      // stalled must not leave the flag set for the next, which would then
+      // show the holding view at once instead of after its own wait.
+      setLaunchStalled(false);
+    };
   }, [holding, setLaunchStalled]);
 
   return {

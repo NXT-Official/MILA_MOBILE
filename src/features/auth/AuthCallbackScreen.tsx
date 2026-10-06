@@ -10,6 +10,8 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { completeAuthCallback } from "@/services/api/auth";
 
 import { useAppDestination } from "./hooks/use-app-destination";
+import { useLaunchHold } from "./hooks/use-launch-hold";
+import { LaunchOfflineScreen } from "./LaunchOfflineScreen";
 
 export function AuthCallbackScreen() {
   const url = Linking.useLinkingURL();
@@ -49,9 +51,27 @@ export function AuthCallbackScreen() {
   // the retryable error instead of verifying eternally.
   const stranded = status === "success" && ready && destination === "/login";
   const failed = status === "error" || stranded;
+  // Verified, but the launch is not ready (her profile has not arrived, or
+  // its read failed). The root layout does not hold this route, so the screen
+  // arms the same hold: after a few seconds "Opening your studio" gives way to
+  // the launch holding view, and a later successful read still redirects. A
+  // failed read never routes to onboarding (`useAppDestination`).
+  const hold = useLaunchHold(status === "success" && !ready);
 
   if (status === "success" && ready && destination !== "/login") {
     return <Redirect href={destination} />;
+  }
+
+  if (hold.stalled) {
+    return (
+      <LaunchOfflineScreen
+        profile={
+          hold.stage === "profile"
+            ? { retry: hold.retryProfile, retrying: hold.profileRetrying }
+            : undefined
+        }
+      />
+    );
   }
 
   return (
