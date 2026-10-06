@@ -261,6 +261,7 @@ export function LensCaptureScreen({
   function startOver() {
     setPhoto(null);
     setCaptureError(null);
+    setDiscardOpen(false);
     analyse.reset();
     hunt.reset();
   }
@@ -368,9 +369,11 @@ export function LensCaptureScreen({
 
       {/* Once the request is in flight, leaving does not cancel it: the paid call
           settles in the background (see `useAnalyzeOutfit`). "No credit has been
-          used" is only true before the photo is sent. */}
+          used" is only true before the photo is sent. The copy follows the
+          request, so a result that lands while the sheet is open closes it
+          rather than rewriting it. */}
       <ConfirmSheet
-        visible={discardOpen}
+        visible={discardOpen && !hasResult}
         onClose={() => setDiscardOpen(false)}
         title={run.isPending ? "Leave while Mila reads this?" : "Discard this photo?"}
         message={

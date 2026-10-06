@@ -28,6 +28,7 @@ const mockCompleteProfile = {
   color_season_base: "Autumn",
   skin_undertone: "Warm",
   full_name: "Member",
+  username: null,
   face_shape: "Oval",
   hair_type: "Wavy",
   gender: "Female",

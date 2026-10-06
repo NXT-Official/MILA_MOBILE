@@ -52,23 +52,46 @@ jest.mock("../src/stores/auth-store", () => ({
     select({ session: { user: { id: "member" } } }),
 }));
 
-const mockRun = { isPending: false, isError: false, error: null as unknown, data: undefined };
-const mockMutation = () => ({
-  ...mockRun,
+// What the stubbed mutations report. `analyseResult` is what a finished
+// analysis hands the screen; the tests flip these between renders to settle a
+// request while the discard sheet is open.
+const mockRun = { isPending: false, analyseResult: undefined as unknown };
+const mockMutation = (data?: unknown) => ({
+  isPending: mockRun.isPending,
+  isError: false,
+  error: null as unknown,
+  data,
   mutate: jest.fn(),
   reset: jest.fn(),
 });
+type PublishResult = { postId: string; items: { id: string }[] };
+const mockPublishMutate = jest.fn<void, [unknown, { onSuccess: (result: PublishResult) => void }]>();
+const mockPublishSheet = jest.fn<void, [{ onPublish: () => void }]>();
+const mockTaggingSheet = jest.fn<void, [unknown]>();
 jest.mock("../src/features/lens/hooks/use-analyze-outfit", () => ({
-  useAnalyzeOutfit: () => mockMutation(),
+  useAnalyzeOutfit: () => mockMutation(mockRun.analyseResult),
 }));
 jest.mock("../src/features/lens/hooks/use-find-dupes", () => ({
   useFindDupes: () => mockMutation(),
 }));
 jest.mock("../src/features/feed/hooks/use-publish-post", () => ({
-  usePublishPost: () => mockMutation(),
+  usePublishPost: () => ({ ...mockMutation(), mutate: mockPublishMutate }),
 }));
-jest.mock("../src/features/feed/components/PublishSheet", () => ({ PublishSheet: () => null }));
-jest.mock("../src/features/feed/components/TaggingSheet", () => ({ TaggingSheet: () => null }));
+jest.mock("../src/features/lens/components/AnalysisResultCard", () => ({
+  AnalysisResultCard: () => null,
+}));
+jest.mock("../src/features/feed/components/PublishSheet", () => ({
+  PublishSheet: (props: { onPublish: () => void }) => {
+    mockPublishSheet(props);
+    return null;
+  },
+}));
+jest.mock("../src/features/feed/components/TaggingSheet", () => ({
+  TaggingSheet: (props: unknown) => {
+    mockTaggingSheet(props);
+    return null;
+  },
+}));
 
 import { DualCaptureScreen } from "@/features/feed/DualCaptureScreen";
 import { LensCaptureScreen } from "@/features/lens/LensCaptureScreen";
@@ -76,27 +99,29 @@ import { camera } from "@/services/camera";
 import { useCaptureStore } from "@/stores/capture-store";
 import { stubPhoto } from "../src/test-utils/camera-preview-mock";
 
-const clients: QueryClient[] = [];
+let client: QueryClient | null = null;
 
+/** One client per test, so a rerender keeps the screen's state instead of remounting it. */
 function withClient(node: React.ReactElement) {
-  const queryClient = new QueryClient({
+  client ??= new QueryClient({
     defaultOptions: { queries: { gcTime: Infinity }, mutations: { gcTime: Infinity } },
   });
-  clients.push(queryClient);
-  return <QueryClientProvider client={queryClient}>{node}</QueryClientProvider>;
+  return <QueryClientProvider client={client}>{node}</QueryClientProvider>;
 }
 
 beforeEach(() => {
   jest.clearAllMocks();
   mockRun.isPending = false;
+  mockRun.analyseResult = undefined;
+  mockPublishMutate.mockReset();
   jest.mocked(camera.getPermission).mockResolvedValue("granted");
   jest.mocked(camera.pickFromLibrary).mockResolvedValue(stubPhoto);
   useCaptureStore.getState().reset();
 });
 
 afterEach(() => {
-  clients.forEach((client) => client.clear());
-  clients.length = 0;
+  client?.clear();
+  client = null;
 });
 
 describe("Lens", () => {
@@ -149,6 +174,53 @@ describe("Lens", () => {
       ),
     ).toBeTruthy();
   });
+
+  // The copy is chosen from the request's state, so a request that settles while
+  // the sheet is open must not rewrite the sheet under her thumb: once there is
+  // a result, "leave" and "discard" are both beside the point.
+  async function closeMidAnalysis() {
+    mockRun.isPending = true;
+    const tree = () => withClient(<LensCaptureScreen mode="analysis" source="gallery" />);
+    const screen = await render(tree());
+    await waitFor(() =>
+      expect(screen.getByLabelText("Mila is reading your outfit")).toBeTruthy(),
+    );
+    await fireEvent.press(screen.getByRole("button", { name: "Close Lens" }));
+    expect(screen.getByText("Leave while Mila reads this?")).toBeTruthy();
+    return { screen, tree };
+  }
+
+  async function settleWithResult(
+    screen: Awaited<ReturnType<typeof render>>,
+    tree: () => React.ReactElement,
+  ) {
+    mockRun.isPending = false;
+    mockRun.analyseResult = { analysis: { overall_score: 82 }, outfitId: "outfit-1" };
+    await screen.rerender(tree());
+  }
+
+  test("a result that lands while the sheet is open closes it rather than flipping its copy", async () => {
+    const { screen, tree } = await closeMidAnalysis();
+    await settleWithResult(screen, tree);
+
+    expect(screen.getByRole("button", { name: "Analyse another" })).toBeTruthy();
+    expect(screen.queryByText(/nothing has been analysed/i)).toBeNull();
+    expect(screen.queryByText(/no credit has been used/i)).toBeNull();
+    expect(screen.queryByText("Leave while Mila reads this?")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Discard" })).toBeNull();
+  });
+
+  test("starting over after that result does not bring the sheet back", async () => {
+    const { screen, tree } = await closeMidAnalysis();
+    await settleWithResult(screen, tree);
+    await fireEvent.press(screen.getByRole("button", { name: "Analyse another" }));
+    mockRun.analyseResult = undefined;
+    await screen.rerender(tree());
+
+    expect(screen.queryByText("Discard this photo?")).toBeNull();
+    expect(screen.queryByText(/nothing has been analysed/i)).toBeNull();
+    expect(screen.queryByRole("button", { name: "Discard" })).toBeNull();
+  });
 });
 
 describe("DualCaptureScreen", () => {
@@ -184,5 +256,31 @@ describe("DualCaptureScreen", () => {
       ),
     ).toBeTruthy();
     expect(screen.getByRole("button", { name: "Leave" })).toBeTruthy();
+  });
+
+  test("a post that lands while the sheet is open gives way to tagging, not to 'nothing is posted'", async () => {
+    holdBothPhotos();
+    mockRun.isPending = true;
+    const screen = await render(withClient(<DualCaptureScreen />));
+    await act(async () => {});
+    await fireEvent.press(screen.getByRole("button", { name: "Close" }));
+    expect(screen.getByText("Leave while your look posts?")).toBeTruthy();
+
+    // The post settles with a detected garment, so the tagging sheet opens.
+    mockRun.isPending = false;
+    mockPublishMutate.mockImplementation((_input, options) =>
+      options.onSuccess({ postId: "post-1", items: [{ id: "item-1" }] }),
+    );
+    const publishProps = mockPublishSheet.mock.lastCall?.[0];
+    await act(async () => {
+      publishProps?.onPublish();
+    });
+
+    expect(mockTaggingSheet).toHaveBeenCalledWith(
+      expect.objectContaining({ postId: "post-1", visible: true }),
+    );
+    expect(screen.queryByText(/nothing is posted/i)).toBeNull();
+    expect(screen.queryByText("Leave while your look posts?")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Discard" })).toBeNull();
   });
 });

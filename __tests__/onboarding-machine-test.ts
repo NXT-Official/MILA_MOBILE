@@ -32,6 +32,7 @@ const BLANK: DashboardProfile = {
   color_season_base: null,
   skin_undertone: null,
   full_name: null,
+  username: null,
   face_shape: null,
   hair_type: null,
   gender: null,

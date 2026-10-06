@@ -36,10 +36,11 @@ export function AccountSheet({ visible, onClose }: { visible: boolean; onClose: 
     plans.data?.find((plan) => plan.id === subscription.data?.plan_id)?.title ?? null;
   const renewal = formatPeriodDate(membership.date);
 
-  // Her name as she gave it, else a plain "Member". Never her sign-in address:
-  // the front of an email is neither a name nor a handle, and showing it as one
-  // hands her private login back as if it were public identity.
-  const name = profile?.full_name?.trim() || "Member";
+  // Her name as she gave it, else her username, else a plain "Member". Never her
+  // sign-in address: the front of an email is neither a name nor a handle, and
+  // showing it as one hands her private login back as public identity.
+  const username = profile?.username?.trim() || null;
+  const name = profile?.full_name?.trim() || username || "Member";
   const monogram = name[0].toUpperCase();
 
   function go(href: Parameters<typeof router.push>[0]) {
@@ -67,6 +68,11 @@ export function AccountSheet({ visible, onClose }: { visible: boolean; onClose: 
                 </Text>
                 {membership.inForce ? <VerifiedBadge /> : null}
               </View>
+              {username ? (
+                <Text numberOfLines={1} className="font-body text-sm text-muted">
+                  @{username}
+                </Text>
+              ) : null}
             </View>
           </View>
 

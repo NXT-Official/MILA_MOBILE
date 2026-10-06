@@ -10,11 +10,11 @@ import { Input } from "@/components/ui/Input";
 import { PasswordChecklist } from "@/components/ui/PasswordChecklist";
 import { PASSWORD_MAX_LENGTH, passwordRuleResults } from "@/constants/password";
 import { useAuthStore } from "@/stores/auth-store";
-import { errorMessage } from "@/utils/error-message";
 
 import { useChangeEmail, useChangePassword } from "./hooks/use-account-actions";
 
 const EMAIL_UNUSABLE = "That email can't be used for this account. Try a different one.";
+const EMAIL_INVALID = "That email doesn't look right. Check it and try again.";
 const SLOW_DOWN = "You've tried that a few times. Wait a little while, then try again.";
 const SIGN_IN_AGAIN = "Please sign in again, then try once more.";
 const NETWORK = "Mila couldn't reach the studio. Check your connection and try again.";
@@ -28,29 +28,37 @@ const PASSWORD_FALLBACK = "We couldn't change your password. Please try again.";
  * `EMAIL_UNUSABLE` stays deliberately neutral for the same reason.
  */
 // src: https://supabase.com/docs/guides/auth/debugging/error-codes · @supabase/auth-js 2.112.2 · 2026-10-06
-const AUTH_ERROR_COPY: Record<string, string> = {
-  email_exists: EMAIL_UNUSABLE,
-  email_conflict_identity_not_possible: EMAIL_UNUSABLE,
-  email_address_not_authorized: EMAIL_UNUSABLE,
-  email_address_invalid: "That email doesn't look right. Check it and try again.",
-  over_email_send_rate_limit: SLOW_DOWN,
-  over_request_rate_limit: SLOW_DOWN,
-  same_password: "Choose a password you haven't used on this account before.",
-  weak_password:
+const AUTH_ERROR_COPY = new Map<string, string>([
+  ["email_exists", EMAIL_UNUSABLE],
+  ["email_conflict_identity_not_possible", EMAIL_UNUSABLE],
+  ["email_address_not_authorized", EMAIL_UNUSABLE],
+  ["email_address_invalid", EMAIL_INVALID],
+  ["over_email_send_rate_limit", SLOW_DOWN],
+  ["over_request_rate_limit", SLOW_DOWN],
+  ["same_password", "Choose a password you haven't used on this account before."],
+  [
+    "weak_password",
     "That password is too easy to guess. Try a longer one with letters, numbers and symbols.",
-  reauthentication_needed: SIGN_IN_AGAIN,
-  session_expired: SIGN_IN_AGAIN,
-  session_not_found: SIGN_IN_AGAIN,
-};
+  ],
+  ["reauthentication_needed", SIGN_IN_AGAIN],
+  ["session_expired", SIGN_IN_AGAIN],
+  ["session_not_found", SIGN_IN_AGAIN],
+]);
+
+/**
+ * The only sentences `useChangePassword` words itself (its re-auth step). They
+ * are matched exactly: this is an allow-list, so an error from anywhere else,
+ * whatever its text, can never reach her.
+ */
+const PASSWORD_APP_MESSAGES = new Set([
+  "That current password isn't right.",
+  "That human check didn't go through — verify again and retry.",
+  "You need to be signed in to change your password.",
+]);
 
 function codeOf(error: unknown): string | null {
   if (typeof error !== "object" || error === null || !("code" in error)) return null;
   return typeof error.code === "string" ? error.code : null;
-}
-
-/** An error the identity provider raised, as opposed to one this app wrote. */
-function isProviderError(error: unknown): boolean {
-  return typeof error === "object" && error !== null && "__isAuthError" in error;
 }
 
 function isNetworkFailure(error: unknown): boolean {
@@ -61,21 +69,17 @@ function isNetworkFailure(error: unknown): boolean {
 function changeEmailMessage(error: unknown): string {
   if (isNetworkFailure(error)) return NETWORK;
   const code = codeOf(error);
-  if (code === "validation_failed") return AUTH_ERROR_COPY.email_address_invalid;
-  return (code && AUTH_ERROR_COPY[code]) || EMAIL_FALLBACK;
+  if (code === "validation_failed") return EMAIL_INVALID;
+  return (code && AUTH_ERROR_COPY.get(code)) || EMAIL_FALLBACK;
 }
 
-/**
- * The change runs a re-auth first, and the app words those failures itself
- * (wrong current password, human check), so a plain `Error` reaches her as
- * written. Anything the provider raised is mapped or replaced.
- */
 function changePasswordMessage(error: unknown): string {
   if (isNetworkFailure(error)) return NETWORK;
   const code = codeOf(error);
-  const mapped = code ? AUTH_ERROR_COPY[code] : undefined;
+  const mapped = code ? AUTH_ERROR_COPY.get(code) : undefined;
   if (mapped) return mapped;
-  return isProviderError(error) ? PASSWORD_FALLBACK : errorMessage(error, PASSWORD_FALLBACK);
+  if (error instanceof Error && PASSWORD_APP_MESSAGES.has(error.message)) return error.message;
+  return PASSWORD_FALLBACK;
 }
 
 /**

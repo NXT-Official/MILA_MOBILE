@@ -24,6 +24,7 @@ const EMPTY_PROFILE: DashboardProfile = {
   color_season_base: null,
   skin_undertone: null,
   full_name: null,
+  username: null,
   face_shape: null,
   hair_type: null,
   gender: null,
@@ -49,6 +50,7 @@ type ProfileRow = {
   color_season: string | null;
   skin_undertone: string | null;
   full_name: string | null;
+  username: string | null;
   color_profile: Json | null;
   face_shape: string | null;
   hair_type: string | null;
@@ -102,6 +104,7 @@ function buildDashboardProfile(data: ProfileRow | null): DashboardProfile {
     color_season_base: data.color_season ?? null,
     skin_undertone: metrics.undertone,
     full_name: data.full_name ?? null,
+    username: data.username ?? null,
     face_shape: faceShape,
     hair_type: hairType,
     gender: data.gender ?? null,

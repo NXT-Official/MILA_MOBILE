@@ -6,11 +6,13 @@ import { Button } from "@/components/ui/Button";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { Sheet } from "@/components/ui/Sheet";
+import { useMySubscription } from "@/hooks/use-my-subscription";
 import {
   formatBillingInterval,
   formatPlanPrice,
   useSubscriptionPlans,
 } from "@/hooks/use-subscription-plans";
+import { resolveMembership } from "@/lib/subscription-status";
 
 /**
  * The response to `INSUFFICIENT_CREDITS` — a sheet, never a toast (§7).
@@ -26,12 +28,22 @@ import {
  */
 export function PaywallSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const { data: plans, isPending, isError, refetch } = useSubscriptionPlans();
+  const subscription = useMySubscription();
+
+  // "Memberships open soon" is only for someone who has none — and only once we
+  // know that. A member who holds a plan (bought or granted by staff), or whose
+  // subscription is still loading or unreadable, is told nothing about it.
+  const showMembershipsSoon =
+    !subscription.isPending &&
+    !subscription.isError &&
+    !resolveMembership(subscription.data).inForce;
 
   return (
     <Sheet visible={visible} onClose={onClose} title="You're out of credits">
       <View className="gap-lg">
         <Text className="font-body text-base text-body">
-          Your credits reset tomorrow. Memberships open soon. Your stylist is getting ready.
+          Your credits reset tomorrow.
+          {showMembershipsSoon ? " Memberships open soon. Your stylist is getting ready." : ""}
         </Text>
 
         {isPending ? <LoadingState label="Loading membership plans" lines={3} /> : null}

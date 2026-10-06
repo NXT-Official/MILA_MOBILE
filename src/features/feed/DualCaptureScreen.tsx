@@ -155,6 +155,7 @@ export function DualCaptureScreen() {
           haptics.success();
           AccessibilityInfo.announceForAccessibility("Your look is posted.");
           setPublished({ postId: result.postId });
+          setDiscardOpen(false);
           // Silent when nothing was detected: no sheet, no apology, no credit.
           // The tagging sheet only opens because `result.items` has something in it.
           if (result.items.length === 0) leave();
@@ -276,9 +277,10 @@ export function DualCaptureScreen() {
 
       {/* Once publishing has started, leaving does not cancel it: the upload and
           the post settle in the background (see `usePublishPost`). "Nothing is
-          posted" is only true before she taps Post. */}
+          posted" is only true before she taps Post. A post that lands while the
+          sheet is open hands over to the tagging sheet instead of rewriting it. */}
       <ConfirmSheet
-        visible={discardOpen}
+        visible={discardOpen && !published}
         onClose={() => setDiscardOpen(false)}
         title={publish.isPending ? "Leave while your look posts?" : "Discard this look?"}
         message={

@@ -123,12 +123,60 @@ describe("MembershipScreen", () => {
 });
 
 describe("PaywallSheet", () => {
+  function heldPlan(paddleSubscriptionId: string) {
+    return {
+      data: {
+        plan_id: mockPlan.id,
+        status: "active",
+        cancel_at_period_end: false,
+        current_period_end: "2026-11-01T00:00:00Z",
+        paddle_subscription_id: paddleSubscriptionId,
+      },
+      isPending: false,
+      isError: false,
+      refetch: jest.fn(),
+    };
+  }
+
   test("out of credits does not promise a purchase", async () => {
     const screen = await render(<PaywallSheet visible onClose={jest.fn()} />);
 
     expect(screen.getByText("You're out of credits")).toBeTruthy();
-    expect(screen.getByText(/Memberships open soon/)).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Your credits reset tomorrow. Memberships open soon. Your stylist is getting ready.",
+      ),
+    ).toBeTruthy();
     expect(screen.queryByText(/choose the one that fits/i)).toBeNull();
     expect(screen.queryByText(/refresh daily with a membership/i)).toBeNull();
+  });
+
+  test("a member who holds a plan is not told memberships are not open", async () => {
+    mockState.subscription = heldPlan("sub_1");
+    const screen = await render(<PaywallSheet visible onClose={jest.fn()} />);
+
+    expect(screen.getByText("Your credits reset tomorrow.")).toBeTruthy();
+    expect(screen.queryByText(/open soon/i)).toBeNull();
+  });
+
+  test("a staff-granted plan counts as holding one", async () => {
+    mockState.subscription = heldPlan("manual:6f1c");
+    const screen = await render(<PaywallSheet visible onClose={jest.fn()} />);
+
+    expect(screen.getByText("Your credits reset tomorrow.")).toBeTruthy();
+    expect(screen.queryByText(/open soon/i)).toBeNull();
+  });
+
+  test("while her membership is loading or unreadable the sheet makes no claim about it", async () => {
+    mockState.subscription = { data: undefined, isPending: true, isError: false, refetch: jest.fn() };
+    const loading = await render(<PaywallSheet visible onClose={jest.fn()} />);
+    expect(loading.getByText("Your credits reset tomorrow.")).toBeTruthy();
+    expect(loading.queryByText(/open soon/i)).toBeNull();
+    await loading.unmount();
+
+    mockState.subscription = { data: undefined, isPending: false, isError: true, refetch: jest.fn() };
+    const failed = await render(<PaywallSheet visible onClose={jest.fn()} />);
+    expect(failed.getByText("Your credits reset tomorrow.")).toBeTruthy();
+    expect(failed.queryByText(/open soon/i)).toBeNull();
   });
 });

@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { render } from "@testing-library/react-native";
 
 /**
@@ -134,11 +137,50 @@ describe("change email", () => {
 });
 
 describe("change password", () => {
-  test("a message the app wrote itself still reaches her", async () => {
-    mockHooks({ password: new Error("That current password isn't right.") });
+  // The three messages the change-password re-auth words itself
+  // (`useChangePassword`). Only these exact sentences are shown as written.
+  const APP_MESSAGES = [
+    "That current password isn't right.",
+    "That human check didn't go through — verify again and retry.",
+    "You need to be signed in to change your password.",
+  ];
+
+  test.each(APP_MESSAGES)("a message the app wrote itself still reaches her: %s", async (message) => {
+    mockHooks({ password: new Error(message) });
     const screen = await render(<AccountScreen />);
 
-    expect(screen.getByText("That current password isn't right.")).toBeTruthy();
+    expect(screen.getByText(message)).toBeTruthy();
+  });
+
+  test("the allow-list is what the hook really throws, so a reworded message cannot silently vanish", () => {
+    // The hook is stubbed everywhere else in this file; reading its source is
+    // the cheapest way to keep the screen's list and its wording in step.
+    const source = readFileSync(
+      join(__dirname, "../src/features/settings/hooks/use-account-actions.ts"),
+      "utf8",
+    );
+    for (const message of APP_MESSAGES) expect(source).toContain(message);
+  });
+
+  test.each([
+    new Error("Cannot read properties of undefined (reading 'user')"),
+    new TypeError("Network request failed"),
+    new Error("duplicate key value violates unique constraint \"users_pkey\""),
+    new Error(""),
+  ])("any other error text is never shown, only the neutral fallback: %s", async (error) => {
+    mockHooks({ password: error });
+    const screen = await render(<AccountScreen />);
+
+    if (error.message) expect(screen.queryByText(error.message)).toBeNull();
+    expect(screen.getByText("We couldn't change your password. Please try again.")).toBeTruthy();
+  });
+
+  test("something that is not an Error at all falls back too", async () => {
+    mockHooks({ password: "boom: stack trace here" });
+    const screen = await render(<AccountScreen />);
+
+    expect(screen.queryByText(/boom/)).toBeNull();
+    expect(screen.getByText("We couldn't change your password. Please try again.")).toBeTruthy();
   });
 
   test("the provider's reuse rule is restated in plain words", async () => {

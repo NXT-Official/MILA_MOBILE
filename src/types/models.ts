@@ -34,6 +34,8 @@ export type DashboardProfile = {
   color_season_base: string | null;
   skin_undertone: string | null;
   full_name: string | null;
+  /** Her handle. The only handle there is: never derived from her email. */
+  username: string | null;
   face_shape: string | null;
   hair_type: string | null;
   /**
@@ -174,4 +176,4 @@ export const PROFILE_WRITABLE_COLUMNS = [
  * into a payload by a `select("*")`.
  */
 export const PROFILE_READ_COLUMNS =
-  "body_type,color_season,skin_undertone,full_name,color_profile,face_shape,hair_type,gender,hair_length,makeup_preference,shopping_preferences,styling_constraints,delivery_country,beauty_preferences,default_location,style_goals,suspended,photo_consent_at,profile_photo_path,skin_depth,height_cm,weight_kg";
+  "body_type,color_season,skin_undertone,full_name,username,color_profile,face_shape,hair_type,gender,hair_length,makeup_preference,shopping_preferences,styling_constraints,delivery_country,beauty_preferences,default_location,style_goals,suspended,photo_consent_at,profile_photo_path,skin_depth,height_cm,weight_kg";
