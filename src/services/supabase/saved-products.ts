@@ -166,12 +166,14 @@ export async function saveProduct(
   userId: string,
   input: SaveProductInput,
 ): Promise<"saved" | "already_saved" | "unavailable"> {
-  // No snapshot: the server trigger fills it from `products` and ignores
-  // anything a client sends. `user_id` must equal the session's for RLS.
+  // `snapshot: {}` only satisfies the not-null column: the server trigger
+  // overwrites it from `products` and ignores anything a client sends.
+  // `user_id` must equal the session's for RLS.
   const { error } = await supabase.from("saved_products").insert({
     user_id: userId,
     product_id: input.productId,
     source: input.source,
+    snapshot: {},
     ...(input.outfitId ? { outfit_id: input.outfitId } : {}),
     ...(input.postItemId ? { post_item_id: input.postItemId } : {}),
   });

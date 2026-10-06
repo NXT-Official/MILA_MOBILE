@@ -1,10 +1,12 @@
 import { Image } from "expo-image";
+import { router } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import { Pressable, Text, View } from "react-native";
 
 import { GarmentBadge } from "@/components/ui/GarmentBadge";
 import { Icon } from "@/components/ui/Icon";
-import { SaveProductButton } from "@/components/ui/SaveProductButton";
+import { SaveFailedNotice, SaveProductButton } from "@/components/ui/SaveProductButton";
+import { useSavedProducts } from "@/hooks/use-saved-products";
 import { garmentFor } from "@/lib/garment-label";
 import type { ShoppablePick } from "@/types/look";
 import { formatPrice } from "@/utils/format-price";
@@ -19,11 +21,28 @@ import { formatPrice } from "@/utils/format-price";
  * section that silently vanishes.
  */
 export function ShopThisLookGrid({ items }: { items: ShoppablePick[] }) {
+  // The bookmark on each card fills, and this says where the piece went. Shown
+  // only once saving is live, so it never leads to a "not yet" screen.
+  const savedList = useSavedProducts();
+
   return (
     <View className="gap-lg">
-      <Text className="font-body-semibold text-section tracking-section uppercase text-ink">
-        Shop This Look
-      </Text>
+      <View className="flex-row items-center justify-between gap-md">
+        <Text className="font-body-semibold text-section tracking-section uppercase text-ink">
+          Shop This Look
+        </Text>
+        {savedList.data?.status === "ok" ? (
+          <Pressable
+            accessibilityRole="link"
+            accessibilityLabel="Saved pieces"
+            onPress={() => router.push("/saved")}
+            className="min-h-tap flex-row items-center gap-xs active:opacity-80"
+          >
+            <Icon name="bookmarkCheck" size="xs" color="muted" />
+            <Text className="font-body-medium text-sm text-body">Saved pieces</Text>
+          </Pressable>
+        ) : null}
+      </View>
 
       {items.length === 0 ? (
         <Text className="font-body text-sm text-body">No verified matching item found.</Text>
@@ -100,6 +119,8 @@ function ProductCard({ item }: { item: ShoppablePick }) {
           <Text className="font-body-medium text-sm text-on-ink">Shop</Text>
           <Icon name="external" size="xs" color="onInk" />
         </Pressable>
+
+        <SaveFailedNotice productId={item.id} />
       </View>
     </View>
   );

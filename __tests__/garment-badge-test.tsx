@@ -30,7 +30,19 @@ describe("GarmentBadge", () => {
 
   it("hides its glyph from assistive tech, so the label is read once", async () => {
     const s = await render(<GarmentBadge garment={garmentFor("Tops")} />);
-    expect(s.queryByRole("image")).toBeNull();
+    // The only image a screen reader meets is the badge itself, by its sentence.
+    const images = s.getAllByRole("image");
+    expect(images).toHaveLength(1);
+    expect(images[0].props.accessibilityLabel).toBe("Mila is recommending the top");
+  });
+
+  it("has a role, so the web build reads its name", async () => {
+    // react-native-web drops a name on an element with no role (ARIA forbids
+    // naming the generic role); "image" maps to role="img", which is read.
+    // src: react-native-web 0.21.2 · dist/modules/AccessibilityUtil/propsToAriaRole.js
+    //   (image -> img, text -> no role)
+    const s = await render(<GarmentBadge garment={garmentFor("Bottoms", "Wide-leg jeans")} />);
+    expect(s.getByLabelText("Mila is recommending the jeans").props.accessibilityRole).toBe("image");
   });
 
   it("phrases the sentence in lower case after 'the'", () => {

@@ -52,6 +52,7 @@ jest.mock("../src/hooks/use-profile", () => ({ useProfile: () => ({ data: undefi
 jest.mock("../src/hooks/use-saved-products", () => ({
   useSavedProducts: () => ({ data: { status: "unavailable" } }),
   useSetProductSaved: () => ({ mutate: jest.fn(), isPending: false }),
+  useSaveFailure: () => null,
 }));
 jest.mock("../src/stores/auth-store", () => ({
   useAuthStore: (select: (state: { session: { user: { id: string } } }) => unknown) =>

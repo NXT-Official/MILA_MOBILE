@@ -600,8 +600,10 @@ export type Database = {
       };
       // Hand-written from the web migration that adds `saved_products` (wave 2,
       // R3) until the types are regenerated against a database that has it.
-      // `snapshot` is filled by a BEFORE INSERT trigger from `products`, so the
-      // client never sends one; there is no UPDATE grant.
+      // `snapshot` is filled by a BEFORE INSERT trigger from `products`, which
+      // overwrites whatever the client sends; the column is `jsonb not null`
+      // with no default, so Insert requires it, exactly as the web's generated
+      // types do. There is no UPDATE grant.
       saved_products: {
         Row: {
           created_at: string;
@@ -619,7 +621,7 @@ export type Database = {
           outfit_id?: string | null;
           post_item_id?: string | null;
           product_id?: string | null;
-          snapshot?: Json;
+          snapshot: Json;
           source: string;
           user_id: string;
         };

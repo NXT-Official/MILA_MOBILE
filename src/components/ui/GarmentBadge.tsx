@@ -26,6 +26,11 @@ export function GarmentBadge({ garment }: { garment: Garment }) {
   return (
     <View
       accessible
+      // A role, so react-native-web keeps the name: it renders role="img" with
+      // the label, where a role-less element's aria-label is dropped. "text"
+      // would map to no role at all on web.
+      // src: react-native-web 0.21.2 · dist/modules/AccessibilityUtil/propsToAriaRole.js
+      accessibilityRole="image"
       accessibilityLabel={recommendingLabel(garment.label)}
       className="absolute bottom-sm left-sm flex-row items-center gap-xs rounded-pill bg-ink px-sm py-xs"
     >

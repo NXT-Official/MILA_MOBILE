@@ -141,7 +141,7 @@ describe("parseSavedProduct", () => {
 });
 
 describe("saveProduct", () => {
-  it("sends only the ids and the source; the server fills the snapshot", async () => {
+  it("sends the ids and the source; the server fills the snapshot (the {} sent satisfies the not-null column and is overwritten)", async () => {
     const query = mockQuery({ error: null });
     await expect(
       saveProduct("member", { productId: "product-1", source: "dupe" }),
@@ -152,6 +152,7 @@ describe("saveProduct", () => {
       user_id: "member",
       product_id: "product-1",
       source: "dupe",
+      snapshot: {},
     });
   });
 
@@ -163,6 +164,7 @@ describe("saveProduct", () => {
       product_id: "p",
       source: "post_item",
       post_item_id: "item-9",
+      snapshot: {},
     });
 
     await saveProduct("member", { productId: "p", source: "look", outfitId: "outfit-3" });
@@ -171,6 +173,7 @@ describe("saveProduct", () => {
       product_id: "p",
       source: "look",
       outfit_id: "outfit-3",
+      snapshot: {},
     });
   });
 

@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useMutationState, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { queryKeys } from "@/constants/query-keys";
 import { trackEvent } from "@/services/supabase/analytics";
@@ -53,10 +53,19 @@ type SetSavedVariables = {
   saved: boolean;
 };
 
+/**
+ * The id an optimistic row carries until the refetch brings the real one. It is
+ * not a uuid, so nothing may send it to the server as a row id.
+ */
+const PENDING_ID_PREFIX = "pending-";
+
+/** Every bookmark write shares this key, so a card can read its latest outcome. */
+const SAVE_TOGGLE_KEY = ["saved-products", "toggle"] as const;
+
 /** What the list looks like the instant she taps, before the server answers. */
 function optimisticRow({ product, source, outfitId, postItemId }: SetSavedVariables): SavedProduct {
   return {
-    id: `pending-${product.id}`,
+    id: `${PENDING_ID_PREFIX}${product.id}`,
     product_id: product.id,
     source,
     outfit_id: outfitId ?? null,
@@ -92,6 +101,7 @@ export function useSetProductSaved() {
     SetSavedVariables,
     { previous: SavedProductsList | undefined }
   >({
+    mutationKey: SAVE_TOGGLE_KEY,
     mutationFn: (variables) => {
       if (!userId) throw new Error("Not signed in.");
       if (!variables.saved) {
@@ -148,6 +158,11 @@ export function useRemoveSavedProduct() {
   return useMutation<"removed" | "not_found" | "unavailable", unknown, SavedProduct>({
     mutationFn: (item) => {
       if (!userId) throw new Error("Not signed in.");
+      // A row still showing its optimistic placeholder id is reached by its
+      // product instead: one row per product, by the unique index.
+      if (item.id.startsWith(PENDING_ID_PREFIX) && item.product_id) {
+        return removeSavedProduct(userId, { productId: item.product_id });
+      }
       return removeSavedProduct(userId, { id: item.id });
     },
     onSuccess: (outcome, item) => {
@@ -164,4 +179,31 @@ export function useRemoveSavedProduct() {
       });
     },
   });
+}
+
+/**
+ * Whether the latest bookmark write for this product failed, and which way:
+ * "save" or "remove". Read from TanStack's own mutation cache, so a card can
+ * say so in words without the button handing state up to it. A new tap starts
+ * a new write and the answer clears.
+ *
+ * // src: @tanstack/react-query 5.101.4 · build/modern/_tsup-dts-rollup.d.ts:
+ * //   useMutationState({ filters: MutationFilters, select }) returns one entry
+ * //   per matching mutation, oldest first.
+ */
+export function useSaveFailure(productId: string): "save" | "remove" | null {
+  const outcomes = useMutationState({
+    filters: {
+      mutationKey: [...SAVE_TOGGLE_KEY],
+      predicate: (mutation) =>
+        (mutation.state.variables as SetSavedVariables | undefined)?.product.id === productId,
+    },
+    select: (mutation) => ({
+      failed: mutation.state.status === "error",
+      saving: (mutation.state.variables as SetSavedVariables | undefined)?.saved ?? true,
+    }),
+  });
+  const latest = outcomes.at(-1);
+  if (!latest?.failed) return null;
+  return latest.saving ? "save" : "remove";
 }

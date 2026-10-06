@@ -3,7 +3,7 @@ import { Linking, Pressable, Text, View } from "react-native";
 import { ImageWithFallback } from "@/components/media/ImageWithFallback";
 import { GarmentBadge } from "@/components/ui/GarmentBadge";
 import { Icon } from "@/components/ui/Icon";
-import { SaveProductButton } from "@/components/ui/SaveProductButton";
+import { SaveFailedNotice, SaveProductButton } from "@/components/ui/SaveProductButton";
 import { garmentFor } from "@/lib/garment-label";
 import type { DupeMatch } from "@/services/api/items";
 import type { SaveSource } from "@/services/supabase/saved-products";
@@ -118,6 +118,9 @@ export function DupeMatchCard({
           </Text>
         </View>
       </Pressable>
+
+      {/* Outside the link, so the words are not swallowed into its name. */}
+      <SaveFailedNotice productId={match.id} />
 
       <View className="absolute right-sm top-sm">
         <SaveProductButton product={match} source={saveSource} postItemId={postItemId} />
