@@ -132,15 +132,37 @@ async function read(key: string): Promise<string | null> {
   return header.length === null || value.length === header.length ? value : null;
 }
 
-async function write(key: string, value: string): Promise<void> {
-  const previous = await SecureStore.getItemAsync(key);
+/**
+ * The current header, read only so its chunks can be cleaned up afterwards.
+ * An entry that cannot be read (an Android keystore value that fails to
+ * decrypt) must not block the write or removal that replaces it, or every
+ * later sign-in fails to save. Skipping the clean-up leaves at worst an orphan.
+ */
+async function currentHeader(key: string): Promise<string | null> {
+  try {
+    return await SecureStore.getItemAsync(key);
+  } catch {
+    return null;
+  }
+}
 
-  if (value.length <= CHUNK_SIZE && !isChunkHeader(value)) {
+async function write(key: string, value: string): Promise<void> {
+  const small = value.length <= CHUNK_SIZE && !isChunkHeader(value);
+  const chunks = small ? [] : split(value);
+  if (chunks.length > MAX_CHUNKS) {
+    // A header naming more chunks than `parseHeader` accepts would read back
+    // as absent: a session that saves and then silently signs her out. Refuse
+    // it before anything is touched, so the stored session survives.
+    throw new Error("Session is too large to store securely.");
+  }
+
+  const previous = await currentHeader(key);
+
+  if (small) {
     // One value replaces the header key outright: already atomic.
     await SecureStore.setItemAsync(key, value);
   } else {
     const generation = nextGeneration();
-    const chunks = split(value);
     const keys = chunkKeys(key, generation, chunks.length);
     const written = await Promise.allSettled(
       chunks.map((chunk, i) => SecureStore.setItemAsync(keys[i], chunk)),
@@ -166,7 +188,7 @@ async function write(key: string, value: string): Promise<void> {
 }
 
 async function remove(key: string): Promise<void> {
-  const previous = await SecureStore.getItemAsync(key);
+  const previous = await currentHeader(key);
   // Header first: the session is gone the moment it is, whatever the chunks do.
   await SecureStore.deleteItemAsync(key);
   await deleteChunks(key, previous);

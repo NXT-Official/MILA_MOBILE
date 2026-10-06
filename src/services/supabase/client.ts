@@ -5,6 +5,7 @@ import { AppState } from "react-native";
 
 import { env } from "@/constants/env";
 
+import { createSupabaseFetch } from "./auth-fetch";
 import { supabaseStorage } from "./auth-storage";
 import type { Database } from "./types";
 
@@ -36,17 +37,24 @@ export const supabase = createClient<Database>(
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: false, // no browser URL to parse
-      // No `lock: processLock`, on purpose. In the installed auth-js the
-      // option is @deprecated and opts into a legacy path that wraps every auth
-      // call in a lock with a 5 s acquire timeout: a refresh slower than that
-      // on a weak connection makes every concurrent getSession() (one per API
-      // request) reject. The default lockless path already single-flights
-      // refreshes and discards a refresh that races a sign-out. What a lock
-      // used to protect here, the chunked session in SecureStore, is now
-      // ordered and atomic inside `supabaseStorage` itself.
+      // No `lock: processLock`, on purpose. The installed auth-js marks the
+      // option @deprecated, says to drop it, and removes it in v3; its
+      // migration note gives React Native's `processLock` as the example to
+      // delete. The default lockless path already single-flights refreshes and
+      // discards a refresh that races a sign-out. Passing the lock would also
+      // opt into a legacy path with a 5 s acquire timeout, where calls issued
+      // alongside a slow refresh can reject with ProcessLockAcquireTimeoutError.
+      // What a lock used to protect here, the chunked session in SecureStore,
+      // is ordered and atomic inside `supabaseStorage` itself.
       // `auth-session-lockless-test` pins this against the installed library.
-      // src: node_modules/@supabase/auth-js/migrations/lockless-coordination.md · 2.112.2
-      // src: node_modules/@supabase/auth-js/dist/module/lib/locks.js `processLock` · 2.112.2
+      // src: node_modules/@supabase/auth-js/migrations/lockless-coordination.md ("Migration steps") · 2.112.2
+      // src: node_modules/@supabase/auth-js/dist/module/lib/locks.js `processLock`; GoTrueClient.js `_acquireLock` · 2.112.2
+    },
+    global: {
+      // Auth requests get a deadline, and a refresh answered by a captive
+      // portal, proxy or rate limit fails as a network error rather than
+      // deleting her session. Everything else passes through untouched.
+      fetch: createSupabaseFetch(env.SUPABASE_URL),
     },
   },
 );

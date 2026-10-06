@@ -222,29 +222,37 @@ export async function signOut(): Promise<void> {
 /**
  * What the launch gate may conclude from the session on this device.
  *
- * `retry` means "unknown, ask again": the stored session needed a refresh and
- * the network was down (auth-js keeps the session and reports a retryable
- * error), the refresh was discarded because storage changed under it, or the
- * secure store itself threw. None of those is "signed out", and routing her to
- * login on one is how a lift signed members out.
+ * `retry` means "unknown, ask again", for one of two reasons:
+ * - `network`: the stored session needed a refresh and the network was down
+ *   or answered with something other than the auth server (auth-js keeps the
+ *   session and reports a retryable error; see `auth-fetch.ts`), or the
+ *   refresh was discarded because storage changed under it;
+ * - `unreadable`: reading or writing the secure store threw (auth-js rethrows
+ *   anything that is not an AuthError).
+ * Neither is "signed out", and routing her to login on one is how a lift
+ * signed members out. The caller decides how long to keep asking.
  * src: node_modules/@supabase/auth-js/dist/module/GoTrueClient.js `__loadSession`, `_callRefreshToken` · 2.112.2
  */
-export type RestoredSession = { status: "resolved"; session: Session | null } | { status: "retry" };
+export type RestoredSession =
+  | { status: "resolved"; session: Session | null }
+  | { status: "retry"; reason: "network" | "unreadable" };
 
 export async function restoreSession(): Promise<RestoredSession> {
   let result: Awaited<ReturnType<typeof supabase.auth.getSession>>;
   try {
     result = await supabase.auth.getSession();
   } catch {
-    return { status: "retry" };
+    return { status: "retry", reason: "unreadable" };
   }
   const { data, error } = result;
   if (data.session) return { status: "resolved", session: data.session };
   if (isAuthRetryableFetchError(error) || isAuthRefreshDiscardedError(error)) {
-    return { status: "retry" };
+    return { status: "retry", reason: "network" };
   }
-  // No stored session, or the server rejected the refresh token (auth-js has
-  // already removed it): she really is signed out.
+  // No stored session, or auth-js removed it after a refresh failure it does
+  // not retry. With `auth-fetch.ts` in front of the token endpoint, that is
+  // the auth server itself rejecting the refresh token: she really is signed
+  // out.
   return { status: "resolved", session: null };
 }
 

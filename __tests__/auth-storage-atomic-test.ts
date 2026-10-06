@@ -28,20 +28,32 @@ function mockPersisted(value: string): string {
   return new TextDecoder().decode(new TextEncoder().encode(value));
 }
 
+/**
+ * expo-secure-store rejects any key outside `[A-Za-z0-9._-]`, so the fake does
+ * too: the chunk key format is pinned, not just the round trip.
+ * src: node_modules/expo-secure-store/build/SecureStore.js `isValidKey` · 57.0.4
+ */
+function mockCheckKey(key: string): void {
+  if (!/^[\w.-]+$/.test(key)) throw new Error(`Invalid key provided to SecureStore: ${key}`);
+}
+
 jest.mock("expo-secure-store", () => ({
   // The value is read before the pause, so a paused read returns what was
   // there when it started, exactly like a native read already in flight.
   getItemAsync: jest.fn(async (key: string) => {
+    mockCheckKey(key);
     const value = mockStore.get(key) ?? null;
     await mockHook?.("get", key);
     return value;
   }),
   // The pause (or failure) comes first: a write that throws never lands.
   setItemAsync: jest.fn(async (key: string, value: string) => {
+    mockCheckKey(key);
     await mockHook?.("set", key);
     mockStore.set(key, mockPersisted(value));
   }),
   deleteItemAsync: jest.fn(async (key: string) => {
+    mockCheckKey(key);
     await mockHook?.("delete", key);
     mockStore.delete(key);
   }),
@@ -427,5 +439,171 @@ describe("removal", () => {
 
   it("is safe on a key that was never written", async () => {
     await expect(adapter.removeItem("absent")).resolves.toBeUndefined();
+  });
+});
+
+describe("a header that cannot be read", () => {
+  // An Android keystore entry that fails to decrypt makes the read reject.
+  // The old adapter simply overwrote such an entry; so must this one, or every
+  // later sign-in fails to save.
+  const unreadableHeader: Hook = (op, key) => {
+    if (op === "get" && key === KEY) crash("could not decrypt");
+  };
+
+  it("does not stop a new session from being written over it", async () => {
+    await adapter.setItem(KEY, OLD);
+    mockHook = unreadableHeader;
+
+    await expect(adapter.setItem(KEY, NEW)).resolves.toBeUndefined();
+
+    mockHook = null;
+    expect(await adapter.getItem(KEY)).toBe(NEW);
+  });
+
+  it("does not stop a small session from being written over it", async () => {
+    await adapter.setItem(KEY, OLD);
+    mockHook = unreadableHeader;
+
+    await expect(adapter.setItem(KEY, "small")).resolves.toBeUndefined();
+
+    mockHook = null;
+    expect(await adapter.getItem(KEY)).toBe("small");
+  });
+
+  it("does not stop sign-out from removing it", async () => {
+    await adapter.setItem(KEY, OLD);
+    mockHook = unreadableHeader;
+
+    await expect(adapter.removeItem(KEY)).resolves.toBeUndefined();
+
+    mockHook = null;
+    expect(await adapter.getItem(KEY)).toBeNull();
+  });
+});
+
+describe("the chunk limit", () => {
+  const MAX_CHUNKS = 64;
+
+  it("refuses a session too large to read back, before touching the stored one", async () => {
+    await adapter.setItem(KEY, OLD);
+    const before = snapshot();
+
+    await expect(adapter.setItem(KEY, "z".repeat(CHUNK_SIZE * MAX_CHUNKS + 1))).rejects.toThrow();
+
+    expect(snapshot()).toEqual(before);
+    expect(await adapter.getItem(KEY)).toBe(OLD);
+  });
+
+  it("round-trips the largest session that fits", async () => {
+    const largest = "z".repeat(CHUNK_SIZE * MAX_CHUNKS);
+    await adapter.setItem(KEY, largest);
+    expect(await adapter.getItem(KEY)).toBe(largest);
+  });
+});
+
+describe("what a fresh launch finds on disk after the app is killed at any step", () => {
+  /**
+   * A separate module instance, as after a relaunch: its own empty lane, the
+   * same SecureStore. The lane-ordered tests above cannot see the disk mid-
+   * write, because a read through the same instance queues behind the write.
+   */
+  function freshAdapter(): typeof adapter {
+    let fresh: typeof adapter | null = null;
+    jest.isolateModules(() => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports -- isolateModules needs a synchronous require
+      fresh = (require("@/services/supabase/auth-storage") as { supabaseStorage: typeof adapter })
+        .supabaseStorage;
+    });
+    if (!fresh) throw new Error("adapter did not load");
+    return fresh;
+  }
+
+  /**
+   * Runs `write` once to count its native calls. Then, for each call index,
+   * runs it in a fresh instance that is killed just before that call takes
+   * effect (the call never returns and nothing after it runs), and reads the
+   * key from another fresh instance.
+   */
+  async function killAtEveryStep(
+    seed: (store: typeof adapter) => Promise<void>,
+    write: (store: typeof adapter) => Promise<void>,
+    allowed: (string | null)[],
+  ) {
+    mockStore.clear();
+    await seed(adapter);
+    let total = 0;
+    mockHook = () => {
+      total += 1;
+    };
+    await write(freshAdapter());
+    mockHook = null;
+    expect(total).toBeGreaterThan(1);
+
+    for (let step = 0; step < total; step += 1) {
+      mockStore.clear();
+      await seed(adapter);
+
+      let calls = 0;
+      let killed = false;
+      let reachedStep: () => void = () => undefined;
+      const atStep = new Promise<void>((resolve) => (reachedStep = resolve));
+      mockHook = () => {
+        if (killed) return undefined;
+        if (calls++ !== step) return undefined;
+        killed = true;
+        reachedStep();
+        return new Promise<void>(() => undefined); // the process is gone
+      };
+
+      void write(freshAdapter());
+      await atStep;
+
+      expect(allowed).toContain(await freshAdapter().getItem(KEY));
+      mockHook = null;
+    }
+  }
+
+  it("while a large session replaces a large one", async () => {
+    await killAtEveryStep(
+      (store) => store.setItem(KEY, OLD),
+      (store) => store.setItem(KEY, NEW),
+      [OLD, NEW],
+    );
+  });
+
+  it("while a small session replaces a large one", async () => {
+    await killAtEveryStep(
+      (store) => store.setItem(KEY, OLD),
+      (store) => store.setItem(KEY, "small"),
+      [OLD, "small"],
+    );
+  });
+
+  it("while a large session replaces a small one", async () => {
+    await killAtEveryStep(
+      (store) => store.setItem(KEY, "small"),
+      (store) => store.setItem(KEY, NEW),
+      ["small", NEW],
+    );
+  });
+
+  it("while a large session replaces a legacy one", async () => {
+    await killAtEveryStep(
+      async () => {
+        const chunks = OLD.match(new RegExp(`.{1,${CHUNK_SIZE}}`, "g")) ?? [];
+        chunks.forEach((chunk, index) => mockStore.set(`${KEY}.${index}`, chunk));
+        mockStore.set(KEY, `__chunks__:${chunks.length}`);
+      },
+      (store) => store.setItem(KEY, NEW),
+      [OLD, NEW],
+    );
+  });
+
+  it("while the session is removed", async () => {
+    await killAtEveryStep(
+      (store) => store.setItem(KEY, OLD),
+      (store) => store.removeItem(KEY),
+      [OLD, null],
+    );
   });
 });

@@ -11,6 +11,18 @@ import { useOnboardingStore } from "@/stores/onboarding-store";
 /** Launch retries back off from 1 s and cap here; a return to the app retries at once. */
 const FIRST_RETRY_MS = 1_000;
 const MAX_RETRY_MS = 30_000;
+/**
+ * Failed secure-store reads in a row, with the app open, before the launch
+ * gives up and shows login. A network failure never counts: it retries for as
+ * long as it lasts.
+ */
+const MAX_UNREADABLE_READS = 3;
+/**
+ * How long the startup restore may go without an answer before the splash
+ * gives way to the offline holding view. A healthy launch answers well inside
+ * this; an offline one can take ~30 s just for auth-js's own first attempt.
+ */
+const LAUNCH_STALL_MS = 5_000;
 
 /**
  * Mirrors Supabase's session into the store and keeps the query cache honest.
@@ -24,6 +36,20 @@ const MAX_RETRY_MS = 30_000;
  * it on the device and the next attempt (or its own background refresh, which
  * arrives here as TOKEN_REFRESHED) brings her straight back in. Routing that
  * moment to login is what used to sign members out in a lift.
+ *
+ * The one exception is a secure store that cannot be read at all (a keystore
+ * entry that no longer decrypts). Retrying that forever would trap her on the
+ * splash with no way to sign in, so after MAX_UNREADABLE_READS failures in a
+ * row while the app is open she is shown login. Nothing is deleted: a later
+ * sign-in overwrites the entry (`auth-storage.ts` writes over a header it
+ * cannot read). Failures while the app is in the background do not count, as
+ * iOS refuses keychain reads on a locked phone.
+ *
+ * A launch still undecided after LAUNCH_STALL_MS is marked `launchStalled`, and
+ * the root layout swaps the splash for the offline holding view. Its "Try
+ * again" (`requestLaunchRetry`) starts an attempt here; its "Sign in again"
+ * (`signInWhileRestoring`) opens login while this loop keeps restoring, so a
+ * later success still opens the app.
  */
 export function useAuthListener() {
   const setSession = useAuthStore((s) => s.setSession);
@@ -33,22 +59,52 @@ export function useAuthListener() {
     let active = true;
     let settled = false;
     let attempt = 0;
+    let unreadableReads = 0;
+    let inFlight = false;
+    let rerunWhenDone = false;
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    const launch = useAuthStore.getState();
+
+    const stallTimer = setTimeout(() => {
+      if (!settled && useAuthStore.getState().loading) launch.setLaunchStalled(true);
+    }, LAUNCH_STALL_MS);
 
     const settle = (session: Session | null) => {
       settled = true;
       if (retryTimer) clearTimeout(retryTimer);
       retryTimer = null;
+      clearTimeout(stallTimer);
       setSession(session);
     };
 
     const restore = async () => {
       retryTimer = null;
+      inFlight = true;
+      launch.setLaunchAttempting(true);
       const result = await restoreSession();
+      inFlight = false;
+      if (active) launch.setLaunchAttempting(false);
       // An auth event may have answered the question while this read was out.
       if (!active || settled) return;
       if (result.status === "resolved") {
         settle(result.session);
+        return;
+      }
+
+      if (result.reason === "unreadable") {
+        if (AppState.currentState === "active") unreadableReads += 1;
+      } else {
+        unreadableReads = 0;
+      }
+      if (unreadableReads >= MAX_UNREADABLE_READS) {
+        settle(null);
+        return;
+      }
+
+      if (rerunWhenDone) {
+        // She came back while this attempt was out: start a fresh one now.
+        rerunWhenDone = false;
+        void restore();
         return;
       }
       const delay = Math.min(FIRST_RETRY_MS * 2 ** attempt, MAX_RETRY_MS);
@@ -58,13 +114,29 @@ export function useAuthListener() {
 
     void restore();
 
-    // Back in the foreground with the launch still undecided (she unlocked the
-    // phone, left the lift): try now rather than wait out the backoff.
-    const appState = AppState.addEventListener("change", (state) => {
-      if (state !== "active" || settled || !retryTimer) return;
-      clearTimeout(retryTimer);
+    // Try now rather than wait out the backoff. If an attempt is still out, a
+    // fresh one follows the moment it ends, never two at once. Auth requests
+    // carry a deadline (`auth-fetch.ts`), so it ends.
+    const tryNow = () => {
+      if (settled) return;
       attempt = 0;
+      if (inFlight) {
+        rerunWhenDone = true;
+        return;
+      }
+      if (retryTimer) clearTimeout(retryTimer);
       void restore();
+    };
+
+    // Back in the foreground with the launch still undecided (she unlocked the
+    // phone, left the lift).
+    const appState = AppState.addEventListener("change", (state) => {
+      if (state === "active") tryNow();
+    });
+
+    // "Try again" on the offline holding view.
+    const unsubscribeRetry = useAuthStore.subscribe((state, previous) => {
+      if (state.launchRetryRequests !== previous.launchRetryRequests) tryNow();
     });
 
     const { data: subscription } = supabase.auth.onAuthStateChange((event, session) => {
@@ -88,6 +160,8 @@ export function useAuthListener() {
     return () => {
       active = false;
       if (retryTimer) clearTimeout(retryTimer);
+      clearTimeout(stallTimer);
+      unsubscribeRetry();
       appState.remove();
       subscription.subscription.unsubscribe();
     };

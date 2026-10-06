@@ -13,6 +13,9 @@
  *    device and reports a retryable error: what `use-auth-listener` retries on.
  * 3. `signOut({ scope: "local" })` revokes only this session on the server and
  *    clears it from the device.
+ * 4. With the app's fetch guard (`auth-fetch.ts`), a refresh answered by a
+ *    captive portal, a proxy or a rate limit keeps the session, while a refresh
+ *    token the auth server revoked still signs her out.
  */
 const mockStore = new Map<string, string>();
 
@@ -22,8 +25,14 @@ jest.mock("expo-secure-store", () => ({
   deleteItemAsync: jest.fn(async (key: string) => void mockStore.delete(key)),
 }));
 
-import { AuthClient, isAuthRetryableFetchError } from "@supabase/supabase-js";
+import {
+  AuthClient,
+  isAuthRefreshDiscardedError,
+  isAuthRetryableFetchError,
+  type AuthChangeEvent,
+} from "@supabase/supabase-js";
 
+import { AUTH_REQUEST_TIMEOUT_MS, createSupabaseFetch } from "@/services/supabase/auth-fetch";
 import { supabaseStorage } from "@/services/supabase/auth-storage";
 
 const AUTH_URL = "https://project.supabase.test/auth/v1";
@@ -61,7 +70,7 @@ const fetchMock = jest.fn<Promise<Response>, [string, RequestInit?]>();
 const refreshCalls = () =>
   fetchMock.mock.calls.filter(([url]) => url.includes("/token?grant_type=refresh_token")).length;
 
-function makeClient() {
+function makeClient(clientFetch: typeof fetch = fetchMock as unknown as typeof fetch) {
   return new AuthClient({
     url: AUTH_URL,
     storageKey: STORAGE_KEY,
@@ -71,8 +80,16 @@ function makeClient() {
     // refreshes an expired session, which is the path under test.
     autoRefreshToken: false,
     detectSessionInUrl: false,
-    fetch: fetchMock as unknown as typeof fetch,
+    fetch: clientFetch,
   });
+}
+
+/** The client as `client.ts` configures it: every request through the guard. */
+function makeGuardedClient() {
+  const guarded = createSupabaseFetch("https://project.supabase.test", {
+    baseFetch: fetchMock as unknown as typeof fetch,
+  });
+  return makeClient(guarded as typeof fetch);
 }
 
 async function storedSession(): Promise<{ refresh_token: string } | null> {
@@ -153,4 +170,87 @@ it("signs out this session only and clears it from the device", async () => {
   expect(logout?.[0]).toBe(`${AUTH_URL}/logout?scope=local`);
   expect(await supabaseStorage.getItem(STORAGE_KEY)).toBeNull();
   expect(mockStore.size).toBe(0);
+});
+
+describe("a launch refresh answered by something other than the auth server", () => {
+  const PORTAL_PAGE = "<!doctype html><title>Sign in to the Wi-Fi</title>";
+
+  function reply(body: string | null, status: number, contentType: string) {
+    return () => Promise.resolve(new Response(body, { status, headers: { "Content-Type": contentType } }));
+  }
+
+  /**
+   * Runs one launch-time read of an expired session against a scripted
+   * `/token` reply. auth-js retries a retryable failure with backoff for up to
+   * ~30 s on its own, so the clock is advanced past that.
+   */
+  async function launchWith(
+    answer: (url: string, init?: RequestInit) => Promise<Response>,
+    guarded = true,
+  ) {
+    jest.useFakeTimers();
+    fetchMock.mockImplementation(answer);
+    client = guarded ? makeGuardedClient() : makeClient();
+    const events: AuthChangeEvent[] = [];
+    client.onAuthStateChange((event) => {
+      events.push(event);
+    });
+
+    const pending = client.getSession();
+    await jest.advanceTimersByTimeAsync(2 * AUTH_REQUEST_TIMEOUT_MS + 10_000);
+    const result = await pending;
+    return { ...result, events, stored: await storedSession() };
+  }
+
+  it.each([
+    ["a captive portal page with 511", reply(PORTAL_PAGE, 511, "text/html")],
+    ["a captive portal page with 403", reply(PORTAL_PAGE, 403, "text/html")],
+    ["a captive portal page with 200", reply(PORTAL_PAGE, 200, "text/html")],
+    ["a proxy asking for credentials (407)", reply(PORTAL_PAGE, 407, "text/html")],
+    [
+      "a rate limit (429)",
+      reply('{"code":429,"error_code":"over_request_rate_limit","msg":"Too many requests"}', 429, "application/json"),
+    ],
+  ])("%s keeps her session on the device and reports a retryable error", async (_name, answer) => {
+    const { data, error, events, stored } = await launchWith(answer);
+
+    expect(data.session).toBeNull();
+    expect(isAuthRetryableFetchError(error)).toBe(true);
+    expect(stored?.refresh_token).toBe("old-refresh");
+    expect(events).not.toContain("SIGNED_OUT");
+  });
+
+  it("a refresh that stalls is cut off and retried, and keeps the session", async () => {
+    // Answers nothing until the request's signal aborts it.
+    const stall = (_url: string, init?: RequestInit) =>
+      new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => reject(new Error("Aborted")));
+      });
+
+    const { error, stored } = await launchWith(stall);
+
+    expect(isAuthRetryableFetchError(error)).toBe(true);
+    expect(stored?.refresh_token).toBe("old-refresh");
+  });
+
+  it.each([
+    ["a revoked refresh token", '{"code":400,"error_code":"refresh_token_not_found","msg":"Invalid Refresh Token: Refresh Token Not Found"}'],
+    ["a legacy invalid_grant error", '{"error":"invalid_grant","error_description":"Invalid Refresh Token"}'],
+  ])("%s from the auth server still signs her out, with no retry", async (_name, body) => {
+    const { data, error, events, stored } = await launchWith(reply(body, 400, "application/json"));
+
+    expect(data.session).toBeNull();
+    expect(error).not.toBeNull();
+    expect(isAuthRetryableFetchError(error)).toBe(false);
+    expect(isAuthRefreshDiscardedError(error)).toBe(false);
+    expect(stored).toBeNull();
+    expect(events).toContain("SIGNED_OUT");
+  });
+
+  it("without the guard, auth-js deletes the session on a portal page (why the guard exists)", async () => {
+    const { stored, events } = await launchWith(reply(PORTAL_PAGE, 511, "text/html"), false);
+
+    expect(stored).toBeNull();
+    expect(events).toContain("SIGNED_OUT");
+  });
 });

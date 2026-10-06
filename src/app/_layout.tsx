@@ -26,12 +26,14 @@ import {
 import { AppHeader } from "@/components/layout/AppHeader";
 import { useAppDestination } from "@/features/auth/hooks/use-app-destination";
 import { useAuthListener } from "@/features/auth/hooks/use-auth-listener";
+import { LaunchOfflineScreen } from "@/features/auth/LaunchOfflineScreen";
 import { LensSheet } from "@/features/lens/components/LensSheet";
 // Imported for its side effect only, and as early as this module allows:
 // `Sentry.init` needs to run before anything else in the tree can throw, so a
 // crash during font loading or session resolution below is still reported.
 import "@/services/crash-reporting";
 import { queryClient } from "@/services/query-client";
+import { useAuthStore } from "@/stores/auth-store";
 import { useLensStore } from "@/stores/lens-store";
 import { useOnboardingStore } from "@/stores/onboarding-store";
 import { useThemeStore } from "@/stores/theme-store";
@@ -60,10 +62,14 @@ function RootNavigator() {
   const onboardingActive = useOnboardingStore((s) => s.active);
   const lensOpen = useLensStore((s) => s.open);
   const setLensOpen = useLensStore((s) => s.setOpen);
+  // The startup restore has gone a few seconds without an answer (offline, a
+  // captive portal). A splash that never lifts looks like a hung app, so it
+  // gives way to the offline holding view below.
+  const launchStalled = useAuthStore((s) => s.launchStalled);
 
   useEffect(() => {
-    if (ready || authCallback) SplashScreen.hideAsync();
-  }, [ready, authCallback]);
+    if (ready || authCallback || launchStalled) SplashScreen.hideAsync();
+  }, [ready, authCallback, launchStalled]);
 
   // Hold the stack back until the destination is known — rendering it first
   // would flash the wrong group for a frame on every cold start.
@@ -75,6 +81,7 @@ function RootNavigator() {
   // `null` there is a blank screen for the whole length of the profile fetch —
   // the app looks like it died at the exact moment she signed in.
   if (!ready && !authCallback) {
+    if (launchStalled) return <LaunchOfflineScreen />;
     return (
       <View className="flex-1 items-center justify-center bg-canvas">
         <ActivityIndicator size="large" />

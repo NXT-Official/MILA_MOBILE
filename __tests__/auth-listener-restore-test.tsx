@@ -14,7 +14,7 @@
  * test breaks if a supabase-js upgrade changes how they are recognised.
  */
 jest.mock("../src/services/supabase/client", () => ({
-  supabase: { auth: { getSession: jest.fn(), onAuthStateChange: jest.fn() } },
+  supabase: { auth: { getSession: jest.fn(), onAuthStateChange: jest.fn(), signOut: jest.fn() } },
 }));
 
 jest.mock("../src/constants/env", () => ({
@@ -73,6 +73,15 @@ async function mount() {
   return view;
 }
 
+/**
+ * The preset mocks `AppState.currentState` as a function (which
+ * `jest.replaceProperty` refuses to replace); the app reads a string.
+ */
+const originalCurrentState = Object.getOwnPropertyDescriptor(AppState, "currentState");
+function setAppState(state: AppStateStatus) {
+  Object.defineProperty(AppState, "currentState", { value: state, configurable: true, writable: true });
+}
+
 async function advance(ms: number) {
   await act(async () => {
     await jest.advanceTimersByTimeAsync(ms);
@@ -95,12 +104,20 @@ beforeEach(() => {
     appStateListener = listener as (state: AppStateStatus) => void;
     return { remove: removeAppStateListener };
   });
-  useAuthStore.setState({ session: null, loading: true, recovery: false });
+  setAppState("active");
+  useAuthStore.setState({
+    session: null,
+    loading: true,
+    recovery: false,
+    launchStalled: false,
+    launchAttempting: false,
+  });
 });
 
 afterEach(() => {
   jest.useRealTimers();
   jest.restoreAllMocks();
+  if (originalCurrentState) Object.defineProperty(AppState, "currentState", originalCurrentState);
 });
 
 describe("a launch that cannot reach Supabase", () => {
@@ -179,6 +196,92 @@ describe("a launch that cannot reach Supabase", () => {
   });
 });
 
+describe("coming back to the app", () => {
+  it("starts a fresh attempt as soon as the one in flight fails, with no backoff wait", async () => {
+    let failInFlight: (value: ReturnType<typeof offline>) => void = () => undefined;
+    getSession
+      .mockImplementationOnce(() => new Promise((resolve) => (failInFlight = resolve)))
+      .mockResolvedValueOnce(signedIn);
+
+    await mount();
+    // She returns while the first attempt is still waiting on the network.
+    await act(async () => {
+      appStateListener?.("active");
+      await Promise.resolve();
+    });
+    // Never two attempts at once: the new one waits for the one in flight.
+    expect(getSession).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      failInFlight(offline());
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(getSession).toHaveBeenCalledTimes(2);
+    expect(useAuthStore.getState()).toMatchObject({ loading: false, session });
+  });
+});
+
+describe("a session that cannot be read from this device", () => {
+  const unreadable = () => Promise.reject(new Error("could not decrypt"));
+
+  it("after three failed reads in a row with the app open, goes to login so she can sign in again", async () => {
+    getSession.mockImplementation(unreadable);
+
+    await mount();
+    await advance(1_000);
+    expect(useAuthStore.getState().loading).toBe(true);
+    await advance(2_000);
+
+    expect(useAuthStore.getState()).toMatchObject({ loading: false, session: null });
+    expect(getSession).toHaveBeenCalledTimes(3);
+    // Nothing is deleted: a later successful sign-in simply overwrites it.
+    expect(supabase.auth.signOut).not.toHaveBeenCalled();
+
+    await advance(5 * 60_000);
+    expect(getSession).toHaveBeenCalledTimes(3);
+  });
+
+  it("does not count reads that fail while the app is in the background (a locked phone)", async () => {
+    setAppState("background");
+    getSession.mockImplementation(unreadable);
+
+    await mount();
+    await advance(1_000 + 2_000 + 4_000 + 8_000);
+
+    expect(getSession.mock.calls.length).toBeGreaterThanOrEqual(5);
+    expect(useAuthStore.getState().loading).toBe(true);
+  });
+
+  it("counts only failed reads in a row: a network failure in between starts over", async () => {
+    getSession
+      .mockImplementationOnce(unreadable)
+      .mockImplementationOnce(async () => offline())
+      .mockImplementationOnce(unreadable)
+      .mockImplementationOnce(unreadable)
+      .mockImplementationOnce(unreadable);
+
+    await mount();
+    await advance(1_000 + 2_000 + 4_000);
+    expect(getSession).toHaveBeenCalledTimes(4);
+    expect(useAuthStore.getState().loading).toBe(true);
+
+    await advance(8_000);
+    expect(getSession).toHaveBeenCalledTimes(5);
+    expect(useAuthStore.getState()).toMatchObject({ loading: false, session: null });
+  });
+
+  it("never gives up on a network failure, however long it lasts", async () => {
+    getSession.mockImplementation(async () => offline());
+
+    await mount();
+    await advance(30 * 60_000);
+
+    expect(useAuthStore.getState().loading).toBe(true);
+  });
+});
+
 describe("a definite answer still resolves straight away", () => {
   it("a stored session opens the app", async () => {
     getSession.mockResolvedValue(signedIn);
@@ -248,11 +351,96 @@ describe("after launch", () => {
     getSession.mockImplementation(async () => offline());
     const view = await mount();
 
-    view.unmount();
+    await view.unmount();
     await advance(5 * 60_000);
 
     expect(getSession).toHaveBeenCalledTimes(1);
     expect(unsubscribe).toHaveBeenCalled();
     expect(removeAppStateListener).toHaveBeenCalled();
+  });
+});
+
+describe("a launch that stays unanswered (the offline holding view)", () => {
+  it("is marked stalled after 5 s without an answer, so the splash can give way", async () => {
+    getSession.mockImplementation(() => new Promise(() => undefined));
+
+    await mount();
+    await advance(4_900);
+    expect(useAuthStore.getState().launchStalled).toBe(false);
+    await advance(200);
+
+    expect(useAuthStore.getState()).toMatchObject({ launchStalled: true, loading: true });
+  });
+
+  it("is never marked stalled when the answer comes in time", async () => {
+    getSession.mockResolvedValue(signedIn);
+
+    await mount();
+    await advance(10_000);
+
+    expect(useAuthStore.getState().launchStalled).toBe(false);
+  });
+
+  it("reports an attempt in flight, so Try again can show it is trying", async () => {
+    let answer: (value: ReturnType<typeof offline>) => void = () => undefined;
+    getSession.mockImplementationOnce(() => new Promise((resolve) => (answer = resolve)));
+
+    await mount();
+    expect(useAuthStore.getState().launchAttempting).toBe(true);
+
+    await act(async () => {
+      answer(offline());
+      await Promise.resolve();
+    });
+    expect(useAuthStore.getState().launchAttempting).toBe(false);
+  });
+
+  it("Try again starts an attempt straight away and clears the holding view once it lands", async () => {
+    getSession.mockImplementation(async () => offline());
+    await mount();
+    await advance(5_000);
+    expect(useAuthStore.getState().launchStalled).toBe(true);
+    const attempts = getSession.mock.calls.length;
+
+    getSession.mockResolvedValue(signedIn);
+    await act(async () => {
+      useAuthStore.getState().requestLaunchRetry();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(getSession).toHaveBeenCalledTimes(attempts + 1);
+    expect(useAuthStore.getState()).toMatchObject({ loading: false, session, launchStalled: false });
+  });
+
+  it("Sign in again opens login without deleting anything, and a later restore still wins", async () => {
+    getSession.mockImplementation(async () => offline());
+    await mount();
+    await advance(5_000);
+
+    await act(async () => useAuthStore.getState().signInWhileRestoring());
+
+    expect(useAuthStore.getState()).toMatchObject({ loading: false, session: null, launchStalled: false });
+    expect(supabase.auth.signOut).not.toHaveBeenCalled();
+
+    // The restore kept going in the background; the connection comes back.
+    getSession.mockResolvedValue(signedIn);
+    await advance(30_000);
+
+    expect(useAuthStore.getState().session).toBe(session);
+  });
+
+  it("a sign-in after Sign in again ends the background restore", async () => {
+    getSession.mockImplementation(async () => offline());
+    await mount();
+    await advance(5_000);
+    await act(async () => useAuthStore.getState().signInWhileRestoring());
+
+    await act(async () => emit("SIGNED_IN", session));
+    const attempts = getSession.mock.calls.length;
+    await advance(5 * 60_000);
+
+    expect(useAuthStore.getState().session).toBe(session);
+    expect(getSession).toHaveBeenCalledTimes(attempts);
   });
 });
