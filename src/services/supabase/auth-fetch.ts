@@ -25,22 +25,35 @@
  * Anything else becomes a thrown TypeError, the shape of a network failure, so
  * auth-js keeps the session and retries. A revoked refresh token
  * (`refresh_token_not_found`, `refresh_token_already_used`,
- * `session_not_found`, legacy `invalid_grant`) still signs her out.
+ * `session_not_found`, `session_expired`, `user_banned`, legacy
+ * `invalid_grant`) still signs her out. On the refresh only, two answers the
+ * auth server does send are not revocations and are treated as a network
+ * error too (see `isNotARevocation`).
  *
- * Requests that are safe to send again (the refresh, and reads) also get a
- * deadline. React Native's fetch sets no timeout, so a stalled connection can
- * hold a refresh open for minutes, and while it hangs auth-js single-flights
- * every later attempt onto it. The body is read inside the deadline too, so a
- * reply that stalls mid-body is cut off as well. An abort is a thrown fetch,
- * which auth-js classes as retryable. A sign-in, sign-up, reset email, code
- * exchange or account update is sent once and may already have taken effect
- * (a session made, an email sent, a single-use captcha or code spent), so it is
- * never cut off.
+ * Every auth request gets a deadline, because React Native's fetch sets none:
+ * on Android a stalled request otherwise never finishes (a refresh that
+ * single-flights every later attempt onto it, a sign-out button that spins
+ * for good). The body is read inside the deadline too, so a reply that stalls
+ * mid-body is cut off as well. An abort is a thrown fetch, which auth-js
+ * classes as retryable.
+ * - Short (AUTH_REQUEST_TIMEOUT_MS) where sending again is harmless: the
+ *   refresh, reads, and sign-out (idempotent; auth-js signs her out on this
+ *   phone when the request fails, GoTrueClient `_signOut`).
+ * - Long (AUTH_WRITE_TIMEOUT_MS) for a sign-in, sign-up, reset email, one-time
+ *   code, code exchange or account update: each is sent once and may already
+ *   have taken effect (a session made, an email sent, a single-use captcha or
+ *   code spent), so it is cut off only when it is clearly never coming back.
  */
 type Fetch = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 
 /** Long enough for a slow cellular refresh; short enough that a stall is retried. */
 export const AUTH_REQUEST_TIMEOUT_MS = 15_000;
+
+/**
+ * For requests with a side effect: far beyond any legitimate wait, so a slow
+ * request still completes, while a dead one still ends.
+ */
+export const AUTH_WRITE_TIMEOUT_MS = 60_000;
 
 /**
  * Statuses only something in front of the auth server sends on a token
@@ -111,26 +124,44 @@ function isAuthServerError(data: unknown): boolean {
   );
 }
 
+/**
+ * Refresh answers from the auth server that say nothing about her refresh
+ * token: 409 `conflict` (another refresh of the same session still holds its
+ * row lock past GoTrue's own retry loop) and any `hook_*` code (a custom
+ * access-token hook timed out or misbehaved). auth-js would delete the session
+ * for both. Grounded in supabase/auth `internal/tokens/service.go`
+ * (`RefreshTokenGrant`) and `internal/hooks` via re-review 2, R4.
+ */
+function isNotARevocation(status: number, data: unknown): boolean {
+  if (status === 409) return true;
+  if (!isRecord(data)) return false;
+  const code = typeof data.code === "string" ? data.code : data.error_code;
+  return typeof code === "string" && (code === "conflict" || code.startsWith("hook_"));
+}
+
 /** Whether a `/token` reply came from the auth server (see the file comment). */
-function isFromAuthServer(status: number, body: string): boolean {
+function isFromAuthServer(status: number, body: string, isRefresh: boolean): boolean {
   if (NOT_FROM_AUTH_SERVER.has(status)) return false;
   const data = parseJson(body);
   if (data === undefined) return false;
   if (status >= 200 && status < 300) return isSession(data);
+  if (isRefresh && isNotARevocation(status, data)) return false;
   return RETRIED_BY_AUTH_JS.has(status) || isAuthServerError(data);
 }
 
 export function createSupabaseFetch(
   supabaseUrl: string,
-  options: { baseFetch?: Fetch; timeoutMs?: number } = {},
+  options: { baseFetch?: Fetch; timeoutMs?: number; writeTimeoutMs?: number } = {},
 ): Fetch {
   // Resolved at call time, as supabase-js does with no custom fetch.
   const baseFetch: Fetch = options.baseFetch ?? ((input, init) => globalThis.fetch(input, init));
   const timeoutMs = options.timeoutMs ?? AUTH_REQUEST_TIMEOUT_MS;
+  const writeTimeoutMs = options.writeTimeoutMs ?? AUTH_WRITE_TIMEOUT_MS;
   // supabase-js builds the auth URL the same way: `new URL("auth/v1", base/)`.
   const base = supabaseUrl.trim().endsWith("/") ? supabaseUrl.trim() : `${supabaseUrl.trim()}/`;
   const authPrefix = new URL("auth/v1/", base).href;
   const tokenUrl = `${authPrefix}token`;
+  const logoutUrl = `${authPrefix}logout`;
 
   return async (input, init) => {
     const url = requestUrl(input);
@@ -138,9 +169,11 @@ export function createSupabaseFetch(
     const isTokenRequest = url === tokenUrl || url.startsWith(`${tokenUrl}?`);
     const isRefresh = isTokenRequest && new URL(url).searchParams.get("grant_type") === "refresh_token";
     const isRead = (init?.method ?? "GET").toUpperCase() === "GET";
+    const isSignOut = url === logoutUrl || url.startsWith(`${logoutUrl}?`);
 
     const controller = new AbortController();
-    const timer = isRefresh || isRead ? setTimeout(() => controller.abort(), timeoutMs) : null;
+    const deadline = isRefresh || isRead || isSignOut ? timeoutMs : writeTimeoutMs;
+    const timer = setTimeout(() => controller.abort(), deadline);
     const callerSignal = init?.signal ?? null;
     const forwardAbort = () => controller.abort();
     if (callerSignal?.aborted) controller.abort();
@@ -150,7 +183,7 @@ export function createSupabaseFetch(
       const response = await baseFetch(input, { ...init, signal: controller.signal });
       const body = await response.text();
 
-      if (isTokenRequest && !isFromAuthServer(response.status, body)) {
+      if (isTokenRequest && !isFromAuthServer(response.status, body, isRefresh)) {
         throw new TypeError(
           `Network request failed: the sign-in request was answered by something other than the auth server (HTTP ${response.status}).`,
         );
@@ -162,7 +195,7 @@ export function createSupabaseFetch(
         headers: response.headers,
       });
     } finally {
-      if (timer !== null) clearTimeout(timer);
+      clearTimeout(timer);
       callerSignal?.removeEventListener("abort", forwardAbort);
     }
   };

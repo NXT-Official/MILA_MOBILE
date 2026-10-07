@@ -1,5 +1,5 @@
-import { useIsFetching, useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 
 import { queryKeys } from "@/constants/query-keys";
 import { useAuthStore } from "@/stores/auth-store";
@@ -21,7 +21,11 @@ export type LaunchHold = {
   stage: "session" | "profile";
   /** Profile stage: ask for her profile again now (Try again). */
   retryProfile: () => void;
-  /** Profile stage: a profile read is out, so Try again shows as busy. */
+  /**
+   * Profile stage: the Try again she pressed is still running, so it shows as
+   * busy. NOT "a read is out": a stalled read is a read that is out, and tying
+   * busy to it disabled the button for the whole stall (re-review 2, R2).
+   */
   profileRetrying: boolean;
 };
 
@@ -41,19 +45,27 @@ export function useLaunchHold(holding: boolean): LaunchHold {
   const userId = useAuthStore((s) => s.session?.user.id ?? null);
   const setLaunchStalled = useAuthStore((s) => s.setLaunchStalled);
   // The profile query is owned by `useProfile` (the gate's own observer);
-  // this only asks it to run again and watches whether it is running, so no
-  // second observer or foreground listener is added.
+  // this only asks it to run again, so no second observer or foreground
+  // listener is added.
   const queryClient = useQueryClient();
   const profileKey = queryKeys.profile(userId ?? undefined);
-  const profileRetrying = useIsFetching({ queryKey: profileKey }) > 0;
+  const [retryRunning, setRetryRunning] = useState(false);
 
   useEffect(() => {
     if (!holding) {
       setLaunchStalled(false);
       return undefined;
     }
-    const timer = setTimeout(() => setLaunchStalled(true), LAUNCH_STALL_MS);
+    // A hold that has ended must never set the flag, even if its timer's
+    // callback was already queued when the cleanup ran (Jest's async fake
+    // timers fire a timer cleared in the gap before it; the guard makes the
+    // hook correct whatever the timer implementation does).
+    let ended = false;
+    const timer = setTimeout(() => {
+      if (!ended) setLaunchStalled(true);
+    }, LAUNCH_STALL_MS);
     return () => {
+      ended = true;
       clearTimeout(timer);
       // Two screens arm the hold (the root layout, and the auth callback
       // screen whose route the layout does not hold). One that leaves while
@@ -71,10 +83,12 @@ export function useLaunchHold(holding: boolean): LaunchHold {
     // reaches `fetchProfile`, and the refetch then sends a fresh request.
     // src: node_modules/@tanstack/query-core/build/modern/query.js `fetch` (cancelRefetch only with data) · 5.101.4
     retryProfile: () => {
+      setRetryRunning(true);
       void queryClient
         .cancelQueries({ queryKey: profileKey })
-        .then(() => queryClient.refetchQueries({ queryKey: profileKey }));
+        .then(() => queryClient.refetchQueries({ queryKey: profileKey }))
+        .finally(() => setRetryRunning(false));
     },
-    profileRetrying,
+    profileRetrying: retryRunning,
   };
 }

@@ -291,12 +291,68 @@ describe("a launch refresh answered by something other than the auth server", ()
       "a reused refresh token (refresh_token_already_used)",
       goTrueReply('{"code":"refresh_token_already_used","message":"Invalid Refresh Token: Already Used"}', 400),
     ],
+    [
+      "a session revoked by a newer login (session_expired)",
+      goTrueReply('{"code":"session_expired","message":"Invalid Refresh Token: Session Expired (Revoked by Newer Login)"}', 400),
+    ],
+    [
+      "a banned member (user_banned)",
+      goTrueReply('{"code":"user_banned","message":"Invalid Refresh Token: User Banned"}', 400),
+    ],
   ])("%s in the auth server's current shape still signs her out", async (_name, answer) => {
     const { data, error, events, stored } = await launchWith(answer);
 
     expect(data.session).toBeNull();
     expect(isAuthRetryableFetchError(error)).toBe(false);
     expect(stored).toBeNull();
+    expect(events).toContain("SIGNED_OUT");
+  });
+
+  it.each([
+    [
+      "409 conflict (another refresh of the session still holds its lock)",
+      goTrueReply('{"code":"conflict","message":"Too many concurrent token refresh requests on the same session or refresh token"}', 409),
+    ],
+    [
+      "422 hook_timeout (a custom access-token hook timed out)",
+      goTrueReply('{"code":"hook_timeout","message":"Failed to reach hook within maximum time of 5.000000 seconds"}', 422),
+    ],
+  ])("a refresh answered with %s keeps her session: it is not a revocation", async (_name, answer) => {
+    const { data, error, events, stored } = await launchWith(answer);
+
+    expect(data.session).toBeNull();
+    expect(isAuthRetryableFetchError(error)).toBe(true);
+    expect(stored?.refresh_token).toBe("old-refresh");
+    expect(events).not.toContain("SIGNED_OUT");
+  });
+});
+
+describe("signing out on a stalled connection", () => {
+  it("gives up on the server after 15 s and signs her out on this phone", async () => {
+    jest.useFakeTimers();
+    await supabaseStorage.setItem(STORAGE_KEY, JSON.stringify(makeSession("live", nowSeconds() + 3600)));
+    // Answers nothing until the request's signal aborts it.
+    fetchMock.mockImplementation(
+      (_url: string, init?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => reject(new Error("Aborted")));
+        }),
+    );
+    client = makeGuardedClient();
+    const events: AuthChangeEvent[] = [];
+    client.onAuthStateChange((event) => {
+      events.push(event);
+    });
+
+    let settled = false;
+    const signingOut = client.signOut({ scope: "local" }).finally(() => (settled = true));
+    await jest.advanceTimersByTimeAsync(AUTH_REQUEST_TIMEOUT_MS + 1_000);
+
+    expect(settled).toBe(true);
+    // auth-js removes the local session on any non-401/403/404 logout failure.
+    // src: node_modules/@supabase/auth-js/dist/module/GoTrueClient.js `_signOut` · 2.112.2
+    await signingOut;
+    expect(await supabaseStorage.getItem(STORAGE_KEY)).toBeNull();
     expect(events).toContain("SIGNED_OUT");
   });
 });

@@ -13,7 +13,11 @@
  *
  * Everything that is not an auth request passes through untouched.
  */
-import { AUTH_REQUEST_TIMEOUT_MS, createSupabaseFetch } from "@/services/supabase/auth-fetch";
+import {
+  AUTH_REQUEST_TIMEOUT_MS,
+  AUTH_WRITE_TIMEOUT_MS,
+  createSupabaseFetch,
+} from "@/services/supabase/auth-fetch";
 
 const PROJECT = "https://project.supabase.test";
 const TOKEN = `${PROJECT}/auth/v1/token?grant_type=refresh_token`;
@@ -214,7 +218,7 @@ describe("JSON replies to the token request that did not come from the auth serv
   });
 });
 
-describe("the deadline only where cutting a request off is safe", () => {
+describe("a short deadline where cutting a request off is safe, a long one everywhere else", () => {
   beforeEach(() => jest.useFakeTimers());
   afterEach(() => jest.useRealTimers());
 
@@ -225,7 +229,10 @@ describe("the deadline only where cutting a request off is safe", () => {
   }
 
   // Each of these is sent once and may already have taken effect on the server
-  // (a session created, an email sent, a single-use captcha or code spent).
+  // (a session created, an email sent, a single-use captcha or code spent), so
+  // it is never cut off at the short deadline. It still gets a long one: on
+  // Android a stalled request otherwise never finishes, and her button spins
+  // for good (re-review 2, R3).
   it.each([
     ["a password sign-in", `${PROJECT}/auth/v1/token?grant_type=password`, "POST"],
     ["a code exchange", `${PROJECT}/auth/v1/token?grant_type=pkce`, "POST"],
@@ -233,7 +240,7 @@ describe("the deadline only where cutting a request off is safe", () => {
     ["a password reset email", `${PROJECT}/auth/v1/recover`, "POST"],
     ["a one-time code", `${PROJECT}/auth/v1/otp`, "POST"],
     ["an account update", `${PROJECT}/auth/v1/user`, "PUT"],
-  ])("%s is never cut off", async (_name, url, method) => {
+  ])("%s is not cut off at the short deadline, only at the long one", async (_name, url, method) => {
     baseFetch.mockImplementation(stall);
     let settled = false;
     void supabaseFetch(url, { method }).then(
@@ -241,9 +248,22 @@ describe("the deadline only where cutting a request off is safe", () => {
       () => (settled = true),
     );
 
-    await jest.advanceTimersByTimeAsync(5 * AUTH_REQUEST_TIMEOUT_MS);
-
+    await jest.advanceTimersByTimeAsync(AUTH_WRITE_TIMEOUT_MS - 100);
     expect(settled).toBe(false);
+
+    await jest.advanceTimersByTimeAsync(200);
+    expect(settled).toBe(true);
+  });
+
+  it("sign-out (POST /logout) is cut off at the short deadline, so auth-js signs her out on this phone", async () => {
+    // Idempotent, no single-use input, and auth-js already treats a failed
+    // /logout as "sign out locally" (GoTrueClient `_signOut`).
+    baseFetch.mockImplementation(stall);
+    const request = supabaseFetch(`${PROJECT}/auth/v1/logout?scope=local`, { method: "POST" });
+    const outcome = expect(request).rejects.toThrow();
+
+    await jest.advanceTimersByTimeAsync(AUTH_REQUEST_TIMEOUT_MS);
+    await outcome;
   });
 
   it("a read of her account (GET /user) is cut off, since it can simply be asked again", async () => {
@@ -253,5 +273,50 @@ describe("the deadline only where cutting a request off is safe", () => {
 
     await jest.advanceTimersByTimeAsync(AUTH_REQUEST_TIMEOUT_MS);
     await outcome;
+  });
+});
+
+describe("refresh replies from the auth server that are not a revocation", () => {
+  // GoTrue answers a refresh with 409 `conflict` when another refresh of the
+  // same session still holds its row lock past GoTrue's own 5 s retry loop,
+  // and with a `hook_*` code when a custom access-token hook times out or
+  // misbehaves. Neither says her refresh token is bad, yet auth-js would delete
+  // the session for both (re-review 2, R4). On the refresh only, they become a
+  // network error, so the session is kept and retried.
+  const REFRESH = TOKEN;
+  const PASSWORD = `${PROJECT}/auth/v1/token?grant_type=password`;
+  const goTrue = (body: string, status: number) =>
+    new Response(body, {
+      status,
+      headers: { "Content-Type": "application/json", "X-Supabase-Api-Version": "2024-01-01" },
+    });
+
+  it.each([
+    ["409 conflict", 409, '{"code":"conflict","message":"Too many concurrent token refresh requests on the same session or refresh token"}'],
+    ["409 in the older shape", 409, '{"code":409,"error_code":"conflict","msg":"Too many concurrent token refresh requests"}'],
+    ["422 hook_timeout", 422, '{"code":"hook_timeout","message":"Failed to reach hook within maximum time of 5.000000 seconds"}'],
+    ["422 hook_timeout_after_retry", 422, '{"code":"hook_timeout_after_retry","message":"Failed to reach hook after retry"}'],
+    ["422 hook_payload_over_size_limit", 422, '{"code":"hook_payload_over_size_limit","message":"Payload size exceeded"}'],
+  ])("a refresh answered with %s fails as a network error", async (_name, status, body) => {
+    baseFetch.mockResolvedValue(goTrue(body, status));
+    await expect(supabaseFetch(REFRESH, { method: "POST" })).rejects.toBeInstanceOf(TypeError);
+  });
+
+  it.each([
+    ["refresh_token_not_found", '{"code":"refresh_token_not_found","message":"Invalid Refresh Token: Refresh Token Not Found"}'],
+    ["refresh_token_already_used", '{"code":"refresh_token_already_used","message":"Invalid Refresh Token: Already Used"}'],
+    ["session_not_found", '{"code":"session_not_found","message":"Invalid Refresh Token: No Valid Session Found"}'],
+    ["session_expired", '{"code":"session_expired","message":"Invalid Refresh Token: Session Expired (Revoked by Newer Login)"}'],
+    ["user_banned", '{"code":"user_banned","message":"Invalid Refresh Token: User Banned"}'],
+  ])("a real revocation (%s) still reaches auth-js", async (_name, body) => {
+    baseFetch.mockResolvedValue(goTrue(body, 400));
+    const response = await supabaseFetch(REFRESH, { method: "POST" });
+    expect(response.status).toBe(400);
+  });
+
+  it("the same 409 on a password sign-in is the auth server's answer, and passes through", async () => {
+    baseFetch.mockResolvedValue(goTrue('{"code":"conflict","message":"Conflict"}', 409));
+    const response = await supabaseFetch(PASSWORD, { method: "POST" });
+    expect(response.status).toBe(409);
   });
 });
