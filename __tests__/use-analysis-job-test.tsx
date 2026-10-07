@@ -122,7 +122,7 @@ it("refetches when the app returns to the foreground", async () => {
 });
 
 it("offers a ready job once", async () => {
-  row = job({ status: "succeeded", completed_at: new Date().toISOString() });
+  row = job({ status: "succeeded", result: { read: {} }, completed_at: new Date().toISOString() });
   const { result } = await renderHook(() => useAnalysisJob("check_in"), { wrapper });
   await advance(0);
 
@@ -154,4 +154,32 @@ it("reads as unavailable while the migration is missing, and never polls", async
   expect(result.current.available).toBe(false);
   expect(result.current.job).toBeNull();
   expect(fetchJob).toHaveBeenCalledTimes(1);
+});
+
+it("says what the job means through the shared offer rule", async () => {
+  row = job({ status: "failed", error_code: "check_in_failed", completed_at: new Date().toISOString() });
+  const { result } = await renderHook(() => useAnalysisJob("check_in"), { wrapper });
+  await advance(0);
+  expect(result.current.offer).toBe("failed");
+  expect(result.current.ready).toBeNull();
+});
+
+it("never offers a delivered-but-unstored read as a failure", async () => {
+  row = job({
+    status: "failed",
+    error_code: "persist_failed_delivered",
+    completed_at: new Date().toISOString(),
+  });
+  const { result } = await renderHook(() => useAnalysisJob("check_in"), { wrapper });
+  await advance(0);
+  expect(result.current.offer).toBeNull();
+});
+
+it("does not re-offer a check-in she has already confirmed", async () => {
+  row = job({ status: "succeeded", completed_at: "2026-10-07T08:00:00Z", result: { read: {} } });
+  const { result } = await renderHook(() => useAnalysisJob("check_in", { appliedAt: "2026-10-07T09:00:00Z" }), {
+    wrapper,
+  });
+  await advance(0);
+  expect(result.current.ready).toBeNull();
 });

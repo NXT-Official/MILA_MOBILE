@@ -5,3 +5,4 @@ export * from "./recommendations";
 export * from "./questions";
 export * from "./defaults";
 export * from "./dna";
+export * from "./hair-colors";

@@ -1,8 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { randomUUID } from "expo-crypto";
 
+import { isWaveDMissing } from "@/lib/wave-d-availability";
+
 import { supabase } from "./client";
-import { isSchemaNotReady } from "./saved-products";
 import type { Database, Json } from "./types";
 
 /**
@@ -130,7 +131,7 @@ export async function fetchLatestAnalysisJob(
     .order("created_at", { ascending: false })
     .limit(1);
 
-  if (isSchemaNotReady(error)) return { status: "unavailable" };
+  if (isWaveDMissing(error)) return { status: "unavailable" };
   if (error) throw error;
 
   const rows: unknown[] = Array.isArray(data) ? data : [];

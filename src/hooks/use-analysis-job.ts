@@ -2,6 +2,12 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { queryKeys } from "@/constants/query-keys";
 import {
+  ANALYSIS_POLL_MS,
+  analysisJobOffer,
+  type AnalysisJobLike,
+  type AnalysisJobOffer,
+} from "@/lib/analysis-job-offer";
+import {
   fetchLatestAnalysisJob,
   type AnalysisJob,
   type AnalysisJobKind,
@@ -11,42 +17,52 @@ import { useAuthStore } from "@/stores/auth-store";
 
 import { useAppState } from "./use-app-state";
 
-/** How often the row is read again while the job is running. */
-const POLL_MS = 3_000;
-/** A running job is trusted this long past its deadline, then it is treated as stale. */
-const RUNNING_GRACE_MS = 30_000;
-/** A finished job is offered for this long, then it is no longer news. */
-const OFFER_WINDOW_MS = 12 * 3_600_000;
+/** What the kind knows about her profile, so a read she already applied is not offered again. */
+export type AnalysisJobContext = {
+  /** color_read: the job her saved dossier already came from. */
+  usedJobId?: string | null;
+  /** check_in: `profiles.last_check_in_at`. */
+  appliedAt?: string | null;
+};
+
+function toOfferJob(job: AnalysisJob): AnalysisJobLike {
+  return {
+    id: job.id,
+    status: job.status,
+    result: job.result,
+    errorCode: job.error_code,
+    deadlineAt: job.deadline_at,
+    completedAt: job.completed_at,
+  };
+}
 
 export type AnalysisJobState = {
   /** False until the row has been read, and while the migration is missing. */
   available: boolean;
   /** Her newest job of this kind, or null. */
   job: AnalysisJob | null;
+  /** What the job means right now (shared `analysisJobOffer`), or null. */
+  offer: AnalysisJobOffer | null;
   /** The job is still within its deadline: the read is on its way. */
   running: boolean;
-  /** A succeeded job she has not dismissed, finished within 12 h. Offered once. */
+  /** A succeeded, undismissed, unapplied job finished within 12 h. Offered once. */
   ready: AnalysisJob | null;
   /** Hides a job from `ready` for good (the last 20 ids are remembered). */
   dismiss: (jobId: string) => void;
 };
-
-function isRunning(job: AnalysisJob, now: number): boolean {
-  if (job.status !== "running") return false;
-  const deadline = Date.parse(job.deadline_at);
-  return Number.isNaN(deadline) ? false : now <= deadline + RUNNING_GRACE_MS;
-}
 
 /**
  * Her latest job of one kind, server state in TanStack Query (§6): read on
  * mount, again when the app returns from the background, and every 3 s while it
  * is running, so a read that finished while she was away is waiting for her.
  *
- * The offer rule here is the minimal one the hook needs now: a succeeded job
- * inside the 12 h window that she has not dismissed. The full offer, with the
- * per-kind "already applied" checks, is the shared `analysis-job-offer` module.
+ * What a job means (running, stale, ready, failed) is the shared
+ * `analysisJobOffer`, so web and mobile decide it one way.
  */
-export function useAnalysisJob(kind: AnalysisJobKind): AnalysisJobState {
+export function useAnalysisJob(
+  kind: AnalysisJobKind,
+  context: AnalysisJobContext = {},
+): AnalysisJobState {
   const userId = useAuthStore((s) => s.session?.user.id ?? null);
   const queryClient = useQueryClient();
   const key = queryKeys.analysisJob(userId ?? undefined, kind);
@@ -66,7 +82,9 @@ export function useAnalysisJob(kind: AnalysisJobKind): AnalysisJobState {
       // A failed read still moves the clock, so a row last seen running cannot
       // keep the poll going forever while she is offline.
       const readAt = Math.max(current.state.dataUpdatedAt, current.state.errorUpdatedAt);
-      return isRunning(data.job, readAt) ? POLL_MS : false;
+      return analysisJobOffer(toOfferJob(data.job), { now: readAt }) === "running"
+        ? ANALYSIS_POLL_MS
+        : false;
     },
   });
 
@@ -77,26 +95,26 @@ export function useAnalysisJob(kind: AnalysisJobKind): AnalysisJobState {
 
   const data = query.data;
   if (!data || data.status !== "ok") {
-    return { available: false, job: null, running: false, ready: null, dismiss };
+    return { available: false, job: null, offer: null, running: false, ready: null, dismiss };
   }
 
   const job = data.job;
   const readAt = Math.max(query.dataUpdatedAt, query.errorUpdatedAt);
-  const completedAt = job?.completed_at ? Date.parse(job.completed_at) : Number.NaN;
-  const ready =
-    job !== null &&
-    job.status === "succeeded" &&
-    !Number.isNaN(completedAt) &&
-    readAt - completedAt <= OFFER_WINDOW_MS &&
-    !dismissedIds.includes(job.id)
-      ? job
-      : null;
+  const offer = job
+    ? analysisJobOffer(toOfferJob(job), {
+        now: readAt,
+        dismissedIds,
+        usedJobId: context.usedJobId,
+        appliedAt: context.appliedAt,
+      })
+    : null;
 
   return {
     available: true,
     job,
-    running: job !== null && isRunning(job, readAt),
-    ready,
+    offer,
+    running: offer === "running",
+    ready: offer === "ready" ? job : null,
     dismiss,
   };
 }

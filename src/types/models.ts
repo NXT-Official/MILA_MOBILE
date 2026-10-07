@@ -1,4 +1,10 @@
-import type { DetailedColorProfile, Season, Swatch } from "@/constants/style-profile";
+import type {
+  DetailedColorProfile,
+  HairColor,
+  Season,
+  SKIN_DEPTHS,
+  Swatch,
+} from "@/constants/style-profile";
 import type { Json } from "@/services/supabase/types";
 
 export type { Json };
@@ -110,9 +116,9 @@ export type StudioColorProfile = {
   confidenceScore?: number;
   confidenceLabel?: string;
   /** Wave D: her hair colour as the read saw it. A HAIR_COLORS value; filled only when she had none. */
-  hairColor?: string;
+  hairColor?: HairColor;
   /** Wave D: her skin depth as the read saw it (SKIN_DEPTHS). */
-  skinDepth?: string;
+  skinDepth?: (typeof SKIN_DEPTHS)[number];
 };
 
 /**

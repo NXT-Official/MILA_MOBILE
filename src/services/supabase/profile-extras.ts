@@ -1,7 +1,7 @@
 import { assertWritableColumns } from "@/lib/profile-columns";
+import { isWaveDMissing } from "@/lib/wave-d-availability";
 
 import { supabase } from "./client";
-import { isSchemaNotReady } from "./saved-products";
 
 /**
  * The Wave D profile columns, read and written apart from the launch profile.
@@ -41,7 +41,7 @@ export async function fetchProfileExtras(userId: string): Promise<ProfileExtrasR
     .eq("id", userId)
     .maybeSingle();
 
-  if (isSchemaNotReady(error)) return { status: "unavailable" };
+  if (isWaveDMissing(error)) return { status: "unavailable" };
   if (error) throw error;
 
   const row = (data ?? {}) as ExtrasRow;
@@ -74,7 +74,7 @@ export async function saveProfileExtras(
 
   const { error } = await supabase.from("profiles").update(payload).eq("id", userId);
 
-  if (isSchemaNotReady(error)) return "unavailable";
+  if (isWaveDMissing(error)) return "unavailable";
   if (error) throw error;
   return "saved";
 }
