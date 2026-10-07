@@ -1,0 +1,44 @@
+src/components/feedback/CaptchaGate.tsx
+  s_755964b2e0c3da::t_bd7c1379910b2d 109-113
+  s_755964b2e0c3da::t_ee233322d34825 69-70,73
+  s_755964b2e0c3da::t_7aca45624e0794 95,99-100
+  s_755964b2e0c3da::t_37e295c4c83879 12-18
+  s_755964b2e0c3da::t_4096617e506a24 101
+src/test-utils/captcha-gate-mock.tsx
+  s_755964b2e0c3da::t_0f49c18f4bbdfe 20
+  s_755964b2e0c3da::t_6101b7ae680b3d 14
+src/services/api/client.ts
+  s_755964b2e0c3da::t_97231c2375ea8a 100-102
+__tests__/wardrobe-test.ts
+  s_755964b2e0c3da::t_ef684081e5fc22 17,28-34
+  s_755964b2e0c3da::t_2a0c1c33262b28 1-16,18-27,35
+src/constants/wardrobe.ts
+  s_755964b2e0c3da::t_c9d08b905a76d1 8-9
+__tests__/captcha-gate-test.tsx
+  s_755964b2e0c3da::t_ee09643ec49e2a 164-203
+  s_755964b2e0c3da::t_36d4942fbf2b42 65
+src/lib/concierge-history.ts
+  s_755964b2e0c3da::t_c02e68b167f306 32-37
+  s_755964b2e0c3da::t_c9f15f49de6a21 21-26
+  s_755964b2e0c3da::t_529bc18ddc38c1 61-62,65-67
+__tests__/concierge-history-test.ts
+  s_755964b2e0c3da::t_532e8d33e3346e 3
+  s_755964b2e0c3da::t_b049dbbecdfdd0 65,70,75,77,79,84-103
+  s_755964b2e0c3da::t_27c160346ed7f0 104
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "920f67be75d8cc5e8a1388543cbc0e7986564afb",
+  "prompts": {},
+  "sessions": {
+    "s_755964b2e0c3da": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "41717171-e98d-4ccb-91e6-20f4d84aa5ab",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "naaxtech <naaxtech.official@gmail.com>"
+    }
+  }
+}
