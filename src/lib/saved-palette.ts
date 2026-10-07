@@ -29,13 +29,49 @@ export function isDailyPalette(value: unknown): value is DailyPalette {
   );
 }
 
-/** The three swatches, each paired with its name — never a bare hex (§11). */
+/**
+ * Where each colour goes. Same three lines as the web's `WEAR_LINES`, in the
+ * mobile app's UK spelling: the shared `daily-palette` module is a verbatim
+ * copy of the web's, so its own US-spelled strings are never shown here.
+ */
+export const WEAR_LINES_UK = {
+  base: "Bottoms or a jacket",
+  statement: "Top, near your face",
+  accent: "Shoes, bag or jewellery",
+} as const;
+
+export const OWN_COLOURS_VIBE = "From your colours";
+
+/** The three swatches, each with its name and where to wear it, never a bare hex (§11). */
 export function paletteSwatches(
   palette: DailyPalette,
-): { role: string; name: string; hex: string }[] {
+): { role: string; name: string; hex: string; wear: string }[] {
   return [
-    { role: "Base layer", name: palette.baseColor, hex: palette.baseHex },
-    { role: "Statement", name: palette.statementColor, hex: palette.statementHex },
-    { role: "Accent pop", name: palette.accentColor, hex: palette.accentHex },
+    { role: "Base", name: palette.baseColor, hex: palette.baseHex, wear: WEAR_LINES_UK.base },
+    {
+      role: "Statement",
+      name: palette.statementColor,
+      hex: palette.statementHex,
+      wear: WEAR_LINES_UK.statement,
+    },
+    { role: "Accent", name: palette.accentColor, hex: palette.accentHex, wear: WEAR_LINES_UK.accent },
   ];
+}
+
+/** The wear sentence for a palette built from her own colours. */
+function wearInsight(palette: DailyPalette): string {
+  return `Wear ${palette.baseColor} on your bottoms or a jacket, ${palette.statementColor} on top near your face, and ${palette.accentColor} on your shoes, bag or jewellery.`;
+}
+
+/**
+ * The line under a palette. One built from her own colours is written here in
+ * UK spelling; a curated or older palette keeps the copy it was saved with.
+ */
+export function paletteInsight(palette: DailyPalette): string {
+  return palette.source === "swatches" ? wearInsight(palette) : palette.insight;
+}
+
+/** The vibe badge, with the same rule as `paletteInsight`. */
+export function paletteVibe(palette: DailyPalette): string {
+  return palette.source === "swatches" ? OWN_COLOURS_VIBE : palette.styleVibe;
 }

@@ -54,8 +54,8 @@ export function PalettesScreen() {
           <EmptyState
             icon="studio"
             title="No palettes pinned"
-            description="Pin a daily palette from Home and it is kept here."
-            actionLabel="Go to Home"
+            description="Make today's palette from your own colours and pin it here."
+            actionLabel="Make today's palette"
             onAction={() => router.replace("/")}
           />
         </View>

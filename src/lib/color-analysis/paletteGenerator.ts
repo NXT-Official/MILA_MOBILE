@@ -10,15 +10,17 @@ export interface DailyPalette {
   isSisterSeasonIncluded: boolean;
   styleVibe: string;
   insight: string;
+  /** Built from her own swatches, or drawn from the curated mixes. Absent on older saved palettes. */
+  source?: "swatches" | "curated";
 }
 
 const MILA_TAKES = [
-  "A grounded base with one signature lift — easy to wear all day.",
+  "A grounded base with one signature lift, easy to wear all day.",
   "Soft tonal flow with a confident accent. Polished, never loud.",
-  "Strong contrast pulled straight from your palette — sharp and on brand.",
+  "Strong contrast pulled straight from your palette. Sharp and on brand.",
   "A relaxed warm mix that photographs beautifully in daylight.",
-  "Quiet neutrals up top, a single moment of color to finish.",
-  "Modern, low-effort balance — built for an unscripted day.",
+  "Quiet neutrals up top, a single moment of colour to finish.",
+  "Modern, low-effort balance, built for an unscripted day.",
 ];
 
 const CURATED_MIXES: Array<{
@@ -85,5 +87,6 @@ export function generateDailyPalette(userSeasonId: SeasonId): DailyPalette {
     isSisterSeasonIncluded: false,
     styleVibe: mix.vibe,
     insight: pick(MILA_TAKES),
+    source: "curated",
   };
 }
