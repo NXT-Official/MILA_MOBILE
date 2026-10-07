@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { AppState } from "react-native";
 
 import { restoreSession } from "@/services/api/auth";
+import { identifyPhUser, resetPh } from "@/services/posthog";
 import { supabase } from "@/services/supabase/client";
 import { useAuthStore } from "@/stores/auth-store";
 import { useOnboardingStore } from "@/stores/onboarding-store";
@@ -46,6 +47,10 @@ const MAX_UNREADABLE_READS = 3;
  * starts an attempt here; its "Sign in again" (`signInWhileRestoring`) opens
  * login while this loop keeps restoring, so a later success still opens the
  * app.
+ *
+ * Product analytics rides the same event stream: the member is identified as
+ * soon as a session exists, and the identity is cleared on sign-out so the
+ * next visitor starts anonymous — the web app's AuthProvider contract.
  */
 export function useAuthListener() {
   const setSession = useAuthStore((s) => s.setSession);
@@ -67,6 +72,8 @@ export function useAuthListener() {
       if (retryTimer) clearTimeout(retryTimer);
       retryTimer = null;
       setSession(session);
+      // Product analytics: identify the member as soon as a session exists.
+      if (session?.user.id) identifyPhUser(session.user.id);
     };
 
     const restore = async () => {
@@ -141,7 +148,9 @@ export function useAuthListener() {
 
       settle(session);
       if (event === "SIGNED_OUT") {
-        // Never let one member's cached profile survive into another's session.
+        // Never let one member's analytics identity, cached profile, or
+        // onboarding draft survive into another's session.
+        resetPh();
         queryClient.clear();
         // Nor her onboarding draft: a pending answer left in AsyncStorage would
         // replay into whoever signs in next, writing her body type to a
