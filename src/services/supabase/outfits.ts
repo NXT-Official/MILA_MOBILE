@@ -1,7 +1,7 @@
 import { supabase } from "@/services/supabase/client";
 import { removeOutfitImage, uploadGeneratedOutfitImage } from "@/services/supabase/storage";
 import type { Json } from "@/types/models";
-import type { LensAnalysisRecord } from "@/types/look";
+import type { LensAnalysisRecord, ShoppablePick } from "@/types/look";
 
 /**
  * History reads and deletes go direct through RLS — no secret, no credit, and
@@ -87,6 +87,12 @@ export type SaveDailyLookInput = {
   forecastRetrievedAt: string | null;
   /** Ids of the hydrated picks shown with this look; the saved row keeps them for re-opening. */
   productIds: string[];
+  /**
+   * The suggested items themselves — titles, prices, links — saved so History
+   * re-renders the same Shop This Look grid the dashboard showed. `null` when
+   * the look had no picks: the key stays present, the section stays hidden.
+   */
+  shoppable_picks: ShoppablePick[] | null;
   previewMode: "style_sheet" | "photo_edit";
   /**
    * Snapshot of the eligibility inputs active at save time. The web reads these
@@ -137,6 +143,9 @@ export async function saveDailyLook(
         makeup: input.makeup,
         forecastRetrievedAt: input.forecastRetrievedAt,
         productIds: input.productIds,
+        // The items themselves, the web's key verbatim — History reads them
+        // back through `normalizeAnalysisResult` and renders the same grid.
+        shoppable_picks: input.shoppable_picks,
         previewMode: input.previewMode,
         gender: input.gender,
         makeupEnabled: input.makeupEnabled,

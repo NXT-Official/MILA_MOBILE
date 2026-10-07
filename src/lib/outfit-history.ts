@@ -36,17 +36,31 @@ function optionalStr(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value : null;
 }
 
+/** https/http only — these links are opened externally, so a stored
+ * `javascript:`/`data:` URL must never become a pressable row. */
+function isHttpUrl(value: string): boolean {
+  if (!value) return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" || url.protocol === "http:";
+  } catch {
+    return false;
+  }
+}
+
 /**
  * A saved look's shoppable picks are display-only on History; a pick missing
- * its link or title is dropped rather than rendered as a broken card. The
- * picks were hydrated from live rows before saving, so this guard only ever
- * fires on a row damaged after the fact.
+ * its link or title is dropped rather than rendered as a broken card — and a
+ * pick whose link is not http(s) never becomes a row (the links are opened
+ * externally). The array itself is kept even when empty: a look saved with no
+ * picks shows the grid's own "no verified item" copy, exactly like a freshly
+ * generated look with none — an ABSENT key (older rows) stays hidden.
  */
 function normalizePicks(value: unknown): ShoppablePick[] | undefined {
   if (!Array.isArray(value)) return undefined;
   const picks = value
     .filter(isRecord)
-    .filter((pick) => str(pick.id) && str(pick.title) && str(pick.affiliate_link))
+    .filter((pick) => str(pick.id) && str(pick.title) && isHttpUrl(str(pick.affiliate_link)))
     .map((pick): ShoppablePick => ({
       id: str(pick.id),
       title: str(pick.title),
@@ -54,13 +68,13 @@ function normalizePicks(value: unknown): ShoppablePick[] | undefined {
       category: str(pick.category),
       price: typeof pick.price === "number" ? pick.price : 0,
       currency: str(pick.currency) || "USD",
-      image_url: optionalStr(pick.image_url),
+      image_url: isHttpUrl(str(pick.image_url)) ? str(pick.image_url) : null,
       affiliate_link: str(pick.affiliate_link),
       verification_status: str(pick.verification_status),
       last_verified_at: optionalStr(pick.last_verified_at),
       rationale: str(pick.rationale),
     }));
-  return picks.length > 0 ? picks : undefined;
+  return picks;
 }
 
 /**
