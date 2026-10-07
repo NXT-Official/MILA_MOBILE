@@ -24,6 +24,7 @@ beforeEach(() => {
     launchStalled: true,
     launchAttempting: false,
     launchRetryRequests: 0,
+    launchRetryRunning: false,
   });
 });
 
@@ -44,14 +45,26 @@ it("Try again asks for an attempt now", async () => {
   expect(useAuthStore.getState().launchRetryRequests).toBe(1);
 });
 
-it("Try again shows it is busy while an attempt is out, and cannot be pressed twice", async () => {
-  useAuthStore.setState({ launchAttempting: true });
+it("Try again shows it is busy while the attempt she asked for is running, and cannot be pressed twice", async () => {
+  // Busy means "her press is running" (`launchRetryRunning`), not "an
+  // automatic attempt is out" (`launchAttempting`): see the next test.
+  useAuthStore.setState({ launchRetryRunning: true });
   await render(<LaunchOfflineScreen />);
 
   const retry = screen.getByRole("button", { name: "Try again" });
   expect(retry.props.accessibilityState).toMatchObject({ busy: true, disabled: true });
   await fireEvent.press(retry);
   expect(useAuthStore.getState().launchRetryRequests).toBe(0);
+});
+
+it("Try again stays usable while only an automatic attempt is out", async () => {
+  useAuthStore.setState({ launchAttempting: true });
+  await render(<LaunchOfflineScreen />);
+
+  const retry = screen.getByRole("button", { name: "Try again" });
+  expect(retry.props.accessibilityState).toMatchObject({ busy: false, disabled: false });
+  await fireEvent.press(retry);
+  expect(useAuthStore.getState()).toMatchObject({ launchRetryRequests: 1, launchRetryRunning: true });
 });
 
 it("Sign in again opens login and keeps the session on this phone", async () => {

@@ -34,10 +34,19 @@ type AuthState = {
   launchAttempting: boolean;
   /** Bumped by "Try again"; the auth listener starts an attempt when it changes. */
   launchRetryRequests: number;
+  /**
+   * The Try again she pressed is running: from the press until the attempt it
+   * asked for resolves (an immediate one, or the fresh one queued behind an
+   * automatic attempt already out). The session-stage button shows busy on
+   * this, never on `launchAttempting`: an automatic attempt on a dead
+   * connection can be out for ~30 s, and the button must stay usable then.
+   */
+  launchRetryRunning: boolean;
   setSession: (session: Session | null) => void;
   setRecovery: (recovery: boolean) => void;
   setLaunchStalled: (stalled: boolean) => void;
   setLaunchAttempting: (attempting: boolean) => void;
+  setLaunchRetryRunning: (running: boolean) => void;
   requestLaunchRetry: () => void;
   /**
    * "Sign in again" from the holding view: open login now, WITHOUT touching
@@ -54,6 +63,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   launchStalled: false,
   launchAttempting: false,
   launchRetryRequests: 0,
+  launchRetryRunning: false,
   // Leaves `launchStalled` to the gate: a restore that lands while her
   // profile is still on its way must not drop the holding view into a bare
   // spinner (use-launch-hold).
@@ -61,7 +71,9 @@ export const useAuthStore = create<AuthState>((set) => ({
   setRecovery: (recovery) => set({ recovery }),
   setLaunchStalled: (launchStalled) => set({ launchStalled }),
   setLaunchAttempting: (launchAttempting) => set({ launchAttempting }),
-  requestLaunchRetry: () => set((s) => ({ launchRetryRequests: s.launchRetryRequests + 1 })),
+  setLaunchRetryRunning: (launchRetryRunning) => set({ launchRetryRunning }),
+  requestLaunchRetry: () =>
+    set((s) => ({ launchRetryRequests: s.launchRetryRequests + 1, launchRetryRunning: true })),
   signInWhileRestoring: () => set({ session: null, loading: false, launchStalled: false }),
 }));
 

@@ -154,6 +154,7 @@ beforeEach(() => {
     recovery: false,
     launchStalled: false,
     launchAttempting: false,
+    launchRetryRunning: false,
   });
 });
 
@@ -503,5 +504,46 @@ describe("a launch that stays unanswered (the offline holding view)", () => {
 
     expect(useAuthStore.getState().session).toBe(session);
     expect(getSession).toHaveBeenCalledTimes(attempts);
+  });
+});
+
+describe("Try again while an automatic attempt is out (session stage)", () => {
+  it("queues one fresh attempt and is busy until it resolves, never two at once", async () => {
+    let answerFirst: (value: ReturnType<typeof offline>) => void = () => undefined;
+    getSession
+      .mockImplementationOnce(() => new Promise((resolve) => (answerFirst = resolve)))
+      .mockResolvedValueOnce(offline());
+
+    await mount();
+    await act(async () => useAuthStore.getState().requestLaunchRetry());
+    expect(useAuthStore.getState().launchRetryRunning).toBe(true);
+    expect(getSession).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      answerFirst(offline());
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(getSession).toHaveBeenCalledTimes(2);
+    expect(useAuthStore.getState().launchRetryRunning).toBe(false);
+  });
+
+  it("clears busy without a second attempt when the automatic one brings her session back", async () => {
+    let answerFirst: (value: typeof signedIn) => void = () => undefined;
+    getSession.mockImplementationOnce(() => new Promise((resolve) => (answerFirst = resolve)));
+
+    await mount();
+    await act(async () => useAuthStore.getState().requestLaunchRetry());
+    expect(useAuthStore.getState().launchRetryRunning).toBe(true);
+
+    await act(async () => {
+      answerFirst(signedIn);
+      await Promise.resolve();
+    });
+    await advance(60_000);
+
+    expect(useAuthStore.getState()).toMatchObject({ session, launchRetryRunning: false });
+    expect(getSession).toHaveBeenCalledTimes(1);
   });
 });

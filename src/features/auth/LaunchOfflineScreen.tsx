@@ -31,7 +31,10 @@ type LaunchOfflineScreenProps = {
  * appears on a connection that is slow but working (re-review N5).
  */
 export function LaunchOfflineScreen({ profile }: LaunchOfflineScreenProps) {
-  const attempting = useAuthStore((s) => s.launchAttempting);
+  // Busy only while the Try again she pressed is running, never merely because
+  // an automatic attempt is out: on a dead connection that can be ~30 s, and
+  // the button must stay usable (session stage: `launchRetryRunning`).
+  const retryRunning = useAuthStore((s) => s.launchRetryRunning);
   const requestLaunchRetry = useAuthStore((s) => s.requestLaunchRetry);
   const signInWhileRestoring = useAuthStore((s) => s.signInWhileRestoring);
 
@@ -46,7 +49,7 @@ export function LaunchOfflineScreen({ profile }: LaunchOfflineScreenProps) {
           <Button
             label="Try again"
             variant="secondary"
-            loading={profile ? profile.retrying : attempting}
+            loading={profile ? profile.retrying : retryRunning}
             onPress={profile ? profile.retry : requestLaunchRetry}
           />
           {profile ? null : (

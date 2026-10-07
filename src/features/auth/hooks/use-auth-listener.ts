@@ -63,6 +63,9 @@ export function useAuthListener() {
     let unreadableReads = 0;
     let inFlight = false;
     let rerunWhenDone = false;
+    // A Try again press waiting for its attempt: the next attempt started is
+    // the one she asked for (store: `launchRetryRunning`).
+    let pressQueued = false;
     let handedToLogin = false;
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
     const launch = useAuthStore.getState();
@@ -71,6 +74,9 @@ export function useAuthListener() {
       settled = true;
       if (retryTimer) clearTimeout(retryTimer);
       retryTimer = null;
+      // Answered: a press still waiting for its attempt has nothing to wait for.
+      pressQueued = false;
+      launch.setLaunchRetryRunning(false);
       setSession(session);
       // Product analytics: identify the member as soon as a session exists.
       if (session?.user.id) identifyPhUser(session.user.id);
@@ -79,10 +85,14 @@ export function useAuthListener() {
     const restore = async () => {
       retryTimer = null;
       inFlight = true;
+      const pressed = pressQueued;
+      pressQueued = false;
       launch.setLaunchAttempting(true);
       const result = await restoreSession();
       inFlight = false;
       if (active) launch.setLaunchAttempting(false);
+      // The attempt she asked for has resolved, whatever it found.
+      if (pressed && active) launch.setLaunchRetryRunning(false);
       // An auth event may have answered the question while this read was out.
       if (!active || settled) return;
       if (result.status === "resolved") {
@@ -116,10 +126,16 @@ export function useAuthListener() {
 
     // Try now rather than wait out the backoff. If an attempt is still out, a
     // fresh one follows the moment it ends, never two at once. Auth requests
-    // carry a deadline (`auth-fetch.ts`), so it ends.
-    const tryNow = () => {
-      if (settled) return;
+    // carry a deadline (`auth-fetch.ts`), so it ends. `pressed`: from the
+    // holding view's Try again, whose busy state lasts until the attempt it
+    // asked for resolves.
+    const tryNow = (pressed: boolean) => {
+      if (settled) {
+        if (pressed) launch.setLaunchRetryRunning(false);
+        return;
+      }
       attempt = 0;
+      if (pressed) pressQueued = true;
       if (inFlight) {
         rerunWhenDone = true;
         return;
@@ -131,12 +147,12 @@ export function useAuthListener() {
     // Back in the foreground with the launch still undecided (she unlocked the
     // phone, left the lift).
     const appState = AppState.addEventListener("change", (state) => {
-      if (state === "active") tryNow();
+      if (state === "active") tryNow(false);
     });
 
     // "Try again" on the offline holding view.
     const unsubscribeRetry = useAuthStore.subscribe((state, previous) => {
-      if (state.launchRetryRequests !== previous.launchRetryRequests) tryNow();
+      if (state.launchRetryRequests !== previous.launchRetryRequests) tryNow(true);
     });
 
     const { data: subscription } = supabase.auth.onAuthStateChange((event, session) => {
@@ -163,6 +179,9 @@ export function useAuthListener() {
       active = false;
       if (retryTimer) clearTimeout(retryTimer);
       if (inFlight) launch.setLaunchAttempting(false);
+      if (pressQueued || useAuthStore.getState().launchRetryRunning) {
+        launch.setLaunchRetryRunning(false);
+      }
       unsubscribeRetry();
       appState.remove();
       subscription.subscription.unsubscribe();
