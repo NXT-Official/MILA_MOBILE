@@ -1,0 +1,34 @@
+src/services/api/look.ts
+  s_755964b2e0c3da::t_3e3476ee545c09 67-74,77-80
+  s_755964b2e0c3da::t_7010e23851d89d 86-90
+__tests__/generation-mutations-test.tsx
+  s_755964b2e0c3da::t_a599be8642c3a9 111-147
+__tests__/home-screen-recovery-test.tsx
+  s_755964b2e0c3da::t_741510790dbb1e 533-551,1004-1024
+__tests__/look-request-id-test.ts
+  s_755964b2e0c3da::t_78fc14899a3d01 103-118
+__tests__/use-generation-jobs-test.tsx
+  s_755964b2e0c3da::t_bbe6d60e78f969 209-221
+src/features/dashboard/HomeScreen.tsx
+  s_755964b2e0c3da::t_b34e04458ddeae 135-176,509,515,524-527,707
+src/features/dashboard/hooks/use-generate-look.ts
+  s_755964b2e0c3da::t_0a70e1e4539a7d 36-40,43-48,107,110-118
+src/features/dashboard/hooks/use-generation-jobs.ts
+  s_755964b2e0c3da::t_fc6c5d0ad4ca8e 142-144
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7d5c41c7d50ccebdffca272b3c4ba3008009798b",
+  "prompts": {},
+  "sessions": {
+    "s_755964b2e0c3da": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "41717171-e98d-4ccb-91e6-20f4d84aa5ab",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "naaxtech <naaxtech.official@gmail.com>"
+    }
+  }
+}
