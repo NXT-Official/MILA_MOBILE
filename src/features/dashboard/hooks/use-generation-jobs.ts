@@ -15,6 +15,13 @@ import { isLiveRunning } from "../generation-recovery";
  * feature owns are declared here (the same choice as `outfitsKey`).
  */
 export const generationJobsKey = (userId: string | undefined) => ["generation-jobs", userId] as const;
+
+/** The three paid calls' mutation keys: the cache can say a press is still in flight after a remount. */
+export const GENERATION_MUTATION_KEYS = {
+  look: ["generation", "look"],
+  styleSheet: ["generation", "style_sheet"],
+  photoPreview: ["generation", "photo_preview"],
+} as const;
 const generationImageKey = (jobId: string | null, imagePath: string | null) =>
   ["generation-image", jobId, imagePath] as const;
 
@@ -134,10 +141,12 @@ export function useGenerationImage(job: GenerationJob | null): GenerationImage {
   });
   const retry = () => void query.refetch();
   if (!readable) return { image: null, loading: false, failed: false, retry };
+  const image = query.data ?? null;
   return {
-    image: query.data ?? null,
-    loading: query.isPending && !query.isError,
-    failed: query.isError && !query.data,
+    image,
+    // Waiting on the first read, or on a re-read after a failed one.
+    loading: !image && (query.isFetching || (query.isPending && !query.isError)),
+    failed: !image && query.isError && !query.isFetching,
     retry,
   };
 }

@@ -8,11 +8,11 @@ import {
 } from "@/services/api/look";
 import { useAuthStore } from "@/stores/auth-store";
 
-import { generationJobsKey } from "./use-generation-jobs";
+import { GENERATION_MUTATION_KEYS, generationJobsKey } from "./use-generation-jobs";
 import type { VisualVariables } from "./use-style-sheet";
 
 /** Every request of this render shares this key, so the cache can find it by kind. */
-export const PHOTO_PREVIEW_KEY = ["generation", "photo_preview"] as const;
+export const PHOTO_PREVIEW_KEY = GENERATION_MUTATION_KEYS.photoPreview;
 
 /**
  * `POST /look/photo-preview` — the optional portrait edit: the member's own
@@ -28,6 +28,8 @@ export function usePhotoPreview() {
 
   return useMutation<PhotoPreviewResult | GenerationRunning, unknown, VisualVariables>({
     mutationKey: PHOTO_PREVIEW_KEY,
+    // A retried paid call is a second charge (§6): never, whatever the client default.
+    retry: false,
     mutationFn: ({ outfit, clientRequestId }) => generatePhotoPreview(outfit, clientRequestId),
     onSettled: () => {
       if (!userId) return;

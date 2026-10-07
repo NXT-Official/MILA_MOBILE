@@ -6,7 +6,14 @@ import type { DailyLook } from "@/types/look";
  * What Home shows from a generation job it did not watch finish (R7): after a
  * background, a remount or a restart, her latest job rows say what happened to
  * the look and the visuals she paid for. Pure, so every rule is testable
- * without a screen.
+ * without a screen. The rules are the web's (`src/lib/queries/generation-jobs.ts`):
+ *
+ * - Her own unanswered press always lands.
+ * - Otherwise her latest finished look comes back only when nothing is on
+ *   screen, she has not saved it, and it finished today or within 12 hours.
+ * - A look already on screen is never swapped for another job's look.
+ * - A style sheet or portrait belongs to exactly one look: the one it was drawn
+ *   for (headline and description of its request's look).
  */
 
 /** One press on this screen: the key it sent, and the job the server named if
@@ -17,6 +24,8 @@ export type GenerationAction = { clientRequestId: string; followJobId?: string |
 const REAP_GRACE_MS = 30_000;
 /** The phone's clock and the database's can disagree by this much. */
 const CLOCK_SKEW_MS = 15_000;
+/** A finished look older than this (and not from today) is history, not today's look. */
+export const RECOVERY_WINDOW_MS = 12 * 60 * 60_000;
 
 /** Still inside its deadline, the reaper's grace and the skew allowance. */
 export function isLiveRunning(job: GenerationJob, nowMs: number): boolean {
@@ -66,56 +75,208 @@ export function parseStoredLook(result: Json | null): DailyLook | null {
   return result as unknown as DailyLook;
 }
 
-function sameLocalDay(isoTime: string, nowMs: number): boolean {
-  const time = Date.parse(isoTime);
-  return !Number.isNaN(time) && new Date(time).toDateString() === new Date(nowMs).toDateString();
+type LookLike = { outfit: { headline: string; description: string } };
+
+/** A look's identity for its visuals: what a render's request names as its look. */
+export function lookKeyOf(look: LookLike): string {
+  return `${look.outfit.headline}\n${look.outfit.description}`;
+}
+
+/** Whether a style sheet or portrait row was drawn for this look. */
+export function jobIsForLook(job: GenerationJob | null | undefined, look: LookLike | null | undefined): boolean {
+  if (!job?.for_look || !look) return false;
+  return (
+    job.for_look.headline === look.outfit.headline &&
+    job.for_look.description === look.outfit.description
+  );
+}
+
+/** When a look finished, by the server's timestamps (its start when it has no finish). */
+function finishedAtOf(job: GenerationJob): number {
+  return Date.parse(job.completed_at ?? job.created_at);
+}
+
+/**
+ * The shared recovery window: a look that finished today (her local day) or
+ * within the last 12 hours. Keyed on when it FINISHED, so a look started at
+ * 23:58 and finished at 00:02 is today's, and last night's 23:40 look is still
+ * there at 07:40.
+ */
+export function isRecentLook(job: GenerationJob, nowMs: number): boolean {
+  const finished = finishedAtOf(job);
+  if (Number.isNaN(finished)) return false;
+  if (nowMs - finished <= RECOVERY_WINDOW_MS) return true;
+  return new Date(finished).toDateString() === new Date(nowMs).toDateString();
+}
+
+function clockTime(ms: number): string {
+  const date = new Date(ms);
+  const hours = date.getHours();
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  return `${hours % 12 || 12}:${minutes} ${hours < 12 ? "AM" : "PM"}`;
+}
+
+/**
+ * A recovered look from before today says when it is from, in place of today's
+ * weather (the window keeps it to the previous day). Null for a look from today.
+ */
+export function recoveredLookLabel(finishedAtMs: number, nowMs: number): string | null {
+  const finished = new Date(finishedAtMs);
+  if (Number.isNaN(finishedAtMs) || finished.toDateString() === new Date(nowMs).toDateString()) {
+    return null;
+  }
+  return finished.getHours() >= 18
+    ? `From last night, ${clockTime(finishedAtMs)}`
+    : `From yesterday, ${clockTime(finishedAtMs)}`;
+}
+
+/** A look to put back on screen, with what it is saved under. */
+export type RecoveredLook = {
+  look: DailyLook;
+  jobId: string;
+  /** The key the job was started with. */
+  requestId: string;
+  /** Her own press (its key is one this phone sent): it continues to its free style sheet. */
+  own: boolean;
+  finishedAt: number;
+  /** The vibe and weather it was asked for (the weather as the request sent it). */
+  vibe: string | null;
+  weather: string | null;
+};
+
+type RecoveryInput = {
+  job: GenerationJob | null;
+  /** The job of the look on screen, when it came from one. */
+  shownJobId: string | null;
+  hasLookOnScreen: boolean;
+  /** Keys of her own unanswered look presses (this phone's ledger). */
+  ownIds: readonly string[];
+  /** The job the server told her press here to follow. */
+  followJobId: string | null;
+  /** A press on this screen is unresolved (failed, or answered "running"). */
+  pressedHere: boolean;
+  /** This look is already in her History. */
+  saved: boolean;
+  nowMs: number;
+};
+
+/**
+ * The look to put back on screen, or null.
+ * - Her own unanswered press (or the job her press was told to follow) always lands.
+ * - Otherwise only when nothing is on screen, no press of hers here is
+ *   unresolved (an older look never stands in for it), she has not saved it,
+ *   and it is recent.
+ * - A look already on screen is never swapped.
+ */
+export function lookToRecover(input: RecoveryInput): RecoveredLook | null {
+  const { job, shownJobId, ownIds, followJobId, nowMs } = input;
+  if (!job || job.kind !== "look" || job.status !== "succeeded") return null;
+  if (shownJobId === job.id) return null;
+  const look = parseStoredLook(job.result);
+  if (!look) return null;
+
+  const decision: RecoveredLook = {
+    look,
+    jobId: job.id,
+    requestId: job.client_request_id,
+    own: ownIds.includes(job.client_request_id),
+    finishedAt: finishedAtOf(job),
+    vibe: job.look_input?.vibe ?? null,
+    weather: job.look_input?.weather ?? null,
+  };
+  if (decision.own || job.id === followJobId) return decision;
+  if (input.hasLookOnScreen || input.pressedHere || input.saved) return null;
+  return isRecentLook(job, nowMs) ? decision : null;
+}
+
+/**
+ * A look still being made, to show as composing (and to block a second paid
+ * press). Her own job, or the one her press follows, always; a job from
+ * elsewhere only on an empty screen with no press of hers here.
+ */
+export function lookInProgress(input: {
+  job: GenerationJob | null;
+  ownIds: readonly string[];
+  followJobId: string | null;
+  pressedHere: boolean;
+  hasLookOnScreen: boolean;
+  nowMs: number;
+}): { composing: boolean; own: boolean } {
+  const { job } = input;
+  if (!job || job.kind !== "look" || !isLiveRunning(job, input.nowMs)) {
+    return { composing: false, own: false };
+  }
+  if (input.ownIds.includes(job.client_request_id)) return { composing: true, own: true };
+  if (job.id === input.followJobId) return { composing: true, own: false };
+  if (input.pressedHere || input.hasLookOnScreen) return { composing: false, own: false };
+  return { composing: true, own: false };
 }
 
 export type LookRecovery = {
-  /** A look is still being composed: show progress, block a second paid press. */
   composing: boolean;
-  /** A finished look to show when the screen has none of its own. */
-  look: DailyLook | null;
-  /** The job of the look on screen, which its visuals are matched against. */
-  job: GenerationJob | null;
-  /** The job is this screen's own press, not one it was told to follow. */
-  ownRequest: boolean;
+  /** The composing job is her own press: the phone stays awake for it. */
+  ownComposing: boolean;
+  candidate: RecoveredLook | null;
 };
 
-const NO_LOOK: LookRecovery = { composing: false, look: null, job: null, ownRequest: false };
+/** Everything Home needs from her latest look job, in one call. */
+export function recoverLook(input: RecoveryInput): LookRecovery {
+  const progress = lookInProgress(input);
+  return {
+    composing: progress.composing,
+    ownComposing: progress.composing && progress.own,
+    candidate: lookToRecover(input),
+  };
+}
 
 /**
- * With a press on this screen, only that press's job counts: an older job must
- * never stand in for a request that failed before it reached the server. With
- * none, a running job is shown as running and today's finished look is shown;
- * a look from another day is not today's look.
+ * What to tell her when HER OWN look job turned out to have failed: whether her
+ * credit is back is read from the row (display, not accounting, §7). Silent for
+ * a delivered-but-unsaved job (charged and handed over: never a failure, N7).
  */
-export function recoverLook({
-  job,
-  action,
-  nowMs,
-}: {
-  job: GenerationJob | null;
-  action: GenerationAction | null;
-  nowMs: number;
-}): LookRecovery {
-  if (!job) return NO_LOOK;
-  const outcome = jobOutcome(job, nowMs);
+export function failureNotice(job: GenerationJob): string | null {
+  if (job.status !== "failed" || job.error_code === "persist_failed_delivered") return null;
+  return job.credit_state === "refunded"
+    ? "Mila couldn't finish your look. Your credit is back."
+    : "Mila couldn't finish your look. Please try again.";
+}
 
-  if (action) {
-    if (!belongsTo(job, action)) return NO_LOOK;
-    const ownRequest = job.client_request_id === action.clientRequestId;
-    if (outcome === "running") return { composing: true, look: null, job, ownRequest };
-    const look = outcome === "succeeded" ? parseStoredLook(job.result) : null;
-    return { composing: false, look, job, ownRequest };
-  }
+/** A History row, as `useOutfits` reads it. */
+type SavedRow = { analysis_result: Json | null; created_at: string };
 
-  if (outcome === "running") return { composing: true, look: null, job, ownRequest: false };
-  if (outcome === "succeeded" && sameLocalDay(job.created_at, nowMs)) {
-    const look = parseStoredLook(job.result);
-    if (look) return { composing: false, look, job, ownRequest: false };
-  }
-  return NO_LOOK;
+/**
+ * Whether she already saved this look: a History row with its headline, saved
+ * since the job started. A saved look is never brought back (saving it again
+ * would duplicate it).
+ */
+export function lookAlreadySaved(
+  rows: readonly SavedRow[] | undefined,
+  job: GenerationJob,
+  look: LookLike,
+): boolean {
+  const since = Date.parse(job.created_at);
+  return (rows ?? []).some((row) => {
+    const outfit = isRecord(row.analysis_result) ? row.analysis_result.outfit : null;
+    return (
+      isRecord(outfit) &&
+      outfit.headline === look.outfit.headline &&
+      Date.parse(row.created_at) >= since
+    );
+  });
+}
+
+const REQUEST_WEATHER = /^(.*) \(in (.*)\)$/;
+
+/** "24°C Sunny (in Manila)", as the request sent it, to the badge's "24°C Sunny". */
+export function weatherBadgeOf(weather: string | null): string | null {
+  if (!weather) return null;
+  return REQUEST_WEATHER.exec(weather)?.[1] ?? weather;
+}
+
+/** The request's weather, as History saves it: "24°C Sunny (Manila)". */
+export function savedWeatherOf(weather: string): string {
+  const match = REQUEST_WEATHER.exec(weather);
+  return match ? `${match[1]} (${match[2]})` : weather;
 }
 
 export type VisualRecovery = {
@@ -130,27 +291,23 @@ export type VisualRecovery = {
 export const NO_VISUAL: VisualRecovery = { rendering: false, succeededJob: null, failed: false };
 
 /**
- * A style sheet or portrait preview. With a press on this screen, only that
- * press's job counts. With none, a render counts when it was started after the
- * look on screen was: visuals are only ever drawn for the look in front of her.
+ * A style sheet or portrait for the look on screen. With a press on this screen
+ * (always for this look: presses are cleared with every new look), only that
+ * press's job counts. With none, only a render drawn for this look counts.
  */
 export function recoverVisual({
   job,
   action,
-  lookJob,
+  look,
   nowMs,
 }: {
   job: GenerationJob | null;
   action: GenerationAction | null;
-  lookJob: GenerationJob | null;
+  look: LookLike | null;
   nowMs: number;
 }): VisualRecovery {
-  if (!job) return NO_VISUAL;
-  if (action) {
-    if (!belongsTo(job, action)) return NO_VISUAL;
-  } else {
-    if (!lookJob || Date.parse(job.created_at) < Date.parse(lookJob.created_at)) return NO_VISUAL;
-  }
+  if (!job || !look || !jobIsForLook(job, look)) return NO_VISUAL;
+  if (action && !belongsTo(job, action)) return NO_VISUAL;
 
   switch (jobOutcome(job, nowMs)) {
     case "running":
@@ -162,4 +319,15 @@ export function recoverVisual({
     case "delivered":
       return NO_VISUAL;
   }
+}
+
+/**
+ * No style sheet attempt to report for this look: none was started for it, or
+ * one was delivered elsewhere and not kept (never a failure, N7). Then the
+ * sheet is offered as not drawn yet, without a credit claim: the look's own
+ * free first visual is still waiting.
+ */
+export function sheetNeverDrawn(job: GenerationJob | null, look: LookLike): boolean {
+  if (!job || !jobIsForLook(job, look)) return true;
+  return job.status === "failed" && job.error_code === "persist_failed_delivered";
 }

@@ -36,17 +36,40 @@ function mockQuery(result: Result) {
   return query;
 }
 
-const row = {
+/** A row as PostgREST answers the select (JSON paths arrive as their aliases). */
+const wireRow = {
   id: "job-1",
   kind: "look",
   client_request_id: "request-1",
   status: "succeeded",
+  credit_state: "charged",
   result: { outfit: { headline: "Linen and light" } },
   image_path: null,
   error_code: null,
   deadline_at: "2026-10-07T08:05:00Z",
   created_at: "2026-10-07T08:00:00Z",
   completed_at: "2026-10-07T08:01:00Z",
+  look_vibe: "Brunch",
+  look_weather: "24°C Sunny (in Manila)",
+  for_headline: null,
+  for_description: null,
+};
+
+/** The same row, parsed. */
+const row = {
+  id: "job-1",
+  kind: "look",
+  client_request_id: "request-1",
+  status: "succeeded",
+  credit_state: "charged",
+  result: { outfit: { headline: "Linen and light" } },
+  image_path: null,
+  error_code: null,
+  deadline_at: "2026-10-07T08:05:00Z",
+  created_at: "2026-10-07T08:00:00Z",
+  completed_at: "2026-10-07T08:01:00Z",
+  for_look: null,
+  look_input: { vibe: "Brunch", weather: "24°C Sunny (in Manila)" },
 };
 
 beforeEach(() => jest.clearAllMocks());
@@ -59,13 +82,16 @@ describe("newClientRequestId", () => {
 
 describe("fetchLatestGenerationJob", () => {
   it("reads her newest job of one kind, without the stored request input", async () => {
-    const query = mockQuery({ data: [row], error: null });
+    const query = mockQuery({ data: [wireRow], error: null });
 
     const read = await fetchLatestGenerationJob("member", "look");
 
     expect(supabase.from).toHaveBeenCalledWith("generation_jobs");
     expect(query.select).toHaveBeenCalledWith(GENERATION_JOB_COLUMNS);
+    // Only named fields of the request are read, never the whole input.
     expect(GENERATION_JOB_COLUMNS.split(",")).not.toContain("input");
+    expect(GENERATION_JOB_COLUMNS).toContain("for_headline:input->outfit->outfit->>headline");
+    expect(GENERATION_JOB_COLUMNS).toContain("look_vibe:input->>vibe");
     expect(query.eq).toHaveBeenCalledWith("user_id", "member");
     expect(query.eq).toHaveBeenCalledWith("kind", "look");
     expect(query.order).toHaveBeenCalledWith("created_at", { ascending: false });
@@ -98,10 +124,37 @@ describe("fetchLatestGenerationJob", () => {
   });
 
   it("ignores a row it cannot read rather than guessing at it", async () => {
-    mockQuery({ data: [{ ...row, status: "paused" }], error: null });
+    mockQuery({ data: [{ ...wireRow, status: "paused" }], error: null });
     await expect(fetchLatestGenerationJob("member", "look")).resolves.toEqual({
       status: "ok",
       job: null,
+    });
+  });
+
+  it("names the look a style sheet or portrait was drawn for", async () => {
+    mockQuery({
+      data: [
+        {
+          ...wireRow,
+          kind: "style_sheet",
+          credit_state: "refunded",
+          look_vibe: null,
+          look_weather: null,
+          for_headline: "Linen and light",
+          for_description: "A light layer.",
+        },
+      ],
+      error: null,
+    });
+    const read = await fetchLatestGenerationJob("member", "style_sheet");
+    expect(read).toMatchObject({
+      status: "ok",
+      job: {
+        kind: "style_sheet",
+        credit_state: "refunded",
+        for_look: { headline: "Linen and light", description: "A light layer." },
+        look_input: null,
+      },
     });
   });
 });
@@ -112,12 +165,15 @@ describe("fetchGenerationImage", () => {
     kind: "style_sheet",
     result: { mode: "style_sheet" },
     image_path: "member/job-1.jpg",
+    for_look: { headline: "Linen and light", description: "A light layer." },
+    look_input: null,
   } as GenerationJob;
 
   const createSignedUrl = jest.fn();
   const originalFetch = global.fetch;
   const originalFileReader = global.FileReader;
   let blobType = "image/jpeg";
+  const blobClose = jest.fn();
 
   beforeEach(() => {
     createSignedUrl.mockResolvedValue({
@@ -131,7 +187,7 @@ describe("fetchGenerationImage", () => {
     global.fetch = jest.fn(async () => ({
       ok: true,
       status: 200,
-      blob: async () => ({ type: blobType, size: 1 }),
+      blob: async () => ({ type: blobType, size: 1, close: blobClose }),
     })) as unknown as typeof fetch;
     // React Native's FileReader reads a Blob natively; this stand-in answers
     // the way it does: a data URI whose media type is the blob's own.
@@ -159,11 +215,20 @@ describe("fetchGenerationImage", () => {
     expect(global.fetch).toHaveBeenCalledWith("https://storage.test/signed/job-1.jpg");
   });
 
-  it("names the image type from its path when the download carries none", async () => {
+  it("names the image type from its path when the download carries none, or not an image type", async () => {
     blobType = "";
     await expect(
       fetchGenerationImage({ ...sheetJob, image_path: "member/job-1.png" }),
     ).resolves.toBe("data:image/png;base64,QQ==");
+    blobType = "application/octet-stream";
+    await expect(
+      fetchGenerationImage({ ...sheetJob, image_path: "member/job-1.webp" }),
+    ).resolves.toBe("data:image/webp;base64,QQ==");
+  });
+
+  it("frees the native blob once it has been read", async () => {
+    await fetchGenerationImage(sheetJob);
+    expect(blobClose).toHaveBeenCalled();
   });
 
   it("never signs anything for a row that has not succeeded", async () => {

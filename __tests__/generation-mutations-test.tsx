@@ -157,3 +157,30 @@ describe.each([
     );
   });
 });
+
+describe("a paid call is never retried by the hook itself", () => {
+  // Whatever the client's default, each paid hook says retry: false on its own.
+  type PaidHook = () => { mutateAsync: (variables: never) => Promise<unknown> };
+  it.each<[string, PaidHook, jest.Mock, unknown]>([
+    [
+      "useGenerateLook",
+      useGenerateLook,
+      jest.mocked(generateDailyLook),
+      { weather: WEATHER, vibe: "Everyday Casual", clientRequestId: KEY },
+    ],
+    ["useStyleSheet", useStyleSheet, jest.mocked(generateStyleSheetPreview), { outfit: LOOK, clientRequestId: KEY }],
+    ["usePhotoPreview", usePhotoPreview, jest.mocked(generatePhotoPreview), { outfit: LOOK, clientRequestId: KEY }],
+  ])("%s", async (_name, useHook, request, variables) => {
+    queryClient = new QueryClient({
+      defaultOptions: { queries: { gcTime: Infinity }, mutations: { retry: 3, retryDelay: 0, gcTime: Infinity } },
+    });
+    request.mockRejectedValue(new Error("server error"));
+    const { result } = await renderHook(() => useHook(), { wrapper });
+
+    await act(async () => {
+      await result.current.mutateAsync(variables as never).catch(() => undefined);
+    });
+
+    expect(request).toHaveBeenCalledTimes(1);
+  });
+});

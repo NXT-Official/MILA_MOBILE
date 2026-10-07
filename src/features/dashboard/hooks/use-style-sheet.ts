@@ -9,10 +9,10 @@ import {
 import { useAuthStore } from "@/stores/auth-store";
 import type { DailyLook } from "@/types/look";
 
-import { generationJobsKey } from "./use-generation-jobs";
+import { GENERATION_MUTATION_KEYS, generationJobsKey } from "./use-generation-jobs";
 
 /** Every request of this render shares this key, so the cache can find it by kind. */
-export const STYLE_SHEET_KEY = ["generation", "style_sheet"] as const;
+export const STYLE_SHEET_KEY = GENERATION_MUTATION_KEYS.styleSheet;
 
 /** The look to draw, and the press's idempotency key (minted once per press). */
 export type VisualVariables = { outfit: DailyLook; clientRequestId: string };
@@ -39,6 +39,8 @@ export function useStyleSheet() {
 
   return useMutation<StyleSheetResult | GenerationRunning, unknown, VisualVariables>({
     mutationKey: STYLE_SHEET_KEY,
+    // A retried paid call is a second charge (§6): never, whatever the client default.
+    retry: false,
     mutationFn: ({ outfit, clientRequestId }) => generateStyleSheetPreview(outfit, clientRequestId),
     onSettled: () => {
       if (!userId) return;

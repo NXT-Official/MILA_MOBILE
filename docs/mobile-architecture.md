@@ -834,6 +834,7 @@ the authority.
 | --------- | ---------- | ------------------------------ | ------------------------------------------------------- |
 | `outfits` | public     | 10 MB, `image/jpeg\|png\|webp` | `${userId}/${uuid}.jpg`                                 |
 | `posts`   | private    | 10 MB, same MIME list          | `${userId}/back-${ts}.jpg`, `${userId}/front-${ts}.jpg` |
+| `generations` | private, read-only for members | 10 MB, same MIME list | `${userId}/${jobId}.jpg`, written by the server only |
 
 Storage RLS requires the first path segment to equal `auth.uid()`. Uploads use the standard
 `supabase.storage.from(bucket).upload(path, blob)`.
@@ -854,6 +855,11 @@ export async function prepareUpload(uri: string, maxEdge = 1440) {
   return result.uri; // ~200–500 KB instead of 3–6 MB
 }
 ```
+
+`generations` holds the images of finished generation jobs (R7). The client reads one only for a
+**succeeded** `generation_jobs` row's own `image_path`, through a 60-second signed URL
+(`services/supabase/generation-jobs.ts`), and never lists the folder: an object can be left there by a
+job that was later failed and refunded.
 
 Private `posts` images are never addressed by path from the client — the server returns 1-hour
 signed URLs with the feed payload. Treat them as expiring: `RemoteImage` refetches the parent query
@@ -1169,6 +1175,7 @@ running system; every table it touches is already governed by RLS that assumes a
 | `subscription_plans`      | read active, non-archived | direct                                                             |
 | `products` / `brands`     | read (dupe results)       | via API                                                            |
 | `user_favorites`          | read (data export only)   | direct                                                             |
+| `generation_jobs`         | read own (latest per kind) | direct; written only by the server's job functions. Home re-attaches to a look or visual she left mid-generation (R7). Missing table = today's behaviour |
 
 ### Tables the mobile app must never touch
 

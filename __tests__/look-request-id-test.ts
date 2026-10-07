@@ -4,11 +4,13 @@ jest.mock("../src/services/api/client", () => ({
 }));
 
 import { api } from "@/services/api/client";
+import { ApiError } from "@/services/api/errors";
 import {
   generateDailyLook,
   generatePhotoPreview,
   generateStyleSheetPreview,
   isGenerationRunning,
+  isLostAnswer,
   type GenerateLookInput,
 } from "@/services/api/look";
 import type { DailyLook } from "@/types/look";
@@ -85,4 +87,16 @@ it("hands back the server's running answer for the caller to follow", async () =
   expect(isGenerationRunning({ imageDataUri: null, mode: "unavailable", reason: "x" })).toBe(false);
   expect(isGenerationRunning(null)).toBe(false);
   expect(isGenerationRunning({ status: "running" })).toBe(false);
+});
+
+it("tells a call that never heard back from the server apart from a real answer", () => {
+  // No answer: the job may be running or finished, so the press keeps its key.
+  expect(isLostAnswer(new ApiError("NETWORK", "offline", 0))).toBe(true);
+  expect(isLostAnswer(new ApiError("TIMEOUT", "slow", 0))).toBe(true);
+  expect(isLostAnswer(new ApiError("TIMEOUT", "proxy timeout", 504))).toBe(true);
+  // A real answer, even an error: the key is spent.
+  expect(isLostAnswer(new ApiError("AI_UNAVAILABLE", "no", 503))).toBe(false);
+  expect(isLostAnswer(new ApiError("RATE_LIMITED", "wait", 429, 30))).toBe(false);
+  expect(isLostAnswer(new Error("Style Profile is incomplete."))).toBe(false);
+  expect(isLostAnswer(null)).toBe(false);
 });

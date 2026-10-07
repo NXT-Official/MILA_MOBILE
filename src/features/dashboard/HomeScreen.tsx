@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { AccessibilityInfo, Text, View } from "react-native";
 
 import { KeepAwake } from "@/components/feedback/KeepAwake";
@@ -13,6 +13,7 @@ import { Icon } from "@/components/ui/Icon";
 import { LookDetail } from "@/components/ui/LookDetail";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { queryKeys } from "@/constants/query-keys";
+import { isVibe } from "@/constants/vibes";
 import { useCountdown } from "@/hooks/use-countdown";
 import { useHaptics } from "@/hooks/use-haptics";
 import { useNetworkStatus } from "@/hooks/use-network-status";
@@ -23,14 +24,20 @@ import { looksThisMonth, styleProfileCompletionPercent } from "@/lib/dashboard-s
 import { toSeasonId } from "@/lib/season-id";
 import { isStyleProfileComplete, toStyleProfileRow } from "@/lib/style-profile/completion";
 import { formatRetryAfter, resolveApiFailure } from "@/services/api/client";
-import { isGenerationRunning } from "@/services/api/look";
+import { isGenerationRunning, isLostAnswer } from "@/services/api/look";
 import { files } from "@/services/files";
-import { newClientRequestId } from "@/services/supabase/generation-jobs";
+import { newClientRequestId, type GenerationJob } from "@/services/supabase/generation-jobs";
 import { useAuthStore } from "@/stores/auth-store";
 import { useConciergeStore } from "@/stores/concierge-store";
+import {
+  pendingPresses,
+  retryablePress,
+  useGenerationPressStore,
+  type PressKind,
+} from "@/stores/generation-press-store";
 import { useVibeStore } from "@/stores/vibe-store";
 import type { DailyLook } from "@/types/look";
-import { useQueryClient } from "@tanstack/react-query";
+import { useIsMutating, useQueryClient } from "@tanstack/react-query";
 
 import { ClimateWidget } from "./components/ClimateWidget";
 import { DailyPaletteGenerator } from "./components/DailyPaletteGenerator";
@@ -47,14 +54,27 @@ import { StatsRow } from "./components/StatsRow";
 import { EMPTY_TODAY_PLAN, TodayPlanFields, type TodayPlan } from "./components/TodayPlanFields";
 import { VibePicker, VibeSheet } from "./components/VibePicker";
 import {
+  failureNotice,
+  lookAlreadySaved,
+  lookKeyOf,
   NO_VISUAL,
+  parseStoredLook,
+  recoveredLookLabel,
   recoverLook,
   recoverVisual,
+  savedWeatherOf,
+  sheetNeverDrawn,
+  weatherBadgeOf,
   type GenerationAction,
+  type RecoveredLook,
   type VisualRecovery,
 } from "./generation-recovery";
 import { useGenerateLook } from "./hooks/use-generate-look";
-import { useGenerationImage, useGenerationJobs } from "./hooks/use-generation-jobs";
+import {
+  GENERATION_MUTATION_KEYS,
+  useGenerationImage,
+  useGenerationJobs,
+} from "./hooks/use-generation-jobs";
 import { usePhotoPreview } from "./hooks/use-photo-preview";
 import { useSaveLook } from "./hooks/use-save-look";
 import { useStyleSheet } from "./hooks/use-style-sheet";
@@ -80,6 +100,11 @@ import { useWeather } from "./hooks/use-weather";
  * generation_jobs migration is missing, the jobs read as unavailable and the
  * screen behaves exactly as it did before.
  */
+/** A visual, held with the look it was drawn for: shown and saved only with that look. */
+type LookImage = { lookKey: string; uri: string };
+/** A press for a visual: its key, the job it was told to follow, and the look it was for. */
+type VisualPress = GenerationAction & { lookKey: string };
+
 export function HomeScreen() {
   const [hubSheetOpen, setHubSheetOpen] = useState(false);
   /** True when the hub sheet was opened by the pin rather than the city row. */
@@ -95,13 +120,14 @@ export function HomeScreen() {
    * The visuals, held here rather than read from the mutations. A mutation
    * clears its data the moment it re-runs, so a *failed regeneration* would
    * blank a visual the member already had — losing something she paid for
-   * because the replacement did not arrive.
+   * because the replacement did not arrive. Each one is held with the look it
+   * was drawn for, and only ever shown or saved with that look.
    */
-  const [sheetImage, setSheetImage] = useState<string | null>(null);
+  const [sheetImage, setSheetImage] = useState<LookImage | null>(null);
   const [sheetAttempted, setSheetAttempted] = useState(false);
   /** The server's `unavailable` reason, or the thrown message — rendered under the slot. */
   const [sheetDetail, setSheetDetail] = useState<string | null>(null);
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [previewImage, setPreviewImage] = useState<LookImage | null>(null);
   const [previewAttempted, setPreviewAttempted] = useState(false);
   const [previewDetail, setPreviewDetail] = useState<string | null>(null);
   /**
@@ -130,10 +156,21 @@ export function HomeScreen() {
    * look. `...Answered` is the key whose answer arrived here, after which that
    * press's job row has nothing left to add.
    */
-  const [sheetPress, setSheetPress] = useState<GenerationAction | null>(null);
+  const [sheetPress, setSheetPress] = useState<VisualPress | null>(null);
   const [sheetAnswered, setSheetAnswered] = useState<string | null>(null);
-  const [previewPress, setPreviewPress] = useState<GenerationAction | null>(null);
+  const [previewPress, setPreviewPress] = useState<VisualPress | null>(null);
   const [previewAnswered, setPreviewAnswered] = useState<string | null>(null);
+  /**
+   * A look put back on screen from her job rows (R7). Held here, so a newer job
+   * (another device, the web) never swaps the look she is looking at. Her next
+   * Create press clears it.
+   */
+  const [recovered, setRecovered] = useState<RecoveredLook | null>(null);
+  /** Her own look job failed out of sight (after a dropped connection or a restart). */
+  const [lookNotice, setLookNotice] = useState<string | null>(null);
+  /** The job ids already acted on: a look is put back, or a failure told, once. */
+  const adoptedJob = useRef<string | null>(null);
+  const reportedJob = useRef<string | null>(null);
 
   const userId = useAuthStore((s) => s.session?.user.id ?? null);
   const queryClient = useQueryClient();
@@ -151,63 +188,100 @@ export function HomeScreen() {
   const photoPreview = usePhotoPreview();
   const save = useSaveLook();
   const jobs = useGenerationJobs();
+  /** Her own unanswered presses, kept across a restart (this phone's keys). */
+  const presses = useGenerationPressStore((s) => s.presses);
+  const pressesHydrated = useGenerationPressStore((s) => s.hydrated);
+  /** A look press still in flight, also one from before a remount of this screen. */
+  const lookMutations = useIsMutating({ mutationKey: GENERATION_MUTATION_KEYS.look });
 
   const rateLimitedFor = useCountdown(rateLimitedUntil);
   const profileComplete = isStyleProfileComplete(toStyleProfileRow(profile));
 
   /**
-   * The look: this screen's own answer first, else what her latest look job
-   * says. A press on this screen only ever follows its own job, so an older
-   * look never stands in for a request that failed before it reached the
-   * server. `composing` covers both a request in flight here and a job still
-   * running server-side (left mid-generation, or its answer lost on the way).
+   * The look: this screen's own answer first, else a look put back from her
+   * job rows. Her own unanswered press always lands; another job's look comes
+   * back only onto an empty screen (`generation-recovery.ts` has the rules).
+   * `composing` covers a request in flight here and a job of hers still running
+   * server-side (left mid-generation, or its answer lost on the way).
    */
-  const lookPress: GenerationAction | null = generate.variables
-    ? {
-        clientRequestId: generate.variables.clientRequestId,
-        followJobId: isGenerationRunning(generate.data) ? generate.data.jobId : null,
-      }
-    : null;
-  const lookRecovery = recoverLook({ job: jobs.look, action: lookPress, nowMs: jobs.readAt });
+  const ownLookIds = userId ? (presses[userId]?.look ?? []).map((press) => press.id) : [];
+  const followJobId = isGenerationRunning(generate.data) ? generate.data.jobId : null;
   const lookFromPress =
     generate.data && !isGenerationRunning(generate.data) ? generate.data : null;
-  const composing = generate.isPending || lookRecovery.composing;
-  const look = generate.isPending ? null : (lookFromPress ?? lookRecovery.look);
+  const shownLook = generate.isPending ? null : (lookFromPress ?? recovered?.look ?? null);
+  const pressedHere = (Boolean(generate.variables) && !lookFromPress) || lookMutations > 0;
+  const latestLook = jobs.look?.status === "succeeded" ? parseStoredLook(jobs.look.result) : null;
+  const lookRecovery = recoverLook({
+    job: jobs.look,
+    shownJobId: lookFromPress ? (lookFromPress.jobId ?? null) : (recovered?.jobId ?? null),
+    hasLookOnScreen: shownLook !== null,
+    ownIds: ownLookIds,
+    followJobId,
+    pressedHere,
+    saved: Boolean(jobs.look && latestLook && lookAlreadySaved(outfits.data, jobs.look, latestLook)),
+    nowMs: jobs.readAt,
+  });
+  const composing =
+    generate.isPending || lookRecovery.composing || (jobs.available && lookMutations > 0);
+  const look = composing ? null : shownLook;
+  const lookKey = look ? lookKeyOf(look) : null;
   const seasonId = toSeasonId(profile?.color_season);
   const canRenderVisual = Boolean(profile?.photo_consent_at);
 
   /**
-   * The visuals: what arrived on this screen, else the latest render job that
-   * belongs to the look on screen. A press whose answer already arrived here is
-   * settled; its row is not read again.
+   * A look put back from before today is saved and badged under the vibe and
+   * weather it was composed for, and says when it is from.
    */
+  const recoveredOnScreen = look && !lookFromPress && recovered ? recovered : null;
+  const lookVibe =
+    recoveredOnScreen?.vibe && isVibe(recoveredOnScreen.vibe) ? recoveredOnScreen.vibe : vibe;
+  const lookFrom = recoveredOnScreen
+    ? recoveredLookLabel(recoveredOnScreen.finishedAt, jobs.readAt)
+    : null;
+  const lookWeatherBadge =
+    lookFrom ?? weatherBadgeOf(recoveredOnScreen?.weather ?? null) ?? weather.data?.label ?? null;
+
+  /**
+   * The visuals: what arrived on this screen for the look on screen, else the
+   * latest render job drawn for that look. A press whose answer already arrived
+   * here is settled; its row is not read again.
+   */
+  const sheetAction = sheetPress && sheetPress.lookKey === lookKey ? sheetPress : null;
+  const previewAction = previewPress && previewPress.lookKey === lookKey ? previewPress : null;
   const sheetRecovery: VisualRecovery =
-    look && !(sheetPress && sheetAnswered === sheetPress.clientRequestId)
-      ? recoverVisual({
-          job: jobs.styleSheet,
-          action: sheetPress,
-          lookJob: lookRecovery.job,
-          nowMs: jobs.readAt,
-        })
+    look && !(sheetAction && sheetAnswered === sheetAction.clientRequestId)
+      ? recoverVisual({ job: jobs.styleSheet, action: sheetAction, look, nowMs: jobs.readAt })
       : NO_VISUAL;
   const previewRecovery: VisualRecovery =
-    look && !(previewPress && previewAnswered === previewPress.clientRequestId)
-      ? recoverVisual({
-          job: jobs.photoPreview,
-          action: previewPress,
-          lookJob: lookRecovery.job,
-          nowMs: jobs.readAt,
-        })
+    look && !(previewAction && previewAnswered === previewAction.clientRequestId)
+      ? recoverVisual({ job: jobs.photoPreview, action: previewAction, look, nowMs: jobs.readAt })
       : NO_VISUAL;
   const recoveredSheet = useGenerationImage(sheetRecovery.succeededJob);
   const recoveredPreview = useGenerationImage(previewRecovery.succeededJob);
-  const shownSheetImage = recoveredSheet.image ?? sheetImage;
-  const shownPreviewImage = recoveredPreview.image ?? previewImage;
+  const shownSheetImage =
+    recoveredSheet.image ?? (sheetImage && sheetImage.lookKey === lookKey ? sheetImage.uri : null);
+  const shownPreviewImage =
+    recoveredPreview.image ??
+    (previewImage && previewImage.lookKey === lookKey ? previewImage.uri : null);
   const sheetPending = styleSheet.isPending || sheetRecovery.rendering || recoveredSheet.loading;
   const previewPending =
     photoPreview.isPending || previewRecovery.rendering || recoveredPreview.loading;
   const sheetFailed = sheetRecovery.failed || recoveredSheet.failed;
   const previewFailed = previewRecovery.failed || recoveredPreview.failed;
+  /**
+   * A look on screen whose style sheet was never started (put back after a
+   * restart, or drawn nowhere yet): offered as not drawn, without a credit
+   * claim. The server draws a look's first visual free.
+   */
+  const sheetNotDrawn =
+    jobs.available &&
+    look !== null &&
+    canRenderVisual &&
+    !shownSheetImage &&
+    !sheetAttempted &&
+    !sheetPending &&
+    !sheetFailed &&
+    sheetNeverDrawn(jobs.styleSheet, look);
 
   /**
    * The visual in flight: the server is rendering the sheet or the portrait
@@ -228,7 +302,13 @@ export function HomeScreen() {
     rateLimitedFor,
     renderingVisual,
   });
-  const busy = composing || sheetPending || previewPending;
+  /** The phone stays awake for her own work, not for a job another device runs. */
+  const busy =
+    generate.isPending ||
+    lookRecovery.ownComposing ||
+    (jobs.available && lookMutations > 0) ||
+    sheetPending ||
+    previewPending;
   /**
    * "Try another look" composes — and charges for — a new look exactly as the
    * CTA does, so it waits on everything the CTA waits on, and on a request that
@@ -265,6 +345,31 @@ export function HomeScreen() {
     return kind === "paywall" || kind === "rate-limited" || kind === "suspended" || kind === "auth";
   }
 
+  /**
+   * The key a press sends. An earlier press of hers for the same thing that
+   * never heard back from the server is RESENT with its own key: the server
+   * replays its result, reports it running, or starts it if it never arrived,
+   * so a retry after a dropped connection never pays twice. A key whose job
+   * row has already ended is spent, and a fresh one is minted.
+   */
+  function pressKey(kind: PressKind, forLook: string | null, latest: GenerationJob | null): string {
+    if (!userId) return newClientRequestId();
+    const store = useGenerationPressStore.getState();
+    const earlier = retryablePress(pendingPresses(store, userId, kind, Date.now()), forLook);
+    if (earlier && !(latest?.client_request_id === earlier.id && latest.status !== "running")) {
+      return earlier.id;
+    }
+    if (earlier) store.settle(userId, kind, earlier.id);
+    const id = newClientRequestId();
+    store.remember(userId, kind, { id, at: Date.now(), lookKey: forLook });
+    return id;
+  }
+
+  /** The server answered this press (a result or a real error): its key is spent. */
+  function settlePress(kind: PressKind, id: string) {
+    if (userId) useGenerationPressStore.getState().settle(userId, kind, id);
+  }
+
   function requestStyleSheet(currentLook: DailyLook) {
     const run = lookRun.current;
     // One press, one request: a second tap for this look while its sheet is on
@@ -272,9 +377,13 @@ export function HomeScreen() {
     if (sheetInFlightRun.current === run) return;
     sheetInFlightRun.current = run;
 
-    // A visual she already has (drawn here or recovered from her jobs) stays
-    // hers while the new one renders, and stays if the new one fails.
-    if (shownSheetImage && shownSheetImage !== sheetImage) setSheetImage(shownSheetImage);
+    const forLook = lookKeyOf(currentLook);
+    // Redrawing the same look keeps the visual she already has (drawn here or
+    // recovered from her jobs) while the new one renders, and if it fails. A
+    // visual is never carried over to a different look.
+    if (shownSheetImage && lookKey === forLook && sheetImage?.uri !== shownSheetImage) {
+      setSheetImage({ lookKey: forLook, uri: shownSheetImage });
+    }
     setSheetAttempted(true);
     // A fresh render: the CTA stays disabled until this one is on screen.
     setSheetRendered(false);
@@ -282,7 +391,10 @@ export function HomeScreen() {
     // saying "View in History" and offers no way to save the replacement.
     save.reset();
 
-    const press: GenerationAction = { clientRequestId: newClientRequestId() };
+    const press: VisualPress = {
+      clientRequestId: pressKey("style_sheet", forLook, jobs.styleSheet),
+      lookKey: forLook,
+    };
     setSheetPress(press);
 
     styleSheet.mutate(
@@ -290,6 +402,8 @@ export function HomeScreen() {
       {
         onSuccess: (result) => {
           if (sheetInFlightRun.current === run) sheetInFlightRun.current = null;
+          // "Running" is followed through its job row; any other answer spends the key.
+          if (!isGenerationRunning(result)) settlePress("style_sheet", press.clientRequestId);
           // The member has moved on to another look since this was asked for.
           // Its picture belongs to nothing on screen now.
           if (lookRun.current !== run) return;
@@ -304,7 +418,7 @@ export function HomeScreen() {
           // already re-marked the pending flag or refunded. The previous visual,
           // if there was one, stays exactly where it is.
           if (result.mode === "style_sheet") {
-            setSheetImage(result.imageDataUri);
+            setSheetImage({ lookKey: forLook, uri: result.imageDataUri });
             setSheetDetail(null);
             haptics.success();
             AccessibilityInfo.announceForAccessibility("Style sheet ready.");
@@ -314,6 +428,8 @@ export function HomeScreen() {
         },
         onError: (error) => {
           if (sheetInFlightRun.current === run) sheetInFlightRun.current = null;
+          // No answer from the server: the key is kept, and Retry resends it.
+          if (!isLostAnswer(error)) settlePress("style_sheet", press.clientRequestId);
           // The paywall and the rate limit belong to the account, not the look,
           // so they still surface; the slot's own message is for the current look.
           if (lookRun.current === run && !ownsItsOwnSurface(error)) {
@@ -330,11 +446,17 @@ export function HomeScreen() {
     if (previewPending || composing || previewInFlightRun.current === run) return;
     previewInFlightRun.current = run;
 
-    if (shownPreviewImage && shownPreviewImage !== previewImage) setPreviewImage(shownPreviewImage);
+    const forLook = lookKeyOf(currentLook);
+    if (shownPreviewImage && lookKey === forLook && previewImage?.uri !== shownPreviewImage) {
+      setPreviewImage({ lookKey: forLook, uri: shownPreviewImage });
+    }
     setPreviewAttempted(true);
     save.reset();
 
-    const press: GenerationAction = { clientRequestId: newClientRequestId() };
+    const press: VisualPress = {
+      clientRequestId: pressKey("photo_preview", forLook, jobs.photoPreview),
+      lookKey: forLook,
+    };
     setPreviewPress(press);
 
     photoPreview.mutate(
@@ -342,6 +464,7 @@ export function HomeScreen() {
       {
         onSuccess: (result) => {
           if (previewInFlightRun.current === run) previewInFlightRun.current = null;
+          if (!isGenerationRunning(result)) settlePress("photo_preview", press.clientRequestId);
           // The member has moved on to another look since this was asked for.
           // Its picture belongs to nothing on screen now.
           if (lookRun.current !== run) return;
@@ -351,7 +474,7 @@ export function HomeScreen() {
           }
           setPreviewAnswered(press.clientRequestId);
           if (result.mode === "photo_edit") {
-            setPreviewImage(result.imageDataUri);
+            setPreviewImage({ lookKey: forLook, uri: result.imageDataUri });
             setPreviewDetail(null);
             haptics.success();
             AccessibilityInfo.announceForAccessibility("Portrait preview ready.");
@@ -361,6 +484,7 @@ export function HomeScreen() {
         },
         onError: (error) => {
           if (previewInFlightRun.current === run) previewInFlightRun.current = null;
+          if (!isLostAnswer(error)) settlePress("photo_preview", press.clientRequestId);
           // The account-wide surfaces (paywall, rate limit) still surface; the
           // slot's own message is for the current look.
           if (lookRun.current === run && !ownsItsOwnSurface(error)) {
@@ -370,6 +494,22 @@ export function HomeScreen() {
         },
       },
     );
+  }
+
+  /** Every per-look visual state, for a different look (a new press or one put back). */
+  function clearVisuals() {
+    setSheetImage(null);
+    setSheetAttempted(false);
+    setSheetDetail(null);
+    setSheetRendered(false);
+    setSheetPress(null);
+    setSheetAnswered(null);
+    setPreviewImage(null);
+    setPreviewAttempted(false);
+    setPreviewDetail(null);
+    setPreviewPress(null);
+    setPreviewAnswered(null);
+    save.reset();
   }
 
   /**
@@ -391,22 +531,14 @@ export function HomeScreen() {
     // One press, one request: a second tap that lands before the re-render is
     // the same press, not a second paid look.
     if (!weather.data || lookPressInFlight()) return;
-    const clientRequestId = newClientRequestId();
+    const clientRequestId = pressKey("look", null, jobs.look);
     lookInFlight.current = clientRequestId;
     haptics.selection();
     lookRun.current += 1;
-    setSheetImage(null);
-    setSheetAttempted(false);
-    setSheetDetail(null);
-    setSheetRendered(false);
-    setSheetPress(null);
-    setSheetAnswered(null);
-    setPreviewImage(null);
-    setPreviewAttempted(false);
-    setPreviewDetail(null);
-    setPreviewPress(null);
-    setPreviewAnswered(null);
-    save.reset();
+    // "Try another look" clears the look on screen and everything drawn for it at once.
+    setRecovered(null);
+    setLookNotice(null);
+    clearVisuals();
 
     generate.mutate(
       {
@@ -423,6 +555,7 @@ export function HomeScreen() {
           // Another request of this look is still being composed: its job is
           // followed (and shown) until it settles. Nothing was charged here.
           if (isGenerationRunning(nextLook)) return;
+          settlePress("look", clientRequestId);
           AccessibilityInfo.announceForAccessibility(`${nextLook.outfit.headline}.`);
           // The web's rule, verbatim: a visual requires a consented photo —
           // there is no stock-model fallback. No consent, no attempt.
@@ -430,6 +563,8 @@ export function HomeScreen() {
         },
         onError: (error) => {
           if (lookInFlight.current === clientRequestId) lookInFlight.current = null;
+          // No answer from the server: the key is kept, and Try again resends it.
+          if (!isLostAnswer(error)) settlePress("look", clientRequestId);
           handleFailure(error);
         },
       },
@@ -437,39 +572,78 @@ export function HomeScreen() {
   }
 
   /**
-   * Her own press whose answer was lost on the way (the app was in the
-   * background, the connection dropped) and whose job then finished: the look
-   * is on screen from its job row, so it gets the style sheet that press would
-   * have asked for, once. A look recovered from a job this screen did not start
-   * waits for her to ask: another device may already be drawing it.
+   * A look her job rows put back on screen (after a dropped connection, a
+   * remount or a restart). Her own press continues to its style sheet as the
+   * press would have, once and free: the server draws a look's first visual
+   * without a charge. A look from a job this phone did not start waits for her
+   * to ask: another device may already be drawing it.
    */
-  const recoveredOwnLookJobId =
-    !lookFromPress && lookRecovery.look && lookRecovery.ownRequest ? lookRecovery.job?.id : null;
+  const adoptRecoveredLook = useEffectEvent((next: RecoveredLook) => {
+    lookRun.current += 1;
+    setRecovered(next);
+    setLookNotice(null);
+    clearVisuals();
+    if (next.own) settlePress("look", next.requestId);
+    if (next.jobId === followJobId && generate.variables) {
+      settlePress("look", generate.variables.clientRequestId);
+    }
+    AccessibilityInfo.announceForAccessibility(`${next.look.outfit.headline}.`);
+    if (next.own && profile?.photo_consent_at && sheetNeverDrawn(jobs.styleSheet, next.look)) {
+      requestStyleSheet(next.look);
+    }
+  });
+  const candidate = lookRecovery.candidate;
+  // Her own press waits only for this phone's keys to be read back; another
+  // job's look also waits for her History, so a saved look is not put back.
+  const candidateReady = pressesHydrated && (candidate?.own === true || !outfits.isPending);
   useEffect(() => {
-    if (!recoveredOwnLookJobId || !look) return;
-    AccessibilityInfo.announceForAccessibility(`${look.outfit.headline}.`);
-    // The job row is server state that changed outside React; asking for the
-    // sheet is the response to it, once per job id (the guard and the deps
-    // below), so the extra render this costs happens once, not in a cascade.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (profile?.photo_consent_at && !sheetPress) requestStyleSheet(look);
-    // Once per recovered look: the job id is the only thing that may re-run it.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [recoveredOwnLookJobId]);
+    if (!candidate || !candidateReady || adoptedJob.current === candidate.jobId) return;
+    adoptedJob.current = candidate.jobId;
+    adoptRecoveredLook(candidate);
+  }, [candidate, candidateReady]);
+
+  /**
+   * Her own look job that ended without a look she could see: its key is spent,
+   * and a real failure says whether her credit is back (the row's word, §7).
+   * Delivered-but-unsaved was charged and handed over: never a failure (N7).
+   */
+  const reportOwnLookEnded = useEffectEvent((job: GenerationJob) => {
+    settlePress("look", job.client_request_id);
+    const notice = failureNotice(job);
+    if (notice) setLookNotice(notice);
+  });
+  const ownEndedJob =
+    jobs.look &&
+    ownLookIds.includes(jobs.look.client_request_id) &&
+    !lookRecovery.composing &&
+    jobs.look.status !== "succeeded"
+      ? jobs.look
+      : null;
+  useEffect(() => {
+    if (!ownEndedJob || reportedJob.current === ownEndedJob.id) return;
+    reportedJob.current = ownEndedJob.id;
+    reportOwnLookEnded(ownEndedJob);
+  }, [ownEndedJob]);
 
   function handleSave() {
     // The style sheet — when it rendered — is the richer artifact, so it is
     // what gets saved.
     const imageToSave = shownSheetImage ?? shownPreviewImage;
-    if (!look || !imageToSave || !weather.data) return;
+    // The web's saved string, verbatim — `label (location)`, no "in", unlike
+    // the generate payload. A look put back from its job is saved under the
+    // weather it was composed for.
+    const savedWeather = recoveredOnScreen?.weather
+      ? savedWeatherOf(recoveredOnScreen.weather)
+      : weather.data
+        ? `${weather.data.label} (${weather.data.location})`
+        : null;
+    if (!look || !imageToSave || !savedWeather) return;
     save.mutate(
       {
         ...look,
         imageDataUri: imageToSave,
-        // The web's saved string, verbatim — `label (location)`, no "in",
-        // unlike the generate payload.
-        weather: `${weather.data.label} (${weather.data.location})`,
-        vibe,
+        weather: savedWeather,
+        vibe: lookVibe,
         previewMode: shownSheetImage ? "style_sheet" : "photo_edit",
       },
       {
@@ -508,6 +682,8 @@ export function HomeScreen() {
   // also shout about them.
   const generateError =
     generate.isError && !ownsItsOwnSurface(generate.error) ? resolveApiFailure(generate.error) : null;
+  /** Her own job's ending, when known, says more than the dropped call did. */
+  const lookFailureMessage = lookNotice ?? generateError?.message ?? null;
 
   return (
     <Screen scroll edges={{ top: true, bottom: false }}>
@@ -591,11 +767,11 @@ export function HomeScreen() {
           <View className="gap-xl pt-lg">
             {look ? (
               <View className="flex-row flex-wrap items-center gap-sm">
-                <Badge label={vibe} />
+                <Badge label={lookVibe} />
                 {look.vibe_alignment_score != null ? (
                   <Badge label={`Vibe fit ${look.vibe_alignment_score}/10`} />
                 ) : null}
-                {weather.data ? <Badge label={weather.data.label} /> : null}
+                {lookWeatherBadge ? <Badge label={lookWeatherBadge} /> : null}
               </View>
             ) : null}
 
@@ -621,7 +797,7 @@ export function HomeScreen() {
             ) : null}
 
             {!look && !composing ? (
-              generateError ? (
+              lookFailureMessage ? (
                 <View className="items-center gap-md py-lg">
                   <Icon name="alert" size="lg" color="muted" />
                   <Text className="font-display text-h3 text-ink text-center">
@@ -631,7 +807,7 @@ export function HomeScreen() {
                     accessibilityLiveRegion="assertive"
                     className="font-body text-base text-body text-center"
                   >
-                    {generateError.message}
+                    {lookFailureMessage}
                   </Text>
                   <Button label="Try again" variant="secondary" onPress={handleGenerate} />
                 </View>
@@ -649,6 +825,22 @@ export function HomeScreen() {
                   </Text>
                 </View>
               )
+            ) : null}
+
+            {sheetNotDrawn && look ? (
+              <EmptyMediaState
+                aspect="video"
+                message="Your look is ready. Its style sheet hasn't been drawn yet."
+                action={
+                  <Button
+                    label="Draw style sheet"
+                    variant="secondary"
+                    icon="sparkle"
+                    disabled={composing}
+                    onPress={() => requestStyleSheet(look)}
+                  />
+                }
+              />
             ) : null}
 
             {look && !canRenderVisual ? (
@@ -670,7 +862,11 @@ export function HomeScreen() {
                   loadingTitle="Building your style sheet…"
                   loadingHint="Rendering your identity-locked 5-view turnaround."
                   aspect="video"
-                  failedMessage="The outfit is ready, but the style sheet couldn't be generated."
+                  failedMessage={
+                    recoveredSheet.failed
+                      ? "Your style sheet is ready, but it couldn't be loaded."
+                      : "The outfit is ready, but the style sheet couldn't be generated."
+                  }
                   // A stored image that could not be read is read again: drawing
                   // it again would be a second render, and could be a second charge.
                   onRetry={() =>
@@ -712,6 +908,11 @@ export function HomeScreen() {
                       imageDataUri={shownPreviewImage}
                       headline={look.outfit.headline}
                       label="AI-edited preview of your photo"
+                      failedMessage={
+                        recoveredPreview.failed
+                          ? "Your portrait preview is ready, but it couldn't be loaded."
+                          : undefined
+                      }
                       onRetry={() =>
                         recoveredPreview.failed
                           ? recoveredPreview.retry()
@@ -754,7 +955,9 @@ export function HomeScreen() {
                 saved={save.isSuccess}
                 saving={save.isPending}
                 saveError={save.isError ? resolveApiFailure(save.error).message : null}
-                canRenderVisual={canRenderVisual}
+                // While the first sheet is not drawn, the slot's own button draws it
+                // (free); "New visual" and its 1 credit are for a redraw.
+                canRenderVisual={canRenderVisual && !sheetNotDrawn}
                 newVisualLoading={sheetPending}
                 tryAnotherDisabled={tryAnotherDisabled}
                 canAskMila={save.isSuccess}

@@ -46,12 +46,15 @@ function job(overrides: Partial<GenerationJob>): GenerationJob {
     kind: "look",
     client_request_id: "request-look",
     status: "running",
+    credit_state: "charged",
     result: null,
     image_path: null,
     error_code: null,
     deadline_at: new Date(Date.now() + 240_000).toISOString(),
     created_at: new Date(Date.now() - 5_000).toISOString(),
     completed_at: null,
+    for_look: null,
+    look_input: null,
     ...overrides,
   };
 }
@@ -216,8 +219,14 @@ describe("useGenerationImage", () => {
 
     expect(result.current).toMatchObject({ image: null, loading: false, failed: true });
 
-    fetchImage.mockResolvedValue("data:image/jpeg;base64,QQ==");
+    let finish: (value: string) => void = () => {};
+    fetchImage.mockReturnValue(new Promise((resolve) => (finish = resolve)));
     await act(async () => result.current.retry());
+    await advance(5);
+    // While it is read again the slot waits, rather than offering the retry twice.
+    expect(result.current).toMatchObject({ image: null, loading: true, failed: false });
+
+    await act(async () => finish("data:image/jpeg;base64,QQ=="));
     await advance(0);
 
     expect(fetchImage).toHaveBeenCalledTimes(2);

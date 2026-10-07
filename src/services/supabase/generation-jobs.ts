@@ -20,6 +20,8 @@ import type { Database, Json } from "./types";
 /** The kinds Home starts. The server records more; mobile reads only these. */
 export type GenerationJobKind = "look" | "style_sheet" | "photo_preview";
 export type GenerationJobStatus = "running" | "succeeded" | "failed";
+/** Server-written; displayed ("your credit is back"), never computed with (§7). */
+export type GenerationCreditState = "none" | "charged" | "refunded";
 
 /**
  * One job row, in the server's own field names (the same convention as every
@@ -31,23 +33,47 @@ export type GenerationJob = {
   kind: GenerationJobKind;
   client_request_id: string;
   status: GenerationJobStatus;
+  credit_state: GenerationCreditState;
   result: Json | null;
   image_path: string | null;
   error_code: string | null;
   deadline_at: string;
   created_at: string;
   completed_at: string | null;
+  /** A style sheet or portrait: the look it was drawn for (its request's look). */
+  for_look: { headline: string; description: string } | null;
+  /** A look: the vibe and weather it was asked for, which is what it is saved under. */
+  look_input: { vibe: string | null; weather: string | null } | null;
 };
 
 export type LatestGenerationJob = { status: "ok"; job: GenerationJob | null } | { status: "unavailable" };
 
 /**
- * `input` is deliberately absent: a render's input is the whole look, and Home
- * never needs it back. So are the credit columns: the app displays a balance,
- * it never reasons about one (§7).
+ * The whole `input` is never read (a render's input is the whole look). Only
+ * named fields of it are, as PostgREST JSON paths: which look a render was
+ * drawn for (matched by headline and description, as the web does), and the
+ * vibe and weather a look was asked for. `credit_state` is read to say "your
+ * credit is back", never to compute a balance (§7).
  */
-export const GENERATION_JOB_COLUMNS =
-  "id,kind,client_request_id,status,result,image_path,error_code,deadline_at,created_at,completed_at";
+// src: https://docs.postgrest.org/en/v12/references/api/tables_views.html#json-columns
+//   (`alias:column->key->>key` selects one field as text) · PostgREST 12
+export const GENERATION_JOB_COLUMNS = [
+  "id",
+  "kind",
+  "client_request_id",
+  "status",
+  "credit_state",
+  "result",
+  "image_path",
+  "error_code",
+  "deadline_at",
+  "created_at",
+  "completed_at",
+  "look_vibe:input->>vibe",
+  "look_weather:input->>weather",
+  "for_headline:input->outfit->outfit->>headline",
+  "for_description:input->outfit->outfit->>description",
+].join(",");
 
 const GENERATIONS_BUCKET = "generations";
 /** Long enough for one download, short enough to be useless if it leaked. */
@@ -59,7 +85,7 @@ const SIGNED_URL_TTL_SECONDS = 60;
  * described here, on top of the generated schema, so the query stays typed.
  */
 type GenerationJobsTable = {
-  Row: GenerationJob & { user_id: string };
+  Row: Omit<GenerationJob, "for_look" | "look_input"> & { user_id: string; input: Json };
   Insert: never;
   Update: never;
   Relationships: [];
@@ -82,6 +108,11 @@ export function newClientRequestId(): string {
 
 const KINDS: ReadonlySet<string> = new Set<GenerationJobKind>(["look", "style_sheet", "photo_preview"]);
 const STATUSES: ReadonlySet<string> = new Set<GenerationJobStatus>(["running", "succeeded", "failed"]);
+const CREDIT_STATES: ReadonlySet<string> = new Set<GenerationCreditState>([
+  "none",
+  "charged",
+  "refunded",
+]);
 
 function text(value: unknown): string | null {
   return typeof value === "string" && value !== "" ? value : null;
@@ -100,17 +131,29 @@ export function parseGenerationJob(raw: unknown): GenerationJob | null {
   if (!id || !clientRequestId || !deadlineAt || !createdAt) return null;
   if (!kind || !KINDS.has(kind) || !status || !STATUSES.has(status)) return null;
 
+  const creditState = text(row.credit_state);
+  const forHeadline = text(row.for_headline);
+  const forDescription = text(row.for_description);
+
   return {
     id,
     kind: kind as GenerationJobKind,
     client_request_id: clientRequestId,
     status: status as GenerationJobStatus,
+    credit_state:
+      creditState && CREDIT_STATES.has(creditState) ? (creditState as GenerationCreditState) : "none",
     result: (row.result ?? null) as Json | null,
     image_path: text(row.image_path),
     error_code: text(row.error_code),
     deadline_at: deadlineAt,
     created_at: createdAt,
     completed_at: text(row.completed_at),
+    for_look:
+      kind !== "look" && forHeadline && forDescription
+        ? { headline: forHeadline, description: forDescription }
+        : null,
+    look_input:
+      kind === "look" ? { vibe: text(row.look_vibe), weather: text(row.look_weather) } : null,
   };
 }
 
@@ -185,13 +228,24 @@ export async function fetchGenerationImage(job: GenerationJob): Promise<string> 
   const response = await fetch(data.signedUrl);
   if (!response.ok) throw new Error("The image could not be loaded.");
 
-  const dataUri = await readAsDataUri(await response.blob());
+  const blob = await response.blob();
+  let dataUri: string;
+  try {
+    dataUri = await readAsDataUri(blob);
+  } finally {
+    // React Native's Blob holds native memory until it is closed.
+    // src: https://github.com/facebook/react-native/blob/0.86-stable/packages/react-native/Libraries/Blob/Blob.js
+    //   close(): releases the blob's native data · react-native 0.86
+    (blob as Blob & { close?: () => void }).close?.();
+  }
   const comma = dataUri.indexOf(",");
   if (!dataUri.startsWith("data:") || comma === -1) {
     throw new Error("The image could not be read.");
   }
   // The native reader names the blob's own type, which a storage response can
-  // leave empty; the path's extension is what the server uploaded it as.
+  // leave empty or generic; the path's extension is what the server uploaded
+  // it as, so it wins unless the response already says which image this is.
   const declared = dataUri.slice(5, comma).split(";")[0];
-  return `data:${declared || mimeFromPath(path)};base64,${dataUri.slice(comma + 1)}`;
+  const mime = declared.startsWith("image/") ? declared : mimeFromPath(path);
+  return `data:${mime};base64,${dataUri.slice(comma + 1)}`;
 }

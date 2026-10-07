@@ -14,7 +14,7 @@ import { trackEvent } from "@/services/supabase/analytics";
 import { hubById } from "@/services/weather";
 import { useAuthStore } from "@/stores/auth-store";
 
-import { generationJobsKey } from "./use-generation-jobs";
+import { GENERATION_MUTATION_KEYS, generationJobsKey } from "./use-generation-jobs";
 
 /** The optional agenda fields the hero form collects, when the member fills them in. */
 export type LookAgenda = {
@@ -24,7 +24,7 @@ export type LookAgenda = {
 };
 
 /** Every look request shares this key, so the cache can find it by kind. */
-export const GENERATE_LOOK_KEY = ["generation", "look"] as const;
+export const GENERATE_LOOK_KEY = GENERATION_MUTATION_KEYS.look;
 
 export type GenerateLookVariables = { weather: ClimateState; vibe: Vibe } & LookAgenda & {
   /**
@@ -51,6 +51,9 @@ export function useGenerateLook() {
 
   return useMutation<LookResponse | GenerationRunning, unknown, GenerateLookVariables>({
     mutationKey: GENERATE_LOOK_KEY,
+    // Stated here, not only as the client default: a retried paid call is a
+    // second charge for a key the server may not have seen (§6).
+    retry: false,
     mutationFn: ({ weather, vibe, agenda, dressCode, indoorOutdoor, clientRequestId }) => {
       // The sub-season is the more precise input and is what the web's
       // normalised profile sends; the base family is the fallback for a legacy

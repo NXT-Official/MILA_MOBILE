@@ -3,6 +3,7 @@ import type { Vibe } from "@/constants/vibes";
 import type { DailyLook } from "@/types/look";
 
 import { api, TIMEOUTS } from "./client";
+import { ApiError } from "./errors";
 
 export type { DailyLook } from "@/types/look";
 
@@ -60,6 +61,16 @@ export function isGenerationRunning(value: unknown): value is GenerationRunning 
   if (value === null || typeof value !== "object") return false;
   const answer = value as { status?: unknown; jobId?: unknown };
   return answer.status === "running" && typeof answer.jobId === "string";
+}
+
+/**
+ * The call ended without an answer from the server: a client timeout, a proxy
+ * timeout, or a dropped connection. The job may still be running or may have
+ * finished, so the press KEEPS its key: resending it replays or follows that
+ * job instead of paying again. Any real answer, even an error, spends the key.
+ */
+export function isLostAnswer(error: unknown): boolean {
+  return error instanceof ApiError && (error.code === "NETWORK" || error.code === "TIMEOUT");
 }
 
 /** Today's look, plus the generation job it was recorded as (absent until the

@@ -8,14 +8,16 @@ import type { DashboardProfile } from "@/types/models";
 
 /**
  * R7 on the Home screen: a look or visual she started is never lost to a
- * remount, a trip to the background or a restart, and one press is one paid
- * request.
+ * remount, a trip to the background or a restart; one press is one paid
+ * request; and a visual is only ever shown or saved with the look it was drawn
+ * for.
  *
- * The jobs hook is the real one over a real query client, so polling and the
- * foreground re-read are exercised; the job rows are the stub, scripted per
- * test. The three paid calls are stubs whose `mutate` records its variables and
- * callbacks, as in `home-screen-test.tsx`, so a test lands an answer exactly
- * when it chooses.
+ * The jobs hook and the press ledger are the real ones over a real query
+ * client (and the in-memory AsyncStorage mock), so polling, the foreground
+ * re-read and "is this press hers" are exercised; the job rows are the stub,
+ * scripted per test. The three paid calls are stubs whose `mutate` records its
+ * variables and callbacks, as in `home-screen-test.tsx`, so a test lands an
+ * answer exactly when it chooses.
  */
 jest.mock("expo-router", () => ({ router: { push: jest.fn() } }));
 jest.mock("../src/components/layout/Screen", () => ({
@@ -23,7 +25,27 @@ jest.mock("../src/components/layout/Screen", () => ({
 }));
 jest.mock("../src/components/feedback/KeepAwake", () => ({ KeepAwake: () => null }));
 jest.mock("../src/components/feedback/PaywallSheet", () => ({ PaywallSheet: () => null }));
-jest.mock("../src/components/ui/ConfirmSheet", () => ({ ConfirmSheet: () => null }));
+jest.mock("../src/components/ui/ConfirmSheet", () => {
+  const { Pressable, Text, View } = jest.requireActual("react-native");
+  return {
+    ConfirmSheet: (p: {
+      visible: boolean;
+      title: string;
+      message: string;
+      confirmLabel: string;
+      onConfirm: () => void;
+    }) =>
+      p.visible ? (
+        <View>
+          <Text>{p.title}</Text>
+          <Text>{p.message}</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel={p.confirmLabel} onPress={p.onConfirm}>
+            <Text>{p.confirmLabel}</Text>
+          </Pressable>
+        </View>
+      ) : null,
+  };
+});
 jest.mock("../src/features/dashboard/components/HubSheet", () => ({ HubSheet: () => null }));
 jest.mock("../src/features/dashboard/components/VibePicker", () => ({
   VibePicker: () => null,
@@ -79,24 +101,30 @@ function mutationStub() {
     mutate: jest.fn((variables: unknown, _callbacks?: Callbacks) => {
       stub.variables = variables;
       stub.isPending = true;
+      stub.isError = false;
+      stub.data = undefined;
     }),
     reset: jest.fn(),
   };
   return stub;
 }
 
+type OutfitRowLike = { analysis_result: unknown; created_at: string };
+
 const mockState = {
   profile: undefined as DashboardProfile | undefined,
+  outfits: undefined as OutfitRowLike[] | undefined,
   generate: mutationStub(),
   styleSheet: mutationStub(),
   photoPreview: mutationStub(),
+  saveMutate: jest.fn(),
 };
 
 jest.mock("../src/hooks/use-profile", () => ({
   useProfile: () => ({ data: mockState.profile, isPending: false }),
 }));
 jest.mock("../src/hooks/use-outfits", () => ({
-  useOutfits: () => ({ data: undefined, isPending: false, refetch: jest.fn() }),
+  useOutfits: () => ({ data: mockState.outfits, isPending: false, refetch: jest.fn() }),
 }));
 jest.mock("../src/hooks/use-network-status", () => ({
   useNetworkStatus: () => ({ online: true }),
@@ -129,18 +157,20 @@ jest.mock("../src/features/dashboard/hooks/use-save-look", () => ({
     isError: false,
     error: null,
     data: undefined,
-    mutate: jest.fn(),
+    mutate: mockState.saveMutate,
     reset: jest.fn(),
   }),
 }));
 
 import { HomeScreen } from "@/features/dashboard/HomeScreen";
+import { ApiError } from "@/services/api/errors";
 import {
   fetchGenerationImage,
   fetchLatestGenerationJob,
   newClientRequestId,
 } from "@/services/supabase/generation-jobs";
 import { fetchHubWeather } from "@/services/weather";
+import { useGenerationPressStore } from "@/stores/generation-press-store";
 
 const fetchJob = jest.mocked(fetchLatestGenerationJob);
 const fetchImage = jest.mocked(fetchGenerationImage);
@@ -161,8 +191,15 @@ const LOOK: DailyLook = {
   makeup: null,
   vibe_alignment_score: 8,
 };
-const OLDER_LOOK: DailyLook = { ...LOOK, outfit: { ...LOOK.outfit, headline: "Rain-ready layers" } };
+const OTHER_LOOK: DailyLook = {
+  ...LOOK,
+  outfit: { ...LOOK.outfit, headline: "Rain-ready layers", description: "A shell over knit." },
+};
 const IMAGE = "data:image/jpeg;base64,QQ==";
+const IMAGE_A = "data:image/jpeg;base64,QUFB";
+
+const lost = () => new ApiError("NETWORK", "Mila couldn't reach the studio. Check your connection.", 0);
+const serverError = () => new ApiError("AI_UNAVAILABLE", "Mila couldn't compose a look this time.", 503);
 
 function profile(overrides: Partial<DashboardProfile> = {}): DashboardProfile {
   return {
@@ -190,15 +227,40 @@ function job(overrides: Partial<GenerationJob>): GenerationJob {
     kind: "look",
     client_request_id: "request-1",
     status: "running",
+    credit_state: "charged",
     result: null,
     image_path: null,
     error_code: null,
     deadline_at: new Date(Date.now() + 240_000).toISOString(),
     created_at: new Date(Date.now() - 5_000).toISOString(),
     completed_at: null,
+    for_look: null,
+    look_input: { vibe: "Brunch", weather: "24°C Sunny (in Manila)" },
     ...overrides,
   };
 }
+
+/** A succeeded look row, finished a minute ago. */
+const doneLook = (look: DailyLook, overrides: Partial<GenerationJob> = {}) =>
+  job({
+    status: "succeeded",
+    result: look,
+    created_at: new Date(Date.now() - 120_000).toISOString(),
+    completed_at: new Date(Date.now() - 60_000).toISOString(),
+    ...overrides,
+  });
+
+/** A style sheet row drawn for `look`. */
+const sheetFor = (look: DailyLook, overrides: Partial<GenerationJob> = {}) =>
+  job({
+    id: "sheet-job",
+    kind: "style_sheet",
+    client_request_id: "sheet-request",
+    look_input: null,
+    for_look: { headline: look.outfit.headline, description: look.outfit.description },
+    created_at: new Date(Date.now() - 30_000).toISOString(),
+    ...overrides,
+  });
 
 /** What each kind's latest-job read answers; `unavailable` = migration missing. */
 let rows: Partial<Record<GenerationJobKind, GenerationJob>> = {};
@@ -251,6 +313,7 @@ function freshMutations() {
 }
 
 const createButton = () => screen.findByRole("button", { name: /^Create my look/ });
+const keyOf = (call: unknown[]) => (call[0] as { clientRequestId: string }).clientRequestId;
 const lastCall = (stub: ReturnType<typeof mutationStub>) => {
   const calls = stub.mutate.mock.calls;
   return calls[calls.length - 1] as [Record<string, unknown>, Callbacks];
@@ -301,9 +364,19 @@ async function foreground() {
   await settle();
 }
 
+/** A press of hers this phone remembers from before a restart. */
+function rememberPress(kind: "look" | "style_sheet", id: string, lookKey: string | null = null) {
+  useGenerationPressStore.getState().remember("member", kind, { id, at: Date.now(), lookKey });
+}
+
 const composingProgress = () => screen.queryByLabelText("Composing your look");
 const failureCopy = () =>
   screen.queryByText(/didn.t come together|couldn't be generated|could not be generated/);
+const sheetImageOf = (look: DailyLook) =>
+  screen.queryByLabelText(`Identity-locked style sheet of ${look.outfit.headline}`);
+const saveButton = () => screen.getByRole("button", { name: "Save to history" });
+const isDisabled = (element: { props: { accessibilityState?: { disabled?: boolean } } }) =>
+  Boolean(element.props.accessibilityState?.disabled);
 
 let nextId = 0;
 
@@ -312,9 +385,11 @@ beforeEach(() => {
   jest.clearAllMocks();
   freshMutations();
   mockState.profile = profile();
+  mockState.outfits = undefined;
   rows = {};
   jobsUnavailable = false;
   nextId = 0;
+  useGenerationPressStore.setState({ presses: {}, hydrated: true });
   jest.mocked(newClientRequestId).mockImplementation(() => `request-${(nextId += 1)}`);
   jest.mocked(fetchHubWeather).mockResolvedValue(WEATHER);
   fetchJob.mockImplementation(async (_userId, kind) =>
@@ -339,11 +414,11 @@ afterEach(async () => {
 });
 
 describe("a look still being composed", () => {
-  it("is re-attached after a remount, and lands without a second request", async () => {
+  it("is re-attached after a remount, lands without a second request, and gets its free style sheet", async () => {
     await mount();
     await fireEvent.press(await createButton());
     expect(mockState.generate.mutate).toHaveBeenCalledTimes(1);
-    expect(lastCall(mockState.generate)[0].clientRequestId).toBe("request-1");
+    expect(keyOf(lastCall(mockState.generate))).toBe("request-1");
 
     // The server has started her job; the screen goes away mid-generation.
     rows.look = job({ client_request_id: "request-1" });
@@ -364,6 +439,9 @@ describe("a look still being composed", () => {
     expect(screen.getByText("Linen and light")).toBeTruthy();
     expect(composingProgress()).toBeNull();
     expect(mockState.generate.mutate).not.toHaveBeenCalled();
+    // Her own press, so it continues to the sheet the press would have asked for.
+    expect(mockState.styleSheet.mutate).toHaveBeenCalledTimes(1);
+    expect(lastCall(mockState.styleSheet)[0]).toEqual({ outfit: LOOK, clientRequestId: "request-2" });
   });
 
   it("is picked up the moment the app comes back from the background", async () => {
@@ -376,6 +454,18 @@ describe("a look still being composed", () => {
 
     expect(screen.getByText("Linen and light")).toBeTruthy();
   });
+
+  it("shows as composing after a remount while the press is still in flight, before its row exists", async () => {
+    // The old screen's look mutation is still in flight in the shared cache.
+    void queryClient
+      .getMutationCache()
+      .build(queryClient, { mutationKey: ["generation", "look"], mutationFn: () => new Promise(() => {}) })
+      .execute(undefined);
+    await mount();
+
+    expect(composingProgress()).toBeTruthy();
+    expect(screen.queryByText("Set the mood. Mila will compose the rest.")).toBeNull();
+  });
 });
 
 describe("a double press", () => {
@@ -387,7 +477,7 @@ describe("a double press", () => {
     await fireEvent.press(cta);
 
     expect(mockState.generate.mutate).toHaveBeenCalledTimes(1);
-    expect(lastCall(mockState.generate)[0].clientRequestId).toBe("request-1");
+    expect(keyOf(lastCall(mockState.generate))).toBe("request-1");
   });
 
   it("never leaves the CTA dead when a settled press's answer did not reach the screen", async () => {
@@ -401,7 +491,8 @@ describe("a double press", () => {
     await fireEvent.press(screen.getByRole("button", { name: "Try again" }));
 
     expect(mockState.generate.mutate).toHaveBeenCalledTimes(2);
-    expect(lastCall(mockState.generate)[0].clientRequestId).toBe("request-2");
+    // No answer was heard for that press, so the same key is sent again.
+    expect(keyOf(lastCall(mockState.generate))).toBe("request-1");
   });
 
   it("gives the look and its style sheet keys of their own", async () => {
@@ -417,12 +508,45 @@ describe("a double press", () => {
   });
 });
 
+describe("Try again after a call that ended", () => {
+  it("resends the same key when the connection dropped, so a look that finished is replayed, not charged again", async () => {
+    await mount();
+    await fireEvent.press(await createButton());
+    await fail(mockState.generate, lost());
+
+    await fireEvent.press(screen.getByRole("button", { name: "Try again" }));
+
+    expect(mockState.generate.mutate.mock.calls.map(keyOf)).toEqual(["request-1", "request-1"]);
+  });
+
+  it("mints a new key after a real answer from the server", async () => {
+    await mount();
+    await fireEvent.press(await createButton());
+    await fail(mockState.generate, serverError());
+
+    await fireEvent.press(screen.getByRole("button", { name: "Try again" }));
+
+    expect(mockState.generate.mutate.mock.calls.map(keyOf)).toEqual(["request-1", "request-2"]);
+  });
+
+  it("resends the style sheet's key too, for the same look", async () => {
+    await mount();
+    await fireEvent.press(await createButton());
+    await answer(mockState.generate, LOOK);
+    await fail(mockState.styleSheet, lost());
+
+    await fireEvent.press(screen.getByRole("button", { name: "Retry visual" }));
+
+    expect(mockState.styleSheet.mutate.mock.calls.map(keyOf)).toEqual(["request-2", "request-2"]);
+  });
+});
+
 describe("her own look, finished after its answer was lost", () => {
   it("is shown, and gets the style sheet that press would have asked for", async () => {
     await mount();
     await fireEvent.press(await createButton());
     rows.look = job({ client_request_id: "request-1" });
-    await fail(mockState.generate, new Error("Network request failed"));
+    await fail(mockState.generate, lost());
 
     expect(composingProgress()).toBeTruthy();
     expect(failureCopy()).toBeNull();
@@ -437,61 +561,209 @@ describe("her own look, finished after its answer was lost", () => {
   });
 
   it("is never stood in for by an older look when the press did not reach the server", async () => {
-    rows.look = job({ id: "older", client_request_id: "older", status: "succeeded", result: OLDER_LOOK });
+    rows.look = doneLook(OTHER_LOOK, { id: "older", client_request_id: "older" });
     await mount();
     expect(screen.getByText("Rain-ready layers")).toBeTruthy();
 
     await fireEvent.press(await createButton());
-    await fail(mockState.generate, new Error("Network request failed"));
+    await fail(mockState.generate, lost());
 
     expect(screen.queryByText("Rain-ready layers")).toBeNull();
     expect(screen.getByText("Mila couldn't reach the studio.")).toBeTruthy();
+  });
+
+  it("says her credit is back when that press's job failed out of sight", async () => {
+    rememberPress("look", "request-9");
+    rows.look = job({
+      client_request_id: "request-9",
+      status: "failed",
+      error_code: "deadline_exceeded",
+      credit_state: "refunded",
+    });
+    await mount();
+
+    expect(screen.getByText("Mila couldn't finish your look. Your credit is back.")).toBeTruthy();
+    expect(composingProgress()).toBeNull();
+  });
+});
+
+describe("after a restart", () => {
+  it("puts her own finished look back and draws its free style sheet, once", async () => {
+    rememberPress("look", "request-7");
+    rows.look = doneLook(LOOK, { client_request_id: "request-7" });
+    await mount();
+
+    expect(screen.getByText("Linen and light")).toBeTruthy();
+    expect(mockState.styleSheet.mutate).toHaveBeenCalledTimes(1);
+    expect(lastCall(mockState.styleSheet)[0]).toEqual({ outfit: LOOK, clientRequestId: "request-1" });
+
+    await foreground();
+    expect(mockState.styleSheet.mutate).toHaveBeenCalledTimes(1);
+  });
+
+  it("offers a look from elsewhere its style sheet as not drawn yet, with no credit claim", async () => {
+    rows.look = doneLook(LOOK, { client_request_id: "elsewhere" });
+    await mount();
+
+    expect(screen.getByText("Linen and light")).toBeTruthy();
+    expect(mockState.styleSheet.mutate).not.toHaveBeenCalled();
+    expect(screen.getByText("Your look is ready. Its style sheet hasn't been drawn yet.")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "New visual" })).toBeNull();
+    expect(screen.queryByText(/uses 1 credit/)).toBeNull();
+
+    await fireEvent.press(screen.getByRole("button", { name: "Draw style sheet" }));
+
+    expect(mockState.styleSheet.mutate).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText("Use 1 credit")).toBeNull();
+  });
+
+  it("does not put back a look she has already saved", async () => {
+    rows.look = doneLook(LOOK);
+    mockState.outfits = [{ analysis_result: LOOK, created_at: new Date().toISOString() }];
+    await mount();
+
+    expect(screen.queryByText("Linen and light")).toBeNull();
+    expect(screen.getByText("Set the mood. Mila will compose the rest.")).toBeTruthy();
+  });
+
+  it("brings back a look started at 23:58 and finished at 00:02 when she opens the app at 00:05", async () => {
+    jest.setSystemTime(new Date(2026, 9, 7, 0, 5, 0));
+    rows.look = doneLook(LOOK, {
+      created_at: new Date(2026, 9, 6, 23, 58, 0).toISOString(),
+      completed_at: new Date(2026, 9, 7, 0, 2, 0).toISOString(),
+      deadline_at: new Date(2026, 9, 7, 0, 3, 0).toISOString(),
+    });
+    await mount();
+
+    expect(screen.getByText("Linen and light")).toBeTruthy();
+    // From today: no time label.
+    expect(screen.queryByText(/^From /)).toBeNull();
+  });
+
+  it("labels last night's look with its time, and badges and saves it under its own vibe and weather", async () => {
+    jest.setSystemTime(new Date(2026, 9, 7, 7, 40, 0));
+    rows.look = doneLook(LOOK, {
+      created_at: new Date(2026, 9, 6, 23, 38, 0).toISOString(),
+      completed_at: new Date(2026, 9, 6, 23, 40, 0).toISOString(),
+      deadline_at: new Date(2026, 9, 6, 23, 43, 0).toISOString(),
+    });
+    rows.style_sheet = sheetFor(LOOK, {
+      status: "succeeded",
+      image_path: "member/sheet-job.jpg",
+      created_at: new Date(2026, 9, 6, 23, 41, 0).toISOString(),
+      completed_at: new Date(2026, 9, 6, 23, 42, 0).toISOString(),
+      deadline_at: new Date(2026, 9, 6, 23, 46, 0).toISOString(),
+    });
+    await mount();
+
+    expect(screen.getByText("From last night, 11:40 PM")).toBeTruthy();
+    expect(screen.getByText("Brunch")).toBeTruthy();
+    // Today's weather stays in the weather panel only: no badge claims it for last night's look.
+    expect(screen.getAllByText("24°C Sunny")).toHaveLength(1);
+
+    await fireEvent.press(saveButton());
+    expect(mockState.saveMutate).toHaveBeenCalledWith(
+      expect.objectContaining({ vibe: "Brunch", weather: "24°C Sunny (Manila)", imageDataUri: IMAGE }),
+      expect.anything(),
+    );
+  });
+
+  it("lets a finished look from more than 12 hours ago, before today, stay in History", async () => {
+    jest.setSystemTime(new Date(2026, 9, 7, 9, 0, 0));
+    rows.look = doneLook(LOOK, {
+      created_at: new Date(2026, 9, 6, 20, 58, 0).toISOString(),
+      completed_at: new Date(2026, 9, 6, 20, 59, 0).toISOString(),
+      deadline_at: new Date(2026, 9, 6, 21, 3, 0).toISOString(),
+    });
+    await mount();
+
+    expect(screen.queryByText("Linen and light")).toBeNull();
+  });
+});
+
+describe("a visual belongs to exactly one look", () => {
+  it("is cleared at once by Try another look, and the new look's failed sheet never shows or saves the old image", async () => {
+    rows.look = doneLook(LOOK, { id: "look-1", client_request_id: "elsewhere-1" });
+    rows.style_sheet = sheetFor(LOOK, { status: "succeeded", image_path: "member/sheet-1.jpg" });
+    fetchImage.mockResolvedValue(IMAGE_A);
+    await mount();
+    const oldSheet = sheetImageOf(LOOK);
+    expect(oldSheet).toBeTruthy();
+    await act(async () => oldSheet?.props.onDisplay?.());
+    await refresh();
+
+    await fireEvent.press(screen.getByRole("button", { name: "Try another look" }));
+    expect(sheetImageOf(LOOK)).toBeNull();
+    expect(screen.queryByText("Linen and light")).toBeNull();
+
+    await answer(mockState.generate, { ...OTHER_LOOK, jobId: "look-2" });
+    expect(mockState.styleSheet.mutate).toHaveBeenCalledTimes(1);
+    // While the new sheet renders, the new look has no visual of its own yet.
+    expect(isDisabled(saveButton())).toBe(true);
+
+    await fail(mockState.styleSheet, lost());
+    expect(sheetImageOf(OTHER_LOOK)).toBeNull();
+    expect(isDisabled(saveButton())).toBe(true);
+  });
+
+  it("keeps the look on screen, and its sheet, when another device composes a newer look", async () => {
+    rows.look = doneLook(LOOK, { id: "look-1", client_request_id: "elsewhere-1" });
+    await mount();
+    await fireEvent.press(screen.getByRole("button", { name: "Draw style sheet" }));
+    await answer(mockState.styleSheet, { mode: "style_sheet", imageDataUri: IMAGE_A });
+    expect(sheetImageOf(LOOK)).toBeTruthy();
+
+    rows.look = doneLook(OTHER_LOOK, { id: "look-2", client_request_id: "elsewhere-2" });
+    await foreground();
+
+    expect(screen.getByText("Linen and light")).toBeTruthy();
+    expect(screen.queryByText("Rain-ready layers")).toBeNull();
+    expect(sheetImageOf(LOOK)).toBeTruthy();
+    expect(sheetImageOf(OTHER_LOOK)).toBeNull();
+  });
+
+  it("never takes a sheet drawn for a different look, however recent", async () => {
+    rows.look = doneLook(LOOK);
+    rows.style_sheet = sheetFor(OTHER_LOOK, { status: "succeeded", image_path: "member/other.jpg" });
+    await mount();
+
+    expect(fetchImage).not.toHaveBeenCalled();
+    expect(sheetImageOf(LOOK)).toBeNull();
+    expect(screen.getByRole("button", { name: "Draw style sheet" })).toBeTruthy();
   });
 });
 
 describe("a visual drawn while she was away", () => {
   it("is shown on a fresh mount, read from its own stored image", async () => {
-    rows.look = job({ status: "succeeded", result: LOOK, created_at: new Date(Date.now() - 60_000).toISOString() });
-    const sheet = job({
-      id: "sheet-job",
-      kind: "style_sheet",
-      client_request_id: "sheet-request",
-      status: "succeeded",
-      image_path: "member/sheet-job.jpg",
-      result: { mode: "style_sheet" },
-    });
+    rows.look = doneLook(LOOK);
+    const sheet = sheetFor(LOOK, { status: "succeeded", image_path: "member/sheet-job.jpg" });
     rows.style_sheet = sheet;
     await mount();
 
     expect(fetchImage).toHaveBeenCalledWith(sheet);
-    expect(screen.getByLabelText("Identity-locked style sheet of Linen and light")).toBeTruthy();
+    expect(sheetImageOf(LOOK)).toBeTruthy();
     expect(mockState.styleSheet.mutate).not.toHaveBeenCalled();
   });
 
   it("is read again, never drawn again, when its image could not be fetched", async () => {
-    rows.look = job({ status: "succeeded", result: LOOK, created_at: new Date(Date.now() - 60_000).toISOString() });
-    rows.style_sheet = job({
-      id: "sheet-job",
-      kind: "style_sheet",
-      client_request_id: "sheet-request",
-      status: "succeeded",
-      image_path: "member/sheet-job.jpg",
-      result: { mode: "style_sheet" },
-    });
+    rows.look = doneLook(LOOK);
+    rows.style_sheet = sheetFor(LOOK, { status: "succeeded", image_path: "member/sheet-job.jpg" });
     fetchImage.mockRejectedValueOnce(new Error("offline"));
     await mount();
 
+    // It was drawn and paid for: the copy says it could not be loaded.
+    expect(screen.getByText("Your style sheet is ready, but it couldn't be loaded.")).toBeTruthy();
     await fireEvent.press(screen.getByRole("button", { name: "Retry visual" }));
     await settle();
 
     expect(mockState.styleSheet.mutate).not.toHaveBeenCalled();
     expect(fetchImage).toHaveBeenCalledTimes(2);
-    expect(screen.getByLabelText("Identity-locked style sheet of Linen and light")).toBeTruthy();
+    expect(sheetImageOf(LOOK)).toBeTruthy();
   });
 
   it("is shown as still rendering, and keeps the next look from being charged on top of it", async () => {
-    rows.look = job({ status: "succeeded", result: LOOK, created_at: new Date(Date.now() - 60_000).toISOString() });
-    rows.style_sheet = job({ id: "sheet-job", kind: "style_sheet", client_request_id: "sheet-request" });
+    rows.look = doneLook(LOOK);
+    rows.style_sheet = sheetFor(LOOK);
     await mount();
 
     expect(screen.getByLabelText("Building your style sheet…")).toBeTruthy();
@@ -510,9 +782,7 @@ describe("a row that was delivered but could not be stored", () => {
     await answer(mockState.styleSheet, { mode: "style_sheet", imageDataUri: IMAGE, jobId: null });
 
     rows.look = job({ client_request_id: "request-1", status: "failed", error_code: "persist_failed_delivered" });
-    rows.style_sheet = job({
-      id: "sheet-job",
-      kind: "style_sheet",
+    rows.style_sheet = sheetFor(LOOK, {
       client_request_id: "request-2",
       status: "failed",
       error_code: "persist_failed_delivered",
@@ -520,32 +790,29 @@ describe("a row that was delivered but could not be stored", () => {
     await foreground();
 
     expect(screen.getByText("Linen and light")).toBeTruthy();
-    expect(screen.getByLabelText("Identity-locked style sheet of Linen and light")).toBeTruthy();
+    expect(sheetImageOf(LOOK)).toBeTruthy();
     expect(failureCopy()).toBeNull();
   });
 
   it("leaves a delivered style sheet out of the slot after a restart, never failed", async () => {
-    rows.look = job({ status: "succeeded", result: LOOK, created_at: new Date(Date.now() - 60_000).toISOString() });
-    rows.style_sheet = job({
-      id: "sheet-job",
-      kind: "style_sheet",
-      client_request_id: "sheet-request",
-      status: "failed",
-      error_code: "persist_failed_delivered",
-    });
+    rows.look = doneLook(LOOK);
+    rows.style_sheet = sheetFor(LOOK, { status: "failed", error_code: "persist_failed_delivered" });
     await mount();
 
     expect(screen.getByText("Linen and light")).toBeTruthy();
     expect(failureCopy()).toBeNull();
     expect(screen.queryByRole("button", { name: "Retry visual" })).toBeNull();
     expect(fetchImage).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Draw style sheet" })).toBeTruthy();
   });
 
   it("is not reported as a failure after a restart either", async () => {
-    rows.look = job({ status: "failed", error_code: "persist_failed_delivered" });
+    rememberPress("look", "request-9");
+    rows.look = job({ client_request_id: "request-9", status: "failed", error_code: "persist_failed_delivered" });
     await mount();
 
     expect(failureCopy()).toBeNull();
+    expect(screen.queryByText(/couldn't finish/)).toBeNull();
     expect(composingProgress()).toBeNull();
     expect(screen.getByText("Set the mood. Mila will compose the rest.")).toBeTruthy();
   });
@@ -560,7 +827,6 @@ describe("while the generation_jobs migration is missing", () => {
     expect(screen.queryByText(/you can leave the app/i)).toBeNull();
 
     await fireEvent.press(await createButton());
-    mockState.generate.isPending = true;
     await refresh();
     expect(composingProgress()).toBeTruthy();
     // Leaving would lose it today, so the screen does not promise otherwise.
@@ -569,9 +835,25 @@ describe("while the generation_jobs migration is missing", () => {
 
     expect(screen.getByText("Linen and light")).toBeTruthy();
     expect(mockState.styleSheet.mutate).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText(/hasn't been drawn yet/)).toBeNull();
 
     const readsBefore = fetchJob.mock.calls.length;
     await advance(30_000);
     expect(fetchJob.mock.calls.length).toBe(readsBefore);
+  });
+
+  it("offers no not-drawn style sheet for a look she consented to after it landed, as today", async () => {
+    jobsUnavailable = true;
+    mockState.profile = profile({ photo_consent_at: null });
+    await mount();
+    await fireEvent.press(await createButton());
+    await answer(mockState.generate, LOOK);
+    expect(mockState.styleSheet.mutate).not.toHaveBeenCalled();
+
+    mockState.profile = profile();
+    await refresh();
+
+    expect(screen.queryByText(/hasn't been drawn yet/)).toBeNull();
+    expect(screen.queryByRole("button", { name: "Draw style sheet" })).toBeNull();
   });
 });
