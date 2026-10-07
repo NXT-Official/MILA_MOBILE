@@ -1,0 +1,24 @@
+src/lib/color-analysis/member-swatches.ts
+  s_755964b2e0c3da::t_46e0aebe2d9a34 11-14,22,31-34,37-40,56-57
+__tests__/wave-d-libs-parity-test.ts
+  s_755964b2e0c3da::t_e97243e30fa9c6 20-24,95-100,514-543
+  s_755964b2e0c3da::t_a20f60317b42cf 544
+src/constants/style-profile/hair-colors.ts
+  s_755964b2e0c3da::t_46e0aebe2d9a34 9-11,50
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "25e05b49e52950f98bdec9b346e06fcfde4d7c38",
+  "prompts": {},
+  "sessions": {
+    "s_755964b2e0c3da": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "41717171-e98d-4ccb-91e6-20f4d84aa5ab",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "naaxtech <naaxtech.official@gmail.com>"
+    }
+  }
+}
