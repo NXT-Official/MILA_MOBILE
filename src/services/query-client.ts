@@ -1,8 +1,17 @@
-import { QueryClient } from "@tanstack/react-query";
+import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
 
 import { ApiError, NON_RETRYABLE_CODES } from "./api/client";
+import { reportQueryError } from "./observability/query-errors";
 
 export const queryClient = new QueryClient({
+  // Every failed query and mutation reaches the observability facade, which
+  // filters the outcomes the product handles on purpose (paywall, offline...).
+  queryCache: new QueryCache({
+    onError: (error, query) => reportQueryError(error, { kind: "query", key: query.queryKey }),
+  }),
+  mutationCache: new MutationCache({
+    onError: (error) => reportQueryError(error, { kind: "mutation" }),
+  }),
   defaultOptions: {
     queries: {
       staleTime: 30_000,

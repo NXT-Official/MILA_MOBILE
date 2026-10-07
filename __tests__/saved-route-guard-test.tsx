@@ -101,6 +101,8 @@ jest.mock("@/features/auth/hooks/use-app-destination", () => ({
 jest.mock("@/features/auth/hooks/use-auth-listener", () => ({ useAuthListener: jest.fn() }));
 jest.mock("@/features/lens/components/LensSheet", () => ({ LensSheet: () => null }));
 jest.mock("@/services/crash-reporting", () => ({}));
+// The screen-view hook reaches the real observability facade (Sentry.init).
+jest.mock("@/hooks/use-screen-views", () => ({ useScreenViews: jest.fn() }));
 jest.mock("@/services/query-client", () => {
   const { QueryClient } = jest.requireActual("@tanstack/react-query");
   return { queryClient: new QueryClient() };

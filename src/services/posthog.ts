@@ -1,5 +1,11 @@
 import PostHog, { type PostHogOptions } from "posthog-react-native";
 
+import {
+  maskEmails,
+  sanitizeScreenPath,
+  sanitizeUrl,
+} from "./observability/url-sanitize";
+
 // The hook's types come from the SDK's own options so they cannot drift from
 // the installed version. `before_send` accepts one function or an array.
 type BeforeSendFn = Exclude<
@@ -9,153 +15,11 @@ type BeforeSendFn = Exclude<
 type CaptureEvent = NonNullable<Parameters<BeforeSendFn>[0]>;
 type EventProps = NonNullable<CaptureEvent["properties"]>;
 
-/** What `sanitizeUrl` returns for input it cannot parse: never the raw string. */
-const UNPARSEABLE_URL = "[unparseable-url]";
+export { sanitizeUrl };
 
-// ALLOWLIST: the only query params analytics may keep. Everything else is
-// dropped, so a new auth provider's param, a free-text search (?q=) or an
-// address can never leak by being absent from a denylist.
-const ALLOWED_PARAMS: ReadonlySet<string> = new Set([
-  "utm_source",
-  "utm_medium",
-  "utm_campaign",
-  "utm_term",
-  "utm_content",
-  "ref",
-  "page",
-  "tab",
-  "section",
-  "view",
-  "sort",
-]);
-
-const MAX_DECODE_ROUNDS = 5;
-
-// Percent-decodes (and turns `+` into a space) until the text stops changing,
-// so `%2563ode` cannot hide as `%63ode`. Returns null when it cannot settle or
-// is malformed: the caller drops what it cannot read.
-function decodeToFixedPoint(raw: string): string | null {
-  let current = raw;
-  for (let round = 0; round < MAX_DECODE_ROUNDS; round += 1) {
-    let next: string;
-    try {
-      next = decodeURIComponent(current.replace(/\+/g, " "));
-    } catch {
-      return null;
-    }
-    if (next === current) return current;
-    current = next;
-  }
-  return null;
-}
-
-// A run of 20+ letters/digits (hex, base64url body) or a JWT shape.
-const TOKEN_RUN = /[A-Za-z0-9]{20,}/;
-const JWT_SHAPE = /[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]*/;
-const SAFE_VALUE = /^[A-Za-z0-9 _.,-]{0,64}$/;
-
-// A kept param's value must be short, plain text. Anything with `=`, `&`, `/`,
-// `:` or `@` (a nested query, URL or address) or that looks like a token goes.
-function isSafeValue(value: string): boolean {
-  return (
-    SAFE_VALUE.test(value) && !TOKEN_RUN.test(value) && !JWT_SHAPE.test(value)
-  );
-}
-
-// `query` is the raw text after `?` (no fragment).
-function sanitizeQuery(query: string): string {
-  const kept: string[] = [];
-  for (const pair of query.split(/[&;]/)) {
-    if (pair === "") continue;
-    const eq = pair.indexOf("=");
-    const name = decodeToFixedPoint(eq === -1 ? pair : pair.slice(0, eq))
-      ?.trim()
-      .toLowerCase();
-    if (!name || !ALLOWED_PARAMS.has(name)) continue;
-    if (eq === -1) {
-      kept.push(name);
-      continue;
-    }
-    const value = decodeToFixedPoint(pair.slice(eq + 1));
-    if (value === null || !isSafeValue(value)) continue;
-    kept.push(`${name}=${encodeURIComponent(value)}`);
-  }
-  return kept.length > 0 ? `?${kept.join("&")}` : "";
-}
-
-const TOKEN_SEGMENT = /^[A-Za-z0-9_-]{20,}$/;
-const PLACEHOLDER_SEGMENT = ":token";
-
-// A path segment that looks like a credential (base64url/hex of 20+, or a JWT),
-// or hides query/fragment syntax behind percent-encoding, becomes `:token`.
-function sanitizeSegment(segment: string): string {
-  if (segment === "") return segment;
-  const decoded = decodeToFixedPoint(segment);
-  if (decoded === null || /[#?=&;]/.test(decoded)) return PLACEHOLDER_SEGMENT;
-  if (TOKEN_SEGMENT.test(decoded) || JWT_SHAPE.test(decoded))
-    return PLACEHOLDER_SEGMENT;
-  return segment;
-}
-
-function sanitizePath(path: string): string {
-  return path.split("/").map(sanitizeSegment).join("/");
-}
-
-function isAuthSegment(segment: string): boolean {
-  return (
-    (decodeToFixedPoint(segment) ?? segment).trim().toLowerCase() === "auth"
-  );
-}
-
-// scheme://authority/path — the shape of every deep link and universal link.
-const HIERARCHICAL_URL = /^([a-z][a-z0-9+.-]*:\/\/)([^/]*)(.*)$/i;
-
-/**
- * Reduces a URL to what analytics may keep: scheme://host, the path with
- * credential-looking segments replaced by `:token`, and only the allowlisted
- * query params with plain values. The fragment is always dropped, and so is the
- * whole query on `/auth/*` paths and `mila://auth*` deep links. Embedded
- * credentials (userinfo) are dropped. Accepts `scheme://...` URLs (deep links
- * such as `mila://auth/callback`, and universal links) and bare paths; anything
- * else, including `mailto:`, becomes a fixed placeholder. Pure string work on
- * purpose: Hermes' built-in `URL` does not implement `search`/`searchParams`,
- * and this runs before any polyfill.
- */
-export function sanitizeUrl(url: string): string {
-  const hashAt = url.indexOf("#");
-  const withoutFragment = hashAt === -1 ? url : url.slice(0, hashAt);
-  const queryAt = withoutFragment.indexOf("?");
-  const head =
-    queryAt === -1 ? withoutFragment : withoutFragment.slice(0, queryAt);
-  const query = queryAt === -1 ? "" : withoutFragment.slice(queryAt + 1);
-
-  if (head.startsWith("/") && !head.startsWith("//")) {
-    const keep = isAuthSegment(head.split("/")[1] ?? "")
-      ? ""
-      : sanitizeQuery(query);
-    return `${sanitizePath(head)}${keep}`;
-  }
-
-  const match = HIERARCHICAL_URL.exec(head);
-  if (!match) return UNPARSEABLE_URL;
-  const scheme = match[1] ?? "";
-  const host = (match[2] ?? "").replace(/^.*@/, "");
-  const path = match[3] ?? "";
-  if (host === "" && path === "") return UNPARSEABLE_URL;
-  const auth =
-    host.toLowerCase().startsWith("auth") ||
-    isAuthSegment(path.split("/")[1] ?? "");
-  const keep = auth ? "" : sanitizeQuery(query);
-  // A web host is a name, never a token; a custom-scheme host can be one.
-  const safeHost = /^https?:\/\/$/i.test(scheme) ? host : sanitizeSegment(host);
-  return `${scheme}${safeHost}${sanitizePath(path)}${keep}`;
-}
-
-// A screen name is a router pathname: it has no query or fragment by
-// definition, so anything after `?` or `#` is dropped rather than parsed.
-function screenPath(name: string): string {
-  return name.split(/[?#]/, 1)[0] ?? "";
-}
+// A screen name is a router pathname: query, fragment and id-like segments are
+// dropped or masked (shared with the Sentry breadcrumb path).
+const screenPath = sanitizeScreenPath;
 
 // Properties that hold a page URL, referrer or path. The mobile SDK does not
 // set these itself; they are listed so the hook matches the web app's contract
@@ -183,6 +47,26 @@ function scrubUrl(value: string): string {
   return value === "" || value === "$direct" ? value : sanitizeUrl(value);
 }
 
+// http(s) and mila:// strings are URLs wherever they appear.
+const URL_VALUE = /^(?:https?|mila):\/\/\S+$/i;
+const MAX_VALUE_DEPTH = 6;
+
+// Scrubs every string in a property value: a URL goes through the sanitizer,
+// anything else only has emails masked. Fails closed past the depth limit.
+function scrubValue(value: unknown, depth: number): unknown {
+  if (typeof value === "string")
+    return URL_VALUE.test(value)
+      ? maskEmails(sanitizeUrl(value))
+      : maskEmails(value);
+  if (typeof value !== "object" || value === null) return value;
+  if (depth >= MAX_VALUE_DEPTH) return "[truncated]";
+  if (Array.isArray(value)) return value.map((v) => scrubValue(v, depth + 1));
+  if (Object.getPrototypeOf(value) !== Object.prototype) return value;
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(value)) out[k] = scrubValue(v, depth + 1);
+  return out;
+}
+
 function scrubUrlKeys(bag: EventProps): EventProps {
   const out: EventProps = { ...bag };
   for (const key of URL_PROPERTY_KEYS) {
@@ -196,7 +80,7 @@ function scrubProperties(
   properties: EventProps,
   eventName: string,
 ): EventProps {
-  const out = scrubUrlKeys(properties);
+  const out = scrubUrlKeys(scrubValue(properties, 0) as EventProps);
   const screenName = out.$screen_name;
   if (typeof screenName === "string") out.$screen_name = screenPath(screenName);
   const deepLink = out.url;

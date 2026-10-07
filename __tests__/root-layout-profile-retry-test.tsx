@@ -58,6 +58,9 @@ jest.mock("react-native-safe-area-context", () => ({
 jest.mock("@/components/layout/AppHeader", () => ({ AppHeader: () => null }));
 jest.mock("@/features/lens/components/LensSheet", () => ({ LensSheet: () => null }));
 jest.mock("@/services/crash-reporting", () => ({}));
+// The screen-view hook reaches the real observability facade (Sentry.init).
+jest.mock("@/hooks/use-screen-views", () => ({ useScreenViews: jest.fn() }));
+jest.mock("@/services/observability/query-errors", () => ({ reportQueryError: jest.fn() }));
 jest.mock("@/stores/lens-store", () => ({
   useLensStore: (select: (state: { open: boolean; setOpen: () => void }) => unknown) =>
     select({ open: false, setOpen: () => undefined }),

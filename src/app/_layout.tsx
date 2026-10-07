@@ -29,11 +29,11 @@ import { useAuthListener } from "@/features/auth/hooks/use-auth-listener";
 import { useLaunchHold } from "@/features/auth/hooks/use-launch-hold";
 import { LaunchOfflineScreen } from "@/features/auth/LaunchOfflineScreen";
 import { LensSheet } from "@/features/lens/components/LensSheet";
+import { useScreenViews } from "@/hooks/use-screen-views";
 // Imported for its side effect only, and as early as this module allows:
 // `Sentry.init` needs to run before anything else in the tree can throw, so a
 // crash during font loading or session resolution below is still reported.
 import "@/services/crash-reporting";
-import { captureScreen } from "@/services/posthog";
 import { queryClient } from "@/services/query-client";
 import { useLensStore } from "@/stores/lens-store";
 import { useOnboardingStore } from "@/stores/onboarding-store";
@@ -76,9 +76,7 @@ function RootNavigator() {
   // Screen views for product analytics: one effect on the router pathname
   // covers every push and tab switch — the same single-point capture the web
   // app does from its root route.
-  useEffect(() => {
-    captureScreen(pathname);
-  }, [pathname]);
+  useScreenViews();
 
   // Hold the stack back until the destination is known — rendering it first
   // would flash the wrong group for a frame on every cold start.

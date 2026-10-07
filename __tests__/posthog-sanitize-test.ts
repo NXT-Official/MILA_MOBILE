@@ -282,14 +282,14 @@ describe("sanitizePosthogEvent: the before_send hook scrubs every event", () => 
     });
   });
 
-  test("a `url` property on a product event is not the deep link and is left alone", () => {
+  test("a URL-valued `url` property on any event is sanitized too (before_send scrubs every URL string)", () => {
     const result = sanitizePosthogEvent(
       event("product_saved", {
         product_id: "p-1",
         url: "https://shop.example/p?code=SUMMER",
       }),
     );
-    expect(result?.properties?.url).toBe("https://shop.example/p?code=SUMMER");
+    expect(result?.properties?.url).toBe("https://shop.example/p");
   });
 
   test("everything else on the event is untouched", () => {
