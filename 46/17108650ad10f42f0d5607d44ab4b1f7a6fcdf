@@ -1,0 +1,22 @@
+src/lib/analysis-job-offer.ts
+  s_755964b2e0c3da::t_4a61654eeeb539 15-19,39-40,50-55,57-61,63-64,80-91,107-113,119,122
+__tests__/wave-d-libs-parity-test.ts
+  s_755964b2e0c3da::t_54e50378e4712b 189-191,194-203,238-308
+  s_755964b2e0c3da::t_0b298a5316fdd2 309
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4617108650ad10f42f0d5607d44ab4b1f7a6fcdf",
+  "prompts": {},
+  "sessions": {
+    "s_755964b2e0c3da": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "41717171-e98d-4ccb-91e6-20f4d84aa5ab",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "naaxtech <naaxtech.official@gmail.com>"
+    }
+  }
+}
