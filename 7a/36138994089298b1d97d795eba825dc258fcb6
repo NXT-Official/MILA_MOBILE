@@ -1,0 +1,39 @@
+__tests__/analytics-mirror-test.ts
+  s_755964b2e0c3da::t_d3b5bc0ba6409d 1-48
+__tests__/posthog-test.ts
+  s_755964b2e0c3da::t_d3b5bc0ba6409d 1-13
+package.json
+  s_755964b2e0c3da::t_d3b5bc0ba6409d 49
+src/app/_layout.tsx
+  s_755964b2e0c3da::t_d3b5bc0ba6409d 36,76-81
+  s_755964b2e0c3da::t_1605b72975f331 82
+src/features/auth/hooks/use-auth-listener.ts
+  s_755964b2e0c3da::t_d6bfd5b8336268 50,75-76
+  s_755964b2e0c3da::t_d3b5bc0ba6409d 7,51-53,151-153
+eas.json
+  s_755964b2e0c3da::t_d3b5bc0ba6409d 17-22,37-42,57-62
+src/services/posthog.ts
+  s_755964b2e0c3da::t_d3b5bc0ba6409d 1-61
+.env.example
+  s_755964b2e0c3da::t_d3b5bc0ba6409d 17-23
+src/services/supabase/analytics.ts
+  s_755964b2e0c3da::t_d3b5bc0ba6409d 3,10-13,23,30-35
+package-lock.json
+  s_755964b2e0c3da::t_18e62bb8ba729e 51,3532-3546,14685-14757
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7a36138994089298b1d97d795eba825dc258fcb6",
+  "prompts": {},
+  "sessions": {
+    "s_755964b2e0c3da": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "41717171-e98d-4ccb-91e6-20f4d84aa5ab",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "naaxtech <naaxtech.official@gmail.com>"
+    }
+  }
+}
