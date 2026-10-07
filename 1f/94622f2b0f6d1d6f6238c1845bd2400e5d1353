@@ -1,0 +1,72 @@
+.env.example
+  s_755964b2e0c3da::t_6e192458b30848 36-47
+src/services/observability/scrub-urls.test.ts
+  s_755964b2e0c3da::t_a6118012fe6eb1 1-64
+src/services/crash-reporting.ts
+  s_755964b2e0c3da::t_6e192458b30848 1,4-6,8-11,13
+__tests__/posthog-sanitize-upgrades-test.ts
+  s_755964b2e0c3da::t_15c73caa7ac22e 1-44
+src/services/observability/index.test.ts
+  s_755964b2e0c3da::t_be8ea978f25cf4 1-69
+src/services/query-client.ts
+  s_755964b2e0c3da::t_6e192458b30848 1,4,7-14
+src/services/observability/sentry.ts
+  s_755964b2e0c3da::t_96734cff47ca78 32-56,65,69,73,83,87,100
+  s_755964b2e0c3da::t_ac7fe4cc13de08 1-31,57-64,66-68,70-72,74-82,84-86,88-99
+src/app/_layout.tsx
+  s_755964b2e0c3da::t_6e192458b30848 32,79
+__tests__/posthog-sanitize-test.ts
+  s_755964b2e0c3da::t_15c73caa7ac22e 285,292
+src/services/query-client.observability.test.ts
+  s_755964b2e0c3da::t_be8ea978f25cf4 1-2
+  s_755964b2e0c3da::t_c52afd5898ebca 3-24
+src/services/observability/query-errors.test.ts
+  s_755964b2e0c3da::t_be8ea978f25cf4 1-30
+src/services/observability/scrub.ts
+  s_755964b2e0c3da::t_a30e267e60d4c7 15-18
+  s_755964b2e0c3da::t_71e88a1115836c 1-14,19-73
+src/services/observability/url-sanitize.ts
+  s_755964b2e0c3da::t_cb33e7543a3d0b 84
+  s_755964b2e0c3da::t_ab946c20efd32b 1-83,85-164
+src/services/posthog.ts
+  s_755964b2e0c3da::t_8b37068ff01a51 51
+  s_755964b2e0c3da::t_b64f44c2e11285 3-8,18,20-22,50,52-69,83
+src/services/observability/url-sanitize.test.ts
+  s_755964b2e0c3da::t_15c73caa7ac22e 1-28
+__tests__/root-layout-error-boundary-test.ts
+  s_755964b2e0c3da::t_5d042fbd5fd76a 44-45
+__tests__/root-layout-launch-test.tsx
+  s_755964b2e0c3da::t_c5f4e9ec68222f 58-59
+__tests__/root-layout-profile-retry-test.tsx
+  s_755964b2e0c3da::t_59f2e130e37678 61-63
+__tests__/root-layout-session-retry-test.tsx
+  s_755964b2e0c3da::t_4ccc9fdf140736 63-65
+__tests__/saved-route-guard-test.tsx
+  s_755964b2e0c3da::t_efa95303103e10 104-105
+src/hooks/use-screen-views.ts
+  s_755964b2e0c3da::t_c9f4699936470f 1-16
+src/services/observability/index.ts
+  s_755964b2e0c3da::t_d13341dbc2435f 1-82
+src/services/observability/query-errors.ts
+  s_755964b2e0c3da::t_c340b720f5180d 1-38
+src/services/observability/scrub.test.ts
+  s_755964b2e0c3da::t_92f02e2c7f07c4 1-67
+src/services/observability/sentry.test.ts
+  s_755964b2e0c3da::t_0e603aee00d1c2 1-45
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1f94622f2b0f6d1d6f6238c1845bd2400e5d1353",
+  "prompts": {},
+  "sessions": {
+    "s_755964b2e0c3da": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "41717171-e98d-4ccb-91e6-20f4d84aa5ab",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "naaxtech <naaxtech.official@gmail.com>"
+    }
+  }
+}
