@@ -8,7 +8,10 @@ import { isHex } from "./colour-math";
  *
  * Reads both stored shapes: the AI dossier (`primarySwatches`,
  * `secondarySwatches`) and the v2 quiz profile (`primary`, `secondary`).
- * Accent swatches are not wearable base colours and are not read.
+ * Accent swatches are not wearable base colours and are not read. An empty
+ * current list falls back to the v2 list. Names are capped at 40 characters:
+ * `color_profile` is member-writable, and these names go into a tool enum and
+ * the prompt.
  *
  * Pure and dependency-free: mobile copies this file verbatim (same path).
  */
@@ -16,6 +19,7 @@ import { isHex } from "./colour-math";
 export type MemberSwatch = { name: string; hex: string };
 
 export const MAX_MEMBER_SWATCHES = 8;
+export const MAX_SWATCH_NAME_LENGTH = 40;
 
 function record(value: unknown): Record<string, unknown> | null {
   return value !== null && typeof value === "object" && !Array.isArray(value)
@@ -24,11 +28,16 @@ function record(value: unknown): Record<string, unknown> | null {
 }
 
 function list(profile: Record<string, unknown>, current: string, v2: string): unknown[] {
-  const value = Array.isArray(profile[current]) ? profile[current] : profile[v2];
-  return Array.isArray(value) ? value : [];
+  const primary = profile[current];
+  if (Array.isArray(primary) && primary.length > 0) return primary;
+  const fallback = profile[v2];
+  return Array.isArray(fallback) ? fallback : [];
 }
 
-/** Primary then secondary, each name and each hex once (case-insensitive), at most 8. */
+/**
+ * Primary then secondary, each name and each hex once (case-insensitive), at
+ * most 8, each name at most 40 characters.
+ */
 export function memberSwatches(colorProfile: unknown): MemberSwatch[] {
   const profile = record(colorProfile);
   if (!profile) return [];
@@ -44,7 +53,8 @@ export function memberSwatches(colorProfile: unknown): MemberSwatch[] {
     const swatch = record(candidate);
     const rawName = swatch?.name;
     const rawHex = swatch?.hex;
-    const name = typeof rawName === "string" ? rawName.trim() : "";
+    const name =
+      typeof rawName === "string" ? rawName.trim().slice(0, MAX_SWATCH_NAME_LENGTH).trim() : "";
     const hex = isHex(rawHex) ? rawHex.toUpperCase() : null;
     if (!name || !hex) continue;
     const nameKey = name.toLowerCase();

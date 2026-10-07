@@ -17,7 +17,11 @@ import {
   type AnalysisJobLike,
 } from "@/lib/analysis-job-offer";
 import { chroma, hexToLab, isHex, lightness } from "@/lib/color-analysis/colour-math";
-import { MAX_MEMBER_SWATCHES, memberSwatches } from "@/lib/color-analysis/member-swatches";
+import {
+  MAX_MEMBER_SWATCHES,
+  MAX_SWATCH_NAME_LENGTH,
+  memberSwatches,
+} from "@/lib/color-analysis/member-swatches";
 
 // --- constants/style-profile/hair-colors ---
 {
@@ -85,6 +89,12 @@ describe("HAIR_COLOR_OPTIONS", () => {
       expect(option.description.trim().length).toBeGreaterThan(0);
       expect(option.description).not.toContain("\n");
       expect(option.description).not.toMatch(DASHES);
+    }
+  });
+
+  test("descriptions never say color or colour, so mobile can copy them verbatim", () => {
+    for (const option of HAIR_COLOR_OPTIONS) {
+      expect(option.description.toLowerCase()).not.toMatch(/colou?r/);
     }
   });
 
@@ -499,6 +509,37 @@ describe("memberSwatches", () => {
     expect(memberSwatches({ secondary: [{ hex: "#000000", name: "Ink" }] })).toEqual([
       { name: "Ink", hex: "#000000" },
     ]);
+  });
+
+  test("an empty current list falls back to the v2 list", () => {
+    expect(
+      memberSwatches({
+        primarySwatches: [],
+        primary: [{ hex: "#FFE5A8", name: "Light Cream" }],
+        secondarySwatches: [],
+        secondary: [{ hex: "#C8E6C9", name: "Soft Mint" }],
+      }),
+    ).toEqual([
+      { name: "Light Cream", hex: "#FFE5A8" },
+      { name: "Soft Mint", hex: "#C8E6C9" },
+    ]);
+  });
+
+  test("names are capped at 40 characters, then trimmed and deduped", () => {
+    expect(MAX_SWATCH_NAME_LENGTH).toBe(40);
+    const long = `${"Deep Burgundy ".repeat(2)}${"x".repeat(5000)}`;
+    const swatches = memberSwatches({
+      primarySwatches: [
+        { hex: "#800020", name: long },
+        { hex: "#000000", name: `${long.slice(0, 40)} and more` }, // same capped name: dropped
+        { hex: "#FFFFFF", name: `${"a".repeat(39)} b` }, // capped to 39 a's and a space, trimmed
+      ],
+    });
+    expect(swatches).toEqual([
+      { name: long.slice(0, 40), hex: "#800020" },
+      { name: "a".repeat(39), hex: "#FFFFFF" },
+    ]);
+    for (const swatch of swatches) expect(swatch.name.length).toBeLessThanOrEqual(40);
   });
 
   test("no profile, or an unreadable one, gives no swatches", () => {

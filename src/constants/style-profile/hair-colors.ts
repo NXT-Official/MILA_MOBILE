@@ -6,8 +6,9 @@ import type { MatrixOption } from "./types";
  * size (1 to 40 characters); this list is the real validation, on every read
  * and every write.
  *
- * Shared verbatim with mobile (same path). The stored values avoid the word
- * "colour"/"color" so both apps store the same text. Adding a value is safe;
+ * Shared verbatim with mobile (same path). The stored values and the
+ * descriptions avoid the word "colour"/"color", so both apps store and show
+ * the same text whichever spelling each app uses. Adding a value is safe;
  * renaming or removing one strands members who already chose it.
  */
 export const HAIR_COLORS = [
@@ -46,7 +47,7 @@ const DESCRIPTIONS: Record<HairColor, string> = {
   "Platinum blonde": "Very pale, icy blonde.",
   "Grey or silver": "Natural grey, salt and pepper, or silver.",
   White: "Bright white or snowy hair.",
-  "Vivid dyed shade": "Pink, blue, purple or any bold dyed color.",
+  "Vivid dyed shade": "Pink, blue, purple or any other bold dyed shade.",
 };
 
 export const HAIR_COLOR_OPTIONS: MatrixOption[] = HAIR_COLORS.map((value) => ({
