@@ -1,0 +1,37 @@
+__tests__/analysis-dismissed-store-test.ts
+  s_755964b2e0c3da::t_98aa77c03ce725 3-4,8-9,14,18-23,26,28,30,33-43,47,52-75
+__tests__/analysis-jobs-service-test.ts
+  s_755964b2e0c3da::t_c9925571574dde 97,99-106
+__tests__/profile-extras-service-test.ts
+  s_755964b2e0c3da::t_3bed31b980de30 81,83-90
+__tests__/use-analysis-job-test.tsx
+  s_755964b2e0c3da::t_01609cb689c5c7 65,136,186-197
+__tests__/use-profile-extras-test.tsx
+  s_755964b2e0c3da::t_e3b66e34fce157 66-73
+src/hooks/use-analysis-job.ts
+  s_755964b2e0c3da::t_98dd26bfecfd7d 69-73,79-84
+src/hooks/use-profile-extras.ts
+  s_755964b2e0c3da::t_0f97863a9c11a7 31-36
+src/services/supabase/analysis-jobs.ts
+  s_755964b2e0c3da::t_426ceacc8f8e3a 42-46,130-144
+src/services/supabase/profile-extras.ts
+  s_755964b2e0c3da::t_7cdfb12f98c639 25-29,41,43-55
+src/stores/analysis-dismissed-store.ts
+  s_755964b2e0c3da::t_0009e83f258a3a 4,6,10-12,15-17,20-29,32-40,44,46-53
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6da5bb6b904bdbabf4eb4edc51f50c5dc9b266e6",
+  "prompts": {},
+  "sessions": {
+    "s_755964b2e0c3da": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "41717171-e98d-4ccb-91e6-20f4d84aa5ab",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "naaxtech <naaxtech.official@gmail.com>"
+    }
+  }
+}
