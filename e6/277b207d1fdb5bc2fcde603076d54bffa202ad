@@ -1,0 +1,73 @@
+__tests__/generation-recovery-test.ts
+  s_755964b2e0c3da::t_cd06b885dec3ea 9,316-323
+  s_755964b2e0c3da::t_f94df392865e4e 324-326
+src/stores/generation-press-store.ts
+  s_755964b2e0c3da::t_1be840a6a61550 11-12,21-22,26-28,31,33-36,42-48,50,56,61-68,75-76,80,82,86,91-92,131-132,142,150-166,174,176
+src/features/dashboard/hooks/use-generation-jobs.ts
+  s_755964b2e0c3da::t_cd06b885dec3ea 55,57-59,85-87,142
+src/features/dashboard/generation-recovery.ts
+  s_755964b2e0c3da::t_864cd8447ff163 80-104,106-108
+src/services/supabase/generation-jobs.ts
+  s_755964b2e0c3da::t_da270121f4c161 309
+  s_755964b2e0c3da::t_a0bedbc96a4ea9 82-110,189-192,194,196-197,204-224,226-259,294,298-308,310,312,320
+  s_755964b2e0c3da::t_397eb313785035 225
+src/features/dashboard/hooks/use-generate-look.ts
+  s_755964b2e0c3da::t_6fd8e2dd621c52 43-47
+__tests__/use-generation-jobs-test.tsx
+  s_755964b2e0c3da::t_cd06b885dec3ea 97-101,206
+__tests__/home-screen-recovery-test.tsx
+  s_755964b2e0c3da::t_2e8d83d166d97f 556-575,911,930,962,974,983,997,1007,1017,1023,1029,1041,1061,1065,1068,1087,1092,1101-1103
+  s_755964b2e0c3da::t_08dd27e2404ffe 799-808,910,929,1008,1022,1040,1060,1086,1100
+  s_755964b2e0c3da::t_7890594751726f 576
+  s_755964b2e0c3da::t_2405ebf2cf7adf 809-810
+  s_755964b2e0c3da::t_b874d11b7c7e57 907-909
+  s_755964b2e0c3da::t_5d341c0f532eb7 912-914,926-928
+  s_755964b2e0c3da::t_0425770efeeb9c 931-933,959-961
+  s_755964b2e0c3da::t_3686c951b0faad 963-965,971-973
+  s_755964b2e0c3da::t_5ce948873ab292 975-977,980-982
+  s_755964b2e0c3da::t_81a610c7e7395d 984-986,994-996
+  s_755964b2e0c3da::t_785a36ff041d7d 998-1000,1004-1006
+  s_755964b2e0c3da::t_43c55536047201 1009-1011,1014-1016
+  s_755964b2e0c3da::t_28509554cfb52e 1018-1021
+  s_755964b2e0c3da::t_cecde169ee4738 1024-1028
+  s_755964b2e0c3da::t_cdd756323a31ac 1030-1032,1037-1039
+  s_755964b2e0c3da::t_8b5c8369380a92 1042-1044,1057-1059
+  s_755964b2e0c3da::t_8c94a7475f0b7b 1062-1064
+  s_755964b2e0c3da::t_8549a4c3f34200 1066-1067
+  s_755964b2e0c3da::t_907f4194ae4aaf 1069-1071,1083-1085
+  s_755964b2e0c3da::t_b5557942e80045 1088-1091
+  s_755964b2e0c3da::t_9a875b317727f6 1093-1095,1097-1099
+  s_755964b2e0c3da::t_3aed4a20351f1d 1104-1106
+  s_27b2fc17696d10::t_4f388053c618d1 83,101,105,169-170,174,180,183,376-379,382-383,405-406,778,915-925,934-958,966-970,978-979,987-993,1001-1003,1012-1013,1033-1036,1045-1056,1072-1082,1096,1107-1111
+__tests__/generation-press-store-test.ts
+  s_755964b2e0c3da::t_cf36dc698c6ce3 4-5,16-17,21,30-33,44-45,47-48,51-73,78-79,81-83,88,105,113-114,116-117,126,129-130
+src/features/dashboard/HomeScreen.tsx
+  s_755964b2e0c3da::t_da270121f4c161 117-133,175-176,178,199-208,250-251,264-267,274-277,280-307,309,415-419,421-426,428-433,436-446,449,453-507,532-537,599-604,664-668,671-673,680-684,687,690,695,702,745
+  s_755964b2e0c3da::t_909b4eb47e548e 29-33,37,41-42,79,114-116,711-744,746,782-783,791,805-808
+__tests__/generation-jobs-service-test.ts
+  s_755964b2e0c3da::t_5d0c2bc89cb013 9,11,13,28-33,39,42-50,52,152-180,209-235,289-292,320-361
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e6277b207d1fdb5bc2fcde603076d54bffa202ad",
+  "prompts": {},
+  "sessions": {
+    "s_27b2fc17696d10": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a4b8fac195a31cb7c",
+        "model": "unknown"
+      },
+      "human_author": "naaxtech <naaxtech.official@gmail.com>"
+    },
+    "s_755964b2e0c3da": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "41717171-e98d-4ccb-91e6-20f4d84aa5ab",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "naaxtech <naaxtech.official@gmail.com>"
+    }
+  }
+}
