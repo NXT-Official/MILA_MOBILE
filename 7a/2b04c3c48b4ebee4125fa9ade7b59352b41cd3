@@ -1,0 +1,52 @@
+__tests__/analysis-dismissed-store-test.ts
+  s_755964b2e0c3da::t_56df94a2db2bdc 1-38
+__tests__/analysis-jobs-service-test.ts
+  s_755964b2e0c3da::t_c58e55dbcbffbd 1-110
+__tests__/use-analysis-job-test.tsx
+  s_755964b2e0c3da::t_0568148a9e8b8f 1-157
+src/hooks/use-profile-extras.ts
+  s_755964b2e0c3da::t_d18d5710c26b6b 1-55
+__tests__/profile-extras-service-test.ts
+  s_755964b2e0c3da::t_a5ed38c364cc36 1-117
+src/services/supabase/analysis-jobs.ts
+  s_755964b2e0c3da::t_04eb8429534499 1-139
+docs/mobile-architecture.md
+  s_755964b2e0c3da::t_abb4952997ab47 1028-1031,1039-1043,1186-1187,1217-1230,1660-1663,4316-4320,4379-4380
+src/services/supabase/types.ts
+  s_755964b2e0c3da::t_f05680464f86c9 435,438,443,467,470,475,499,502,507,847,857,867,951-957
+  s_755964b2e0c3da::t_c9666d1b97c94f 958
+__tests__/use-profile-extras-test.tsx
+  s_755964b2e0c3da::t_b03e59edee5770 1-65
+src/services/supabase/profile-extras.ts
+  s_755964b2e0c3da::t_81fa2cc9c833e4 1-80
+src/stores/analysis-dismissed-store.ts
+  s_755964b2e0c3da::t_be28283b54f907 1-34
+src/hooks/use-analysis-job.ts
+  s_755964b2e0c3da::t_e7b25bc2fd1b03 1-102
+__tests__/profile-write-guard-test.ts
+  s_755964b2e0c3da::t_7dada2cf54a9f8 57-59,71,75
+__tests__/profile-read-columns-test.ts
+  s_755964b2e0c3da::t_30d0124734b3a6 1-34
+src/constants/query-keys.ts
+  s_755964b2e0c3da::t_95986bce81a738 16-19
+src/constants/style-profile/types.ts
+  s_755964b2e0c3da::t_29a23d63a03c73 37-40
+src/types/models.ts
+  s_755964b2e0c3da::t_2621689daec899 112-115,147-153,181-182
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7a2b04c3c48b4ebee4125fa9ade7b59352b41cd3",
+  "prompts": {},
+  "sessions": {
+    "s_755964b2e0c3da": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "41717171-e98d-4ccb-91e6-20f4d84aa5ab",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "naaxtech <naaxtech.official@gmail.com>"
+    }
+  }
+}
