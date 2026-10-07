@@ -12,6 +12,7 @@ import { Icon } from "@/components/ui/Icon";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { LookDetail } from "@/components/ui/LookDetail";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { ShopThisLookGrid } from "@/features/dashboard/components/ShopThisLookGrid";
 import { useDeleteOutfit, useOutfit } from "@/hooks/use-outfits";
 import { lookSections, headlineSlug, normalizeAnalysisResult, outfitTitle } from "@/lib/outfit-history";
 import { files } from "@/services/files";
@@ -153,6 +154,12 @@ export function LookDetailScreen({ id }: { id: string }) {
               sections={lookSections(entry.look)}
               loading={false}
             />
+            {/* The suggested items saved with the look — the same grid the
+                dashboard shows. Absent for rows saved before the field
+                existed; an empty array renders the grid's own empty copy. */}
+            {entry.look.shoppable_picks ? (
+              <ShopThisLookGrid items={entry.look.shoppable_picks} />
+            ) : null}
           </>
         ) : entry.kind === "lens" ? (
           <LookDetail headline="Lens analysis" sections={lensSections} loading={false} />

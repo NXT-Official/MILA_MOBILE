@@ -42,6 +42,9 @@ export function useSaveLook() {
         // The picks the member was shown, by id — history re-hydrates them from
         // the catalogue rather than re-reading model text.
         productIds: (input.shoppable_picks ?? []).map((pick) => pick.id),
+        // The items themselves (titles, prices, links) — what History shows
+        // under the saved look.
+        shoppable_picks: input.shoppable_picks ?? null,
         previewMode: input.previewMode,
         gender: profile?.gender ?? null,
         makeupEnabled: computeMakeupEligibility({
