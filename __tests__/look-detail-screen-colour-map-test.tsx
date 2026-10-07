@@ -1,0 +1,120 @@
+import { fireEvent, render, waitFor } from "@testing-library/react-native";
+
+/**
+ * The saved look's detail: it shows "Your colour map" when the look carries
+ * one, shows nothing extra for a look saved before the feature, and tells her
+ * honestly when Save or share fails, with a way to try again.
+ */
+const mockOutfit: { data: unknown; isPending: boolean; isError: boolean; refetch: jest.Mock } = {
+  data: undefined,
+  isPending: false,
+  isError: false,
+  refetch: jest.fn(),
+};
+const mockRemove = { mutate: jest.fn(), isPending: false };
+const mockSaveAndShare = jest.fn();
+
+jest.mock("../src/hooks/use-outfits", () => ({
+  useOutfit: () => mockOutfit,
+  useDeleteOutfit: () => mockRemove,
+}));
+jest.mock("../src/services/files", () => ({
+  files: { saveAndShareRemoteImage: (...args: unknown[]) => mockSaveAndShare(...args) },
+}));
+jest.mock("expo-router", () => ({ router: { replace: jest.fn(), back: jest.fn() } }));
+jest.mock("expo-image", () => ({ Image: () => null }));
+jest.mock("react-native-safe-area-context", () => ({
+  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+}));
+jest.mock("../src/components/ui/Sheet", () => require("../src/test-utils/sheet-mock"));
+
+import { LookDetailScreen } from "@/features/outfits/LookDetailScreen";
+
+const DAILY = {
+  type: "daily_look",
+  weather: "Partly Cloudy",
+  vibe: "Brunch",
+  vibe_alignment_score: 88,
+  outfit: { headline: "Linen Day", description: "Wide-leg linen.", styling_notes: "Cuff once." },
+  hair: { style: "Low chignon", execution_tip: "Damp hair." },
+  makeup: null,
+};
+
+const MAP = [
+  { kind: "outerwear", label: "Coat", title: "Wool Overcoat", wear: { name: "Charcoal", hex: "#36454F", role: "base" } },
+  { kind: "top", label: "Shirt", title: "Silk Camp Shirt", wear: { name: "Cream", hex: "#FFFDD0", role: "statement" } },
+];
+
+function show(analysis: unknown) {
+  mockOutfit.data = {
+    id: "o1",
+    image_url: "https://img.example.test/a.jpg",
+    created_at: "2026-10-07T08:00:00Z",
+    analysis_result: analysis,
+  };
+}
+
+beforeEach(() => {
+  mockSaveAndShare.mockReset();
+  mockOutfit.isPending = false;
+  mockOutfit.isError = false;
+});
+
+describe("LookDetailScreen colour map", () => {
+  it("shows Your colour map when the look carries one", async () => {
+    show({ ...DAILY, colourMap: MAP });
+    const s = await render(<LookDetailScreen id="o1" />);
+    expect(s.getByText("Your colour map")).toBeTruthy();
+    expect(s.getByText("Charcoal")).toBeTruthy();
+    expect(s.getByText("Cream")).toBeTruthy();
+  });
+
+  it("a look saved before the feature is unchanged", async () => {
+    show(DAILY);
+    const s = await render(<LookDetailScreen id="o1" />);
+    expect(s.queryByText("Your colour map")).toBeNull();
+    expect(s.queryByText(/no colour map/i)).toBeNull();
+    expect(s.getByText("Linen Day")).toBeTruthy();
+  });
+});
+
+describe("LookDetailScreen save and share", () => {
+  const save = (s: Awaited<ReturnType<typeof render>>) =>
+    fireEvent.press(s.getByLabelText("Save or share this look"));
+
+  it("hands the image to the share flow and shows no error when it works", async () => {
+    show(DAILY);
+    mockSaveAndShare.mockResolvedValue("shared");
+    const s = await render(<LookDetailScreen id="o1" />);
+    await save(s);
+    await waitFor(() => expect(mockSaveAndShare).toHaveBeenCalledTimes(1));
+    expect(mockSaveAndShare).toHaveBeenCalledWith({
+      filename: "mila-look-linen-day.jpg",
+      url: "https://img.example.test/a.jpg",
+    });
+    expect(s.queryByText("This look didn't save. Please try again.")).toBeNull();
+  });
+
+  it("closing the share sheet is not an error", async () => {
+    show(DAILY);
+    mockSaveAndShare.mockResolvedValue("cancelled");
+    const s = await render(<LookDetailScreen id="o1" />);
+    await save(s);
+    await waitFor(() => expect(mockSaveAndShare).toHaveBeenCalledTimes(1));
+    expect(s.queryByText("This look didn't save. Please try again.")).toBeNull();
+  });
+
+  it("a failed save says so plainly, with a Try again that runs it again", async () => {
+    show(DAILY);
+    mockSaveAndShare.mockRejectedValueOnce(new Error("network down")).mockResolvedValueOnce("shared");
+    const s = await render(<LookDetailScreen id="o1" />);
+    await save(s);
+    expect(await s.findByText("This look didn't save. Please try again.")).toBeTruthy();
+    // Plain language, never the raw error.
+    expect(s.queryByText(/network down/)).toBeNull();
+
+    await fireEvent.press(s.getByLabelText("Try again"));
+    await waitFor(() => expect(mockSaveAndShare).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(s.queryByText("This look didn't save. Please try again.")).toBeNull());
+  });
+});

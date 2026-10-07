@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { LayoutAnimation, Pressable, Text, View } from "react-native";
 
+import type { SavedColourMapRow } from "@/lib/wear-colour";
+
+import { ColourMap } from "./ColourMap";
 import { Divider } from "./Divider";
 import { Icon } from "./Icon";
 import { Skeleton } from "./Skeleton";
@@ -18,10 +21,13 @@ export function LookDetail({
   headline,
   sections,
   loading,
+  colourMap,
 }: {
   headline: string | null;
   sections: LookSection[];
   loading: boolean;
+  /** A saved look's colour map. Absent or colourless: nothing extra is shown. */
+  colourMap?: readonly SavedColourMapRow[];
 }) {
   if (loading) {
     return (
@@ -49,6 +55,7 @@ export function LookDetail({
           <CollapsibleSection key={section.title} section={section} />
         ))}
       </View>
+      {colourMap ? <ColourMap rows={colourMap} /> : null}
     </View>
   );
 }

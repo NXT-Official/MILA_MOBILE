@@ -1,3 +1,5 @@
+import type { SavedColourMapRow, WearColour } from "@/lib/wear-colour";
+
 /**
  * The daily look, as the server composes it. Lives in `types/` rather than
  * beside the API call because `lib/outfit-history.ts` also needs it, and `lib/`
@@ -36,6 +38,12 @@ export type ShoppablePick = {
    * existed — treat a missing value as "planned".
    */
   source?: "planned" | "similar";
+  /**
+   * Which of her own colours to wear this piece in (the colour map). Absent on
+   * looks made before the colour map, and null when the model named no colour
+   * she has.
+   */
+  wear_colour?: WearColour | null;
 };
 
 export type DailyLook = {
@@ -81,6 +89,11 @@ export type DailyLookRecord = DailyLook & {
   type: "daily_look";
   weather: string;
   vibe: string;
+  /**
+   * The compact colour map the save path keeps: kind, label, title and colour
+   * per planned piece. Absent on looks saved before the colour map.
+   */
+  colourMap?: SavedColourMapRow[];
 };
 
 /** The Lens shape the same column holds. Phase 05 writes it; history reads it. */

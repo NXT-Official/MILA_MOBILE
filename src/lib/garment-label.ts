@@ -423,3 +423,24 @@ export function garmentFor(category?: string | null, title?: string | null): Gar
   }
   return fallback;
 }
+
+/**
+ * The product's own name: catalogue titles read "Name | Colour | Size" (rule
+ * 2). Mirrors the web's `productName`; the colour map reads it.
+ */
+export function productName(title: string): string {
+  return title.split("|")[0].trim();
+}
+
+/** Head-to-toe order for grouped lists. Mirrors the web's `GARMENT_KIND_ORDER`. */
+export const GARMENT_KIND_ORDER: readonly GarmentKind[] = [
+  "outerwear",
+  "top",
+  "dress",
+  "bottoms",
+  "shoes",
+  "bag",
+  "jewelry",
+  "accessory",
+  "unknown",
+];

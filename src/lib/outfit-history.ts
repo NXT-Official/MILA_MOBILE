@@ -1,5 +1,8 @@
 import type { DailyLook, LensAnalysisRecord, ShoppablePick } from "@/types/look";
 
+import { GARMENT_KIND_ORDER, type GarmentKind } from "./garment-label";
+import { asWearColour, MAX_SAVED_COLOUR_MAP_ROWS, type SavedColourMapRow } from "./wear-colour";
+
 /**
  * A saved daily look.
  *
@@ -11,6 +14,8 @@ import type { DailyLook, LensAnalysisRecord, ShoppablePick } from "@/types/look"
  */
 export type SavedLookSnapshot = Omit<DailyLook, "vibe_alignment_score"> & {
   vibe_alignment_score: number | null;
+  /** The saved colour map; absent on a look saved before it, or when damaged. */
+  colourMap?: SavedColourMapRow[];
 };
 
 /**
@@ -63,6 +68,34 @@ function normalizePicks(value: unknown): ShoppablePick[] | undefined {
   return picks.length > 0 ? picks : undefined;
 }
 
+function isGarmentKind(value: unknown): value is GarmentKind {
+  return typeof value === "string" && (GARMENT_KIND_ORDER as readonly string[]).includes(value);
+}
+
+/**
+ * A saved look's colour map. A row needs its kind, label and title to be
+ * readable; its colour is read back through `asWearColour`, so one that is not
+ * whole and safe becomes "no colour" and the row stays. Anything that is not a
+ * list of such rows is no map at all, so an old or damaged look shows nothing
+ * extra.
+ */
+function normalizeColourMap(value: unknown): SavedColourMapRow[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const rows = value
+    .filter(isRecord)
+    .filter((row) => isGarmentKind(row.kind) && str(row.label) && str(row.title))
+    .slice(0, MAX_SAVED_COLOUR_MAP_ROWS)
+    .map(
+      (row): SavedColourMapRow => ({
+        kind: row.kind as GarmentKind,
+        label: str(row.label),
+        title: str(row.title),
+        wear: asWearColour(row.wear),
+      }),
+    );
+  return rows.length > 0 ? rows : undefined;
+}
+
 /**
  * Structural, not `type`-tagged, for the daily-look branch's sub-objects: the
  * tag says what the row is, but a truncated write could still leave `hair`
@@ -108,6 +141,7 @@ export function normalizeAnalysisResult(value: unknown): HistoryEntry {
           typeof raw.vibe_alignment_score === "number" ? raw.vibe_alignment_score : null,
         shoppable_picks: normalizePicks(raw.shoppable_picks),
         forecastRetrievedAt: optionalStr(raw.forecastRetrievedAt),
+        colourMap: normalizeColourMap(raw.colourMap),
       },
       weather: optionalStr(raw.weather),
       vibe: optionalStr(raw.vibe),

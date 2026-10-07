@@ -84,3 +84,60 @@ describe("lookSections", () => {
     expect(lookSections(entry.look).map((s) => s.title)).toEqual(["Outfit", "Hair"]);
   });
 });
+
+describe("normalizeAnalysisResult: the saved colour map", () => {
+  const colourMap = [
+    {
+      kind: "outerwear",
+      label: "Coat",
+      title: "Wool Overcoat",
+      wear: { name: "Charcoal", hex: "#36454F", role: "base" },
+    },
+    {
+      kind: "top",
+      label: "Shirt",
+      title: "Silk Camp Shirt",
+      wear: { name: "Cream", hex: "#FFFDD0", role: "statement" },
+    },
+    { kind: "bottoms", label: "Jeans", title: "Straight Jeans", wear: null },
+  ];
+
+  it("parses a saved colour map", () => {
+    const entry = normalizeAnalysisResult({ ...dailyLook, colourMap });
+    if (entry.kind !== "daily_look") throw new Error("wrong branch");
+    expect(entry.look.colourMap).toEqual(colourMap);
+  });
+
+  it("ignores a malformed one", () => {
+    for (const bad of ["x", 7, {}, [], [null, 3, "x"], [{ kind: "top" }]]) {
+      const entry = normalizeAnalysisResult({ ...dailyLook, colourMap: bad });
+      if (entry.kind !== "daily_look") throw new Error("wrong branch");
+      expect(entry.look.colourMap).toBeUndefined();
+    }
+  });
+
+  it("a colour that is not whole and safe reads as no colour, and the row stays", () => {
+    const entry = normalizeAnalysisResult({
+      ...dailyLook,
+      colourMap: [
+        { ...colourMap[0], wear: { name: "Charcoal", hex: "url(x)", role: "base" } },
+        colourMap[1],
+      ],
+    });
+    if (entry.kind !== "daily_look") throw new Error("wrong branch");
+    expect(entry.look.colourMap).toEqual([{ ...colourMap[0], wear: null }, colourMap[1]]);
+  });
+
+  it("a look saved before the feature has no colour map", () => {
+    const entry = normalizeAnalysisResult(dailyLook);
+    if (entry.kind !== "daily_look") throw new Error("wrong branch");
+    expect(entry.look.colourMap).toBeUndefined();
+  });
+
+  it("caps the map at 12 rows", () => {
+    const many = Array.from({ length: 20 }, () => colourMap[1]);
+    const entry = normalizeAnalysisResult({ ...dailyLook, colourMap: many });
+    if (entry.kind !== "daily_look") throw new Error("wrong branch");
+    expect(entry.look.colourMap).toHaveLength(12);
+  });
+});

@@ -7,7 +7,7 @@ import { Screen } from "@/components/layout/Screen";
 import { Button } from "@/components/ui/Button";
 import { ConfirmSheet } from "@/components/ui/ConfirmSheet";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { ErrorState } from "@/components/ui/ErrorState";
+import { ErrorState, InlineError } from "@/components/ui/ErrorState";
 import { Icon } from "@/components/ui/Icon";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { LookDetail } from "@/components/ui/LookDetail";
@@ -28,6 +28,7 @@ import { radii } from "@/theme/tokens";
  */
 export function LookDetailScreen({ id }: { id: string }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [saveFailed, setSaveFailed] = useState(false);
   const { data: outfit, isPending, isError, refetch } = useOutfit(id);
   const remove = useDeleteOutfit();
   const anchor = useConciergeStore((s) => s.anchor);
@@ -78,6 +79,20 @@ export function LookDetailScreen({ id }: { id: string }) {
 
   const title = outfitTitle(entry);
 
+  // A rejected download or share is the failure; the member closing the share
+  // sheet resolves "cancelled" and is not one. Plain words, never the raw error.
+  const saveOrShare = async () => {
+    setSaveFailed(false);
+    try {
+      await files.saveAndShareRemoteImage({
+        filename: `mila-look-${headlineSlug(title)}.jpg`,
+        url: outfit.image_url,
+      });
+    } catch {
+      setSaveFailed(true);
+    }
+  };
+
   // The web's detail dialog, in the same three sections and the same order —
   // empties dropped, so a sparse analysis renders what it has.
   const lensSections =
@@ -108,18 +123,20 @@ export function LookDetailScreen({ id }: { id: string }) {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Save or share this look"
-            onPress={() =>
-              void files.saveAndShareRemoteImage({
-                filename: `mila-look-${headlineSlug(title)}.jpg`,
-                url: outfit.image_url,
-              })
-            }
+            onPress={() => void saveOrShare()}
             hitSlop={8}
             className="absolute right-md top-md min-h-tap min-w-tap items-center justify-center rounded-pill border border-border bg-canvas/90 dark:border-border/12"
           >
             <Icon name="download" size="sm" color="ink" />
           </Pressable>
         </View>
+
+        {saveFailed ? (
+          <View className="gap-sm">
+            <InlineError message="This look didn't save. Please try again." />
+            <Button label="Try again" variant="secondary" onPress={() => void saveOrShare()} />
+          </View>
+        ) : null}
 
         <Text className="font-body text-micro tracking-label-xwide uppercase text-muted">
           {new Date(outfit.created_at).toLocaleString()}
@@ -152,6 +169,7 @@ export function LookDetailScreen({ id }: { id: string }) {
               headline={title}
               sections={lookSections(entry.look)}
               loading={false}
+              colourMap={entry.look.colourMap}
             />
           </>
         ) : entry.kind === "lens" ? (
