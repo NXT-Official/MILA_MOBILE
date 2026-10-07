@@ -78,9 +78,16 @@ describe("fetchProfileExtras", () => {
     },
   );
 
-  it("still throws on any other failure", async () => {
+  it("never throws: any other failure is a typed error result", async () => {
     mockQuery({ data: null, error: { code: "08006", message: "connection" } });
-    await expect(fetchProfileExtras("member")).rejects.toMatchObject({ code: "08006" });
+    await expect(fetchProfileExtras("member")).resolves.toEqual({ status: "error" });
+  });
+
+  it("never throws: a rejected request is a typed error result too", async () => {
+    const query = mockQuery({ data: null, error: null });
+    query.then = (_resolve: unknown, reject: (reason: unknown) => unknown) =>
+      Promise.resolve().then(() => reject(new TypeError("Network request failed")));
+    await expect(fetchProfileExtras("member")).resolves.toEqual({ status: "error" });
   });
 });
 

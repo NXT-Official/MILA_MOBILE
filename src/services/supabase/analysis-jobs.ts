@@ -39,7 +39,11 @@ export type AnalysisJob = {
   completed_at: string | null;
 };
 
-export type LatestAnalysisJob = { status: "ok"; job: AnalysisJob | null } | { status: "unavailable" };
+export type LatestAnalysisJob =   | { status: "ok"; job: AnalysisJob | null }
+  /** The generation_jobs table is not applied yet. */
+  | { status: "unavailable" }
+  /** The read failed for any other reason (network, auth). Never thrown. */
+  | { status: "error" };
 
 /** Every column but `input`, which holds a digest of the photos and is not hers to render. */
 export const ANALYSIS_JOB_COLUMNS = [
@@ -123,16 +127,21 @@ export async function fetchLatestAnalysisJob(
   userId: string,
   kind: AnalysisJobKind,
 ): Promise<LatestAnalysisJob> {
-  const { data, error } = await db
-    .from("generation_jobs")
-    .select(ANALYSIS_JOB_COLUMNS)
-    .eq("user_id", userId)
-    .eq("kind", kind)
-    .order("created_at", { ascending: false })
-    .limit(1);
-
-  if (isWaveDMissing(error)) return { status: "unavailable" };
-  if (error) throw error;
+  let data: unknown;
+  try {
+    const result = await db
+      .from("generation_jobs")
+      .select(ANALYSIS_JOB_COLUMNS)
+      .eq("user_id", userId)
+      .eq("kind", kind)
+      .order("created_at", { ascending: false })
+      .limit(1);
+    if (isWaveDMissing(result.error)) return { status: "unavailable" };
+    if (result.error) return { status: "error" };
+    data = result.data;
+  } catch {
+    return { status: "error" };
+  }
 
   const rows: unknown[] = Array.isArray(data) ? data : [];
   const job = rows.length > 0 ? parseAnalysisJob(rows[0]) : null;

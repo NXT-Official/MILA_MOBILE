@@ -28,7 +28,12 @@ export function useProfileExtras(): ProfileExtrasState {
     queryKey: queryKeys.profileExtras(userId ?? undefined),
     enabled: Boolean(userId),
     staleTime: 5 * 60_000,
-    queryFn: () => fetchProfileExtras(userId as string),
+    queryFn: async () => {
+      const read = await fetchProfileExtras(userId as string);
+      // An error is a failed query, so a good earlier read is kept rather than blanked.
+      if (read.status === "error") throw new Error("Profile extras could not be read.");
+      return read;
+    },
   });
 
   const data = query.data;

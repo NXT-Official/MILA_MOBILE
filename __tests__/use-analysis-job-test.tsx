@@ -62,7 +62,7 @@ beforeEach(() => {
   jest.useFakeTimers();
   jest.clearAllMocks();
   row = null;
-  useAnalysisDismissedStore.setState({ ids: [] });
+  useAnalysisDismissedStore.setState({ byUser: {} });
   queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } });
   fetchJob.mockImplementation(async () => ({ status: "ok", job: row }));
   appStateListener = null;
@@ -133,7 +133,7 @@ it("offers a ready job once", async () => {
   });
 
   expect(result.current.ready).toBeNull();
-  expect(useAnalysisDismissedStore.getState().ids).toEqual(["job-1"]);
+  expect(useAnalysisDismissedStore.getState().byUser).toEqual({ member: ["job-1"] });
 });
 
 it("does not offer a job finished more than 12 hours ago", async () => {
@@ -182,4 +182,16 @@ it("does not re-offer a check-in she has already confirmed", async () => {
   });
   await advance(0);
   expect(result.current.ready).toBeNull();
+});
+
+it("keeps the last good job when a later read answers an error", async () => {
+  row = job({ status: "running" });
+  const { result } = await renderHook(() => useAnalysisJob("check_in"), { wrapper });
+  await advance(0);
+
+  fetchJob.mockResolvedValue({ status: "error" });
+  await advance(3_000);
+
+  expect(result.current.available).toBe(true);
+  expect(result.current.job?.id).toBe("job-1");
 });

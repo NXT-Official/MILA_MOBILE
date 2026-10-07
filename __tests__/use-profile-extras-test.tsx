@@ -63,3 +63,11 @@ it("saves, then refreshes the extras key explicitly", async () => {
   expect(save).toHaveBeenCalledWith("member", { hair_color: "Auburn" });
   expect(spy).toHaveBeenCalledWith({ queryKey: ["profile-extras", "member"] });
 });
+
+it("reports unavailable, not a crash, when the read answers an error", async () => {
+  fetchExtras.mockResolvedValue({ status: "error" });
+  const { result } = await renderHook(() => useProfileExtras(), { wrapper });
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  expect(result.current.available).toBe(false);
+  expect(result.current.extras).toBeNull();
+});

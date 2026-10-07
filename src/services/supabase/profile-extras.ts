@@ -22,7 +22,11 @@ export type ProfileExtras = {
   foundingBodyReadAt: string | null;
 };
 
-export type ProfileExtrasRead = { status: "ok"; extras: ProfileExtras } | { status: "unavailable" };
+export type ProfileExtrasRead =   | { status: "ok"; extras: ProfileExtras }
+  /** The Wave D migration is not applied: every dependent surface hides. */
+  | { status: "unavailable" }
+  /** The read failed for any other reason (network, auth). Never thrown. */
+  | { status: "error" };
 
 type ExtrasRow = {
   hair_color?: unknown;
@@ -34,15 +38,21 @@ function text(value: unknown): string | null {
   return typeof value === "string" && value !== "" ? value : null;
 }
 
+/** Never throws: a missing column is `unavailable`, any other failure is `error`. */
 export async function fetchProfileExtras(userId: string): Promise<ProfileExtrasRead> {
-  const { data, error } = await supabase
-    .from("profiles")
-    .select(PROFILE_EXTRAS_COLUMNS)
-    .eq("id", userId)
-    .maybeSingle();
-
-  if (isWaveDMissing(error)) return { status: "unavailable" };
-  if (error) throw error;
+  let data: unknown;
+  try {
+    const result = await supabase
+      .from("profiles")
+      .select(PROFILE_EXTRAS_COLUMNS)
+      .eq("id", userId)
+      .maybeSingle();
+    if (isWaveDMissing(result.error)) return { status: "unavailable" };
+    if (result.error) return { status: "error" };
+    data = result.data;
+  } catch {
+    return { status: "error" };
+  }
 
   const row = (data ?? {}) as ExtrasRow;
   return {

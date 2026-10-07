@@ -94,11 +94,16 @@ it.each(["42P01", "PGRST205"])("a missing table (%s) is unavailable", async (cod
   expect(await fetchLatestAnalysisJob("member", "check_in")).toEqual({ status: "unavailable" });
 });
 
-it("throws any other failure", async () => {
+it("never throws: any other failure is a typed error result", async () => {
   mockQuery({ data: null, error: { code: "08006", message: "connection" } });
-  await expect(fetchLatestAnalysisJob("member", "check_in")).rejects.toMatchObject({
-    code: "08006",
-  });
+  await expect(fetchLatestAnalysisJob("member", "check_in")).resolves.toEqual({ status: "error" });
+});
+
+it("never throws: a rejected request is a typed error result too", async () => {
+  const query = mockQuery({ data: null, error: null });
+  query.then = (_resolve: unknown, reject: (reason: unknown) => unknown) =>
+    Promise.resolve().then(() => reject(new TypeError("Network request failed")));
+  await expect(fetchLatestAnalysisJob("member", "check_in")).resolves.toEqual({ status: "error" });
 });
 
 it("defaults an unknown credit state to none", () => {

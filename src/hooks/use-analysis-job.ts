@@ -66,14 +66,22 @@ export function useAnalysisJob(
   const userId = useAuthStore((s) => s.session?.user.id ?? null);
   const queryClient = useQueryClient();
   const key = queryKeys.analysisJob(userId ?? undefined, kind);
-  const dismissedIds = useAnalysisDismissedStore((s) => s.ids);
-  const dismiss = useAnalysisDismissedStore((s) => s.dismiss);
+  const dismissedIds = useAnalysisDismissedStore((s) => (userId ? s.byUser[userId] : undefined));
+  const dismissFor = useAnalysisDismissedStore((s) => s.dismiss);
+  const dismiss = (jobId: string) => {
+    if (userId) dismissFor(userId, jobId);
+  };
 
   const query = useQuery({
     queryKey: key,
     enabled: Boolean(userId),
     staleTime: 0,
-    queryFn: () => fetchLatestAnalysisJob(userId as string, kind),
+    queryFn: async () => {
+      const latest = await fetchLatestAnalysisJob(userId as string, kind);
+      // An error is a failed query, so the last good row is kept, never blanked.
+      if (latest.status === "error") throw new Error("The analysis job could not be read.");
+      return latest;
+    },
     // src: https://tanstack.com/query/v5/docs/framework/react/reference/useQuery
     //   refetchInterval: number | false | ((query) => number | false | undefined) · @tanstack/react-query 5.101.4
     refetchInterval: (current) => {
