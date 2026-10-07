@@ -6,8 +6,11 @@ jest.mock("expo-crypto", () => ({ randomUUID: jest.fn(() => "0b9d6a52-3c7e-4f8a-
 import { supabase } from "@/services/supabase/client";
 import {
   fetchGenerationImage,
+  fetchGenerationJobByRequest,
   fetchLatestGenerationJob,
+  GENERATION_IMAGE_TIMEOUT_MS,
   GENERATION_JOB_COLUMNS,
+  GENERATION_READ_TIMEOUT_MS,
   newClientRequestId,
   type GenerationJob,
 } from "@/services/supabase/generation-jobs";
@@ -22,16 +25,31 @@ import {
 
 type Result = { data?: unknown; error: { code?: string; message?: string } | null };
 
-function mockQuery(result: Result) {
+/**
+ * A chainable PostgREST stand-in. `result` answers at once; `"hang"` never
+ * answers until the request's abort signal fires, then answers the way
+ * postgrest-js reports an aborted request: as `{ error }`.
+ */
+function mockQuery(result: Result | "hang") {
   const query: Record<string, jest.Mock> & { then?: unknown } = {
     select: jest.fn(),
     eq: jest.fn(),
     order: jest.fn(),
     limit: jest.fn(),
+    abortSignal: jest.fn(),
   };
   for (const key of Object.keys(query)) query[key].mockReturnValue(query);
+  const answer = (): Promise<Result> => {
+    if (result !== "hang") return Promise.resolve(result);
+    const signal = query.abortSignal.mock.calls.at(-1)?.[0] as AbortSignal | undefined;
+    const aborted: Result = { data: null, error: { message: "AbortError: Aborted" } };
+    return new Promise((resolve) => {
+      if (signal?.aborted) resolve(aborted);
+      else signal?.addEventListener("abort", () => resolve(aborted));
+    });
+  };
   query.then = (resolve: (value: Result) => unknown, reject: (reason: unknown) => unknown) =>
-    Promise.resolve(result).then(resolve, reject);
+    answer().then(resolve, reject);
   jest.mocked(supabase.from).mockReturnValue(query as unknown as ReturnType<typeof supabase.from>);
   return query;
 }
@@ -131,6 +149,35 @@ describe("fetchLatestGenerationJob", () => {
     });
   });
 
+  it("gives up on a read that does not answer, so the screen is never held by a hung request", async () => {
+    jest.useFakeTimers();
+    try {
+      const query = mockQuery("hang");
+      const read = fetchLatestGenerationJob("member", "look");
+      const settled = jest.fn();
+      read.then(settled, settled);
+
+      await jest.advanceTimersByTimeAsync(GENERATION_READ_TIMEOUT_MS - 1);
+      expect(settled).not.toHaveBeenCalled();
+      await jest.advanceTimersByTimeAsync(1);
+
+      await expect(read).rejects.toMatchObject({ message: expect.stringMatching(/abort/i) });
+      expect(query.abortSignal).toHaveBeenCalledWith(expect.any(Object));
+      expect(GENERATION_READ_TIMEOUT_MS).toBe(10_000);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it("stops when the query that asked is cancelled", async () => {
+    const query = mockQuery("hang");
+    const cancel = new AbortController();
+    const read = fetchLatestGenerationJob("member", "look", cancel.signal);
+    cancel.abort();
+    await expect(read).rejects.toBeTruthy();
+    expect((query.abortSignal.mock.calls[0][0] as AbortSignal).aborted).toBe(true);
+  });
+
   it("names the look a style sheet or portrait was drawn for", async () => {
     mockQuery({
       data: [
@@ -155,6 +202,33 @@ describe("fetchLatestGenerationJob", () => {
         for_look: { headline: "Linen and light", description: "A light layer." },
         look_input: null,
       },
+    });
+  });
+});
+
+describe("fetchGenerationJobByRequest", () => {
+  it("reads her one row for a press key, within the same deadline", async () => {
+    const query = mockQuery({ data: [wireRow], error: null });
+    await expect(fetchGenerationJobByRequest("member", "look", "request-1")).resolves.toEqual({
+      status: "ok",
+      job: row,
+    });
+    expect(supabase.from).toHaveBeenCalledWith("generation_jobs");
+    expect(query.eq).toHaveBeenCalledWith("user_id", "member");
+    expect(query.eq).toHaveBeenCalledWith("kind", "look");
+    expect(query.eq).toHaveBeenCalledWith("client_request_id", "request-1");
+    expect(query.abortSignal).toHaveBeenCalled();
+  });
+
+  it("answers no job when the press never reached the server, and unavailable without the migration", async () => {
+    mockQuery({ data: [], error: null });
+    await expect(fetchGenerationJobByRequest("member", "look", "request-1")).resolves.toEqual({
+      status: "ok",
+      job: null,
+    });
+    mockQuery({ data: null, error: { code: "PGRST205" } });
+    await expect(fetchGenerationJobByRequest("member", "look", "request-1")).resolves.toEqual({
+      status: "unavailable",
     });
   });
 });
@@ -212,7 +286,10 @@ describe("fetchGenerationImage", () => {
 
     expect(supabase.storage.from).toHaveBeenCalledWith("generations");
     expect(createSignedUrl).toHaveBeenCalledWith("member/job-1.jpg", expect.any(Number));
-    expect(global.fetch).toHaveBeenCalledWith("https://storage.test/signed/job-1.jpg");
+    expect(global.fetch).toHaveBeenCalledWith(
+      "https://storage.test/signed/job-1.jpg",
+      expect.objectContaining({ signal: expect.any(Object) }),
+    );
   });
 
   it("names the image type from its path when the download carries none, or not an image type", async () => {
@@ -238,6 +315,48 @@ describe("fetchGenerationImage", () => {
     ).rejects.toThrow();
     await expect(fetchGenerationImage({ ...sheetJob, image_path: null })).rejects.toThrow();
     expect(createSignedUrl).not.toHaveBeenCalled();
+  });
+
+  it("gives up on an image that does not arrive, so the slot can offer its retry", async () => {
+    jest.useFakeTimers();
+    try {
+      let downloadSignal: AbortSignal | undefined;
+      global.fetch = jest.fn(
+        (_url: string, init?: { signal?: AbortSignal }) =>
+          new Promise((_resolve, reject) => {
+            downloadSignal = init?.signal;
+            init?.signal?.addEventListener("abort", () => reject(new Error("Aborted")));
+          }),
+      ) as unknown as typeof fetch;
+      const read = fetchGenerationImage(sheetJob);
+      const settled = jest.fn();
+      read.then(settled, settled);
+
+      await jest.advanceTimersByTimeAsync(GENERATION_IMAGE_TIMEOUT_MS - 1);
+      expect(settled).not.toHaveBeenCalled();
+      await jest.advanceTimersByTimeAsync(1);
+
+      await expect(read).rejects.toBeTruthy();
+      expect(downloadSignal?.aborted).toBe(true);
+      expect(GENERATION_IMAGE_TIMEOUT_MS).toBe(30_000);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it("also gives up when the signed link itself never comes back", async () => {
+    jest.useFakeTimers();
+    try {
+      createSignedUrl.mockReturnValue(new Promise(() => {}));
+      const read = fetchGenerationImage(sheetJob);
+      const settled = jest.fn();
+      read.then(settled, settled);
+      await jest.advanceTimersByTimeAsync(GENERATION_IMAGE_TIMEOUT_MS);
+      expect(settled).toHaveBeenCalled();
+      await expect(read).rejects.toBeTruthy();
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it("fails when the signed link cannot be made or the download is refused", async () => {

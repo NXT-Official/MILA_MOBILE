@@ -94,9 +94,11 @@ it("reads her latest look, style sheet and portrait preview jobs", async () => {
   const { result } = await renderHook(() => useGenerationJobs(), { wrapper });
   await advance(0);
 
-  expect(fetchJob).toHaveBeenCalledWith("member", "look");
-  expect(fetchJob).toHaveBeenCalledWith("member", "style_sheet");
-  expect(fetchJob).toHaveBeenCalledWith("member", "photo_preview");
+  // Each read carries the query's own signal: a cancelled read stops at once.
+  const signal = expect.objectContaining({ aborted: false });
+  expect(fetchJob).toHaveBeenCalledWith("member", "look", signal);
+  expect(fetchJob).toHaveBeenCalledWith("member", "style_sheet", signal);
+  expect(fetchJob).toHaveBeenCalledWith("member", "photo_preview", signal);
   expect(result.current.available).toBe(true);
   expect(result.current.look?.id).toBe("look-job");
   expect(result.current.styleSheet).toBeNull();
@@ -201,7 +203,7 @@ describe("useGenerationImage", () => {
       failed: false,
     });
     expect(fetchImage).toHaveBeenCalledTimes(1);
-    expect(fetchImage).toHaveBeenCalledWith(done);
+    expect(fetchImage).toHaveBeenCalledWith(done, expect.objectContaining({ aborted: false }));
   });
 
   it("reads nothing without a succeeded render", async () => {

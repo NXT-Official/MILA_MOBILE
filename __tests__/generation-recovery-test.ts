@@ -6,6 +6,7 @@ import {
   jobIsForLook,
   jobOutcome,
   lookAlreadySaved,
+  lookKeyOf,
   lookInProgress,
   lookToRecover,
   parseStoredLook,
@@ -309,6 +310,17 @@ describe("weather of a recovered look", () => {
     expect(savedWeatherOf("24°C Sunny (in Manila)")).toBe("24°C Sunny (Manila)");
     expect(weatherBadgeOf(null)).toBeNull();
     expect(savedWeatherOf("Mild")).toBe("Mild");
+  });
+});
+
+describe("lookKeyOf", () => {
+  it("is a short stable fingerprint of the look, not its words", () => {
+    expect(lookKeyOf(LOOK)).toMatch(/^[0-9a-f]{14}$/);
+    expect(lookKeyOf({ ...LOOK })).toBe(lookKeyOf(LOOK));
+    expect(lookKeyOf(OTHER_LOOK)).not.toBe(lookKeyOf(LOOK));
+    // The same headline with a different description is a different look.
+    expect(lookKeyOf({ outfit: { ...LOOK.outfit, description: "A heavier layer." } })).not.toBe(lookKeyOf(LOOK));
+    expect(lookKeyOf(LOOK)).not.toContain("Linen");
   });
 });
 

@@ -52,11 +52,11 @@ export type GenerationJobsState = {
   readAt: number;
 };
 
-async function fetchLatestJobs(userId: string): Promise<LatestJobs> {
+async function fetchLatestJobs(userId: string, signal: AbortSignal): Promise<LatestJobs> {
   const [look, styleSheet, photoPreview] = await Promise.all([
-    fetchLatestGenerationJob(userId, "look"),
-    fetchLatestGenerationJob(userId, "style_sheet"),
-    fetchLatestGenerationJob(userId, "photo_preview"),
+    fetchLatestGenerationJob(userId, "look", signal),
+    fetchLatestGenerationJob(userId, "style_sheet", signal),
+    fetchLatestGenerationJob(userId, "photo_preview", signal),
   ]);
   if (look.status !== "ok" || styleSheet.status !== "ok" || photoPreview.status !== "ok") {
     return { status: "unavailable" };
@@ -82,7 +82,9 @@ export function useGenerationJobs(): GenerationJobsState {
     queryKey: key,
     enabled: Boolean(userId),
     staleTime: 0,
-    queryFn: () => fetchLatestJobs(userId as string),
+    // The query's own signal: a cancelled read (a foreground re-read replaces
+    // one still in flight) stops at once; each read also has its own deadline.
+    queryFn: ({ signal }) => fetchLatestJobs(userId as string, signal),
     // src: https://tanstack.com/query/v5/docs/framework/react/reference/useQuery
     //   refetchInterval: number | false | ((query) => number | false | undefined) · @tanstack/react-query 5.101.4
     refetchInterval: (current) => {
@@ -137,7 +139,7 @@ export function useGenerationImage(job: GenerationJob | null): GenerationImage {
     enabled: readable,
     staleTime: Infinity,
     gcTime: 10 * 60_000,
-    queryFn: () => fetchGenerationImage(job as GenerationJob),
+    queryFn: ({ signal }) => fetchGenerationImage(job as GenerationJob, signal),
   });
   const retry = () => void query.refetch();
   if (!readable) return { image: null, loading: false, failed: false, retry };

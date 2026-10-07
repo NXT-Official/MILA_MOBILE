@@ -77,9 +77,35 @@ export function parseStoredLook(result: Json | null): DailyLook | null {
 
 type LookLike = { outfit: { headline: string; description: string } };
 
-/** A look's identity for its visuals: what a render's request names as its look. */
+/**
+ * cyrb53: a small, well-distributed 53-bit string hash. Not cryptographic, and
+ * it does not need to be: it only tells her own looks apart.
+ */
+// src: https://github.com/bryc/code/blob/master/jshash/experimental/cyrb53.js (public domain)
+function cyrb53(text: string): number {
+  let h1 = 0xdeadbeef;
+  let h2 = 0x41c6ce57;
+  for (let index = 0; index < text.length; index += 1) {
+    const code = text.charCodeAt(index);
+    h1 = Math.imul(h1 ^ code, 2654435761);
+    h2 = Math.imul(h2 ^ code, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507);
+  h1 ^= Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507);
+  h2 ^= Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return 4294967296 * (2097151 & h2) + (h1 >>> 0);
+}
+
+/**
+ * A look's identity for its visuals: a short stable fingerprint of what a
+ * render's request names as its look (headline and description). A fingerprint,
+ * not the words, so it can be kept with her presses without storing her look.
+ */
 export function lookKeyOf(look: LookLike): string {
-  return `${look.outfit.headline}\n${look.outfit.description}`;
+  return cyrb53(`${look.outfit.headline}\n${look.outfit.description}`)
+    .toString(16)
+    .padStart(14, "0");
 }
 
 /** Whether a style sheet or portrait row was drawn for this look. */

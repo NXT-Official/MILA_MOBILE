@@ -80,6 +80,7 @@ jest.mock("../src/services/weather", () => ({
 }));
 jest.mock("../src/services/supabase/generation-jobs", () => ({
   fetchLatestGenerationJob: jest.fn(),
+  fetchGenerationJobByRequest: jest.fn(),
   fetchGenerationImage: jest.fn(),
   newClientRequestId: jest.fn(),
 }));
@@ -97,9 +98,11 @@ function mutationStub() {
     isError: false,
     error: null as unknown,
     variables: undefined as unknown,
+    submittedAt: 0,
     // What TanStack reports once the press has re-rendered: its variables, pending.
     mutate: jest.fn((variables: unknown, _callbacks?: Callbacks) => {
       stub.variables = variables;
+      stub.submittedAt = Date.now();
       stub.isPending = true;
       stub.isError = false;
       stub.data = undefined;
@@ -163,16 +166,21 @@ jest.mock("../src/features/dashboard/hooks/use-save-look", () => ({
 }));
 
 import { HomeScreen } from "@/features/dashboard/HomeScreen";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
 import { ApiError } from "@/services/api/errors";
 import {
   fetchGenerationImage,
+  fetchGenerationJobByRequest,
   fetchLatestGenerationJob,
   newClientRequestId,
 } from "@/services/supabase/generation-jobs";
 import { fetchHubWeather } from "@/services/weather";
 import { useGenerationPressStore } from "@/stores/generation-press-store";
+import { useVibeStore } from "@/stores/vibe-store";
 
 const fetchJob = jest.mocked(fetchLatestGenerationJob);
+const fetchByRequest = jest.mocked(fetchGenerationJobByRequest);
 const fetchImage = jest.mocked(fetchGenerationImage);
 
 const WEATHER = {
@@ -365,9 +373,13 @@ async function foreground() {
 }
 
 /** A press of hers this phone remembers from before a restart. */
-function rememberPress(kind: "look" | "style_sheet", id: string, lookKey: string | null = null) {
-  useGenerationPressStore.getState().remember("member", kind, { id, at: Date.now(), lookKey });
+function rememberPress(kind: "look" | "style_sheet", id: string, at: number = Date.now()) {
+  useGenerationPressStore
+    .getState()
+    .remember("member", kind, { id, at, fingerprint: null, context: null });
 }
+
+const HOUR = 3_600_000;
 
 const composingProgress = () => screen.queryByLabelText("Composing your look");
 const failureCopy = () =>
@@ -390,6 +402,8 @@ beforeEach(() => {
   jobsUnavailable = false;
   nextId = 0;
   useGenerationPressStore.setState({ presses: {}, hydrated: true });
+  useVibeStore.setState({ vibe: "Everyday Casual" });
+  fetchByRequest.mockResolvedValue({ status: "ok", job: null });
   jest.mocked(newClientRequestId).mockImplementation(() => `request-${(nextId += 1)}`);
   jest.mocked(fetchHubWeather).mockResolvedValue(WEATHER);
   fetchJob.mockImplementation(async (_userId, kind) =>
@@ -538,6 +552,27 @@ describe("Try again after a call that ended", () => {
     await fireEvent.press(screen.getByRole("button", { name: "Retry visual" }));
 
     expect(mockState.styleSheet.mutate.mock.calls.map(keyOf)).toEqual(["request-2", "request-2"]);
+  });
+
+  it("sends a new key for New visual once that sheet's own image is on screen", async () => {
+    await mount();
+    await fireEvent.press(await createButton());
+    await answer(mockState.generate, LOOK);
+    await fail(mockState.styleSheet, lost());
+    // Its job finished after all, and its image is read back and shown.
+    rows.style_sheet = sheetFor(LOOK, {
+      client_request_id: "request-2",
+      status: "succeeded",
+      image_path: "member/sheet-job.jpg",
+    });
+    await foreground();
+    expect(sheetImageOf(LOOK)).toBeTruthy();
+
+    await fireEvent.press(screen.getByRole("button", { name: "New visual" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Use 1 credit" }));
+
+    // A redraw is a new request: resending would only replay the same image.
+    expect(mockState.styleSheet.mutate.mock.calls.map(keyOf)).toEqual(["request-2", "request-3"]);
   });
 });
 
@@ -740,7 +775,7 @@ describe("a visual drawn while she was away", () => {
     rows.style_sheet = sheet;
     await mount();
 
-    expect(fetchImage).toHaveBeenCalledWith(sheet);
+    expect(fetchImage).toHaveBeenCalledWith(sheet, expect.anything());
     expect(sheetImageOf(LOOK)).toBeTruthy();
     expect(mockState.styleSheet.mutate).not.toHaveBeenCalled();
   });
@@ -759,6 +794,18 @@ describe("a visual drawn while she was away", () => {
     expect(mockState.styleSheet.mutate).not.toHaveBeenCalled();
     expect(fetchImage).toHaveBeenCalledTimes(2);
     expect(sheetImageOf(LOOK)).toBeTruthy();
+  });
+
+  it("never holds Create or Try another when its read timed out: the slot offers its retry", async () => {
+    rows.look = doneLook(LOOK);
+    rows.style_sheet = sheetFor(LOOK, { status: "succeeded", image_path: "member/sheet-job.jpg" });
+    // The service gives up after its deadline (pinned in generation-jobs-service-test).
+    fetchImage.mockRejectedValue(new Error("The image took too long to load."));
+    await mount();
+
+    expect(screen.getByText("Your style sheet is ready, but it couldn't be loaded.")).toBeTruthy();
+    expect(isDisabled(screen.getByRole("button", { name: "Retry visual" }))).toBe(false);
+    expect(isDisabled(screen.getByRole("button", { name: "Try another look" }))).toBe(false);
   });
 
   it("is shown as still rendering, and keeps the next look from being charged on top of it", async () => {
@@ -855,5 +902,210 @@ describe("while the generation_jobs migration is missing", () => {
 
     expect(screen.queryByText(/hasn't been drawn yet/)).toBeNull();
     expect(screen.queryByRole("button", { name: "Draw style sheet" })).toBeNull();
+  });
+});
+
+describe("a press key is never forgotten while its job might still be running or unseen", () => {
+  it("is resent after 31 minutes with no successful read, so the first look lands with one charge", async () => {
+    await mount();
+    await fireEvent.press(await createButton());
+    await fail(mockState.generate, lost());
+
+    // Still offline: every read of her jobs fails for over half an hour.
+    fetchJob.mockRejectedValue(new Error("offline"));
+    await advance(31 * 60_000);
+    await settle();
+
+    await fireEvent.press(screen.getByRole("button", { name: "Try again" }));
+    expect(mockState.generate.mutate.mock.calls.map(keyOf)).toEqual(["request-1", "request-1"]);
+    expect(newClientRequestId).toHaveBeenCalledTimes(1);
+
+    // The server replays the look it already made for that key.
+    await answer(mockState.generate, { ...LOOK, jobId: "look-job" });
+    expect(screen.getByText("Linen and light")).toBeTruthy();
+  });
+
+  it("measures the window from the last time the key was sent", async () => {
+    await mount();
+    await fireEvent.press(await createButton());
+    await fail(mockState.generate, lost());
+
+    await advance(11 * HOUR);
+    await fireEvent.press(screen.getByRole("button", { name: "Try again" }));
+    await fail(mockState.generate, lost());
+
+    // 13 h after the first send, 2 h after the last: still the same key.
+    await advance(2 * HOUR);
+    await fireEvent.press(screen.getByRole("button", { name: "Try again" }));
+    expect(mockState.generate.mutate.mock.calls.map(keyOf)).toEqual([
+      "request-1",
+      "request-1",
+      "request-1",
+    ]);
+    expect(fetchByRequest).not.toHaveBeenCalled();
+  });
+
+  describe("past the 12 hour window, her row for the old key is asked first", () => {
+    beforeEach(() => rememberPress("look", "request-old", Date.now() - 13 * HOUR));
+
+    it.each([
+      ["still running", job({ client_request_id: "request-old" })],
+      ["finished", job({ client_request_id: "request-old", status: "succeeded", result: LOOK })],
+    ])("resends the old key when that job is %s", async (_label, row) => {
+      fetchByRequest.mockResolvedValue({ status: "ok", job: row });
+      await mount();
+      await fireEvent.press(await createButton());
+      await settle();
+
+      expect(fetchByRequest).toHaveBeenCalledWith("member", "look", "request-old");
+      expect(mockState.generate.mutate.mock.calls.map(keyOf)).toEqual(["request-old"]);
+    });
+
+    it.each([
+      ["failed", job({ client_request_id: "request-old", status: "failed" })],
+      ["never arrived", null],
+    ])("mints a new key when that job %s", async (_label, row) => {
+      fetchByRequest.mockResolvedValue({ status: "ok", job: row });
+      await mount();
+      await fireEvent.press(await createButton());
+      await settle();
+
+      expect(mockState.generate.mutate.mock.calls.map(keyOf)).toEqual(["request-1"]);
+    });
+
+    it("resends the old key when its row cannot be read in time", async () => {
+      fetchByRequest.mockRejectedValue(new Error("timed out"));
+      await mount();
+      await fireEvent.press(await createButton());
+      await settle();
+
+      expect(mockState.generate.mutate.mock.calls.map(keyOf)).toEqual(["request-old"]);
+    });
+
+    it("shows the press as composing while it asks, and a second tap sends nothing", async () => {
+      let answerRead: (value: { status: "ok"; job: null }) => void = () => {};
+      fetchByRequest.mockReturnValue(new Promise((resolve) => (answerRead = resolve)));
+      await mount();
+      await fireEvent.press(await createButton());
+      expect(composingProgress()).toBeTruthy();
+      await fireEvent.press(screen.getByRole("button", { name: /^Composing/ }));
+
+      await act(async () => answerRead({ status: "ok", job: null }));
+      await settle();
+      expect(mockState.generate.mutate).toHaveBeenCalledTimes(1);
+      expect(fetchByRequest).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("is kept when the phone clock (10 min ahead) calls her running job dead, and resent", async () => {
+    rememberPress("look", "request-7");
+    const serverNow = Date.now() - 10 * 60_000;
+    rows.look = job({
+      client_request_id: "request-7",
+      created_at: new Date(serverNow - 60_000).toISOString(),
+      deadline_at: new Date(serverNow + 4 * 60_000).toISOString(),
+    });
+    await mount();
+
+    // The phone reads the job as dead, but the row never said it failed.
+    expect(composingProgress()).toBeNull();
+    expect(screen.queryByText(/couldn't finish/)).toBeNull();
+    expect(useGenerationPressStore.getState().presses.member?.look?.map((p) => p.id)).toEqual([
+      "request-7",
+    ]);
+
+    await fireEvent.press(await createButton());
+    expect(mockState.generate.mutate.mock.calls.map(keyOf)).toEqual(["request-7"]);
+  });
+
+  it("sends one request when Try again is tapped twice before the screen catches up", async () => {
+    await mount();
+    await fireEvent.press(await createButton());
+    await fail(mockState.generate, lost());
+
+    // The resend lands, but this render still shows the failed attempt (same key, not pending).
+    mockState.generate.mutate.mockImplementationOnce((variables: unknown) => {
+      mockState.generate.variables = variables;
+    });
+    const tryAgain = screen.getByRole("button", { name: "Try again" });
+    await fireEvent.press(tryAgain);
+    await fireEvent.press(tryAgain);
+
+    expect(mockState.generate.mutate).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("a look the server replayed under an old key", () => {
+  it("is badged and saved with that press's own vibe and weather, not the new press's", async () => {
+    await mount();
+    await fireEvent.press(await createButton());
+    await fail(mockState.generate, lost());
+
+    // She changes the vibe, then tries again: the old key is resent and replayed.
+    await act(async () => useVibeStore.setState({ vibe: "Date Night" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Try again" }));
+    await answer(mockState.generate, { ...LOOK, jobId: "look-job" });
+    await answer(mockState.styleSheet, { mode: "style_sheet", imageDataUri: IMAGE });
+
+    expect(screen.getByText("Everyday Casual")).toBeTruthy();
+    expect(screen.queryByText("Date Night")).toBeNull();
+    await fireEvent.press(saveButton());
+    expect(mockState.saveMutate).toHaveBeenCalledWith(
+      expect.objectContaining({ vibe: "Everyday Casual", weather: "24°C Sunny (Manila)" }),
+      expect.anything(),
+    );
+  });
+
+  it("takes the vibe and weather from that job's row once it is read", async () => {
+    await mount();
+    await fireEvent.press(await createButton());
+    await fail(mockState.generate, lost());
+    rows.look = job({
+      client_request_id: "request-1",
+      status: "succeeded",
+      result: LOOK,
+      look_input: { vibe: "Brunch", weather: "18°C Rain (in Manila)" },
+    });
+
+    await fireEvent.press(screen.getByRole("button", { name: "Try again" }));
+    await answer(mockState.generate, { ...LOOK, jobId: "look-job" });
+    await answer(mockState.styleSheet, { mode: "style_sheet", imageDataUri: IMAGE });
+
+    expect(screen.getByText("Brunch")).toBeTruthy();
+    await fireEvent.press(saveButton());
+    expect(mockState.saveMutate).toHaveBeenCalledWith(
+      expect.objectContaining({ vibe: "Brunch", weather: "18°C Rain (Manila)" }),
+      expect.anything(),
+    );
+  });
+});
+
+describe("a look from her own press, still on screen the next morning", () => {
+  it("is labelled with its time like any look from before today", async () => {
+    jest.setSystemTime(new Date(2026, 9, 6, 23, 40, 0));
+    await mount();
+    await fireEvent.press(await createButton());
+    await answer(mockState.generate, { ...LOOK, jobId: "look-job" });
+    expect(screen.queryByText(/^From /)).toBeNull();
+
+    jest.setSystemTime(new Date(2026, 9, 7, 7, 40, 0));
+    await foreground();
+
+    expect(screen.getByText("From last night, 11:40 PM")).toBeTruthy();
+  });
+});
+
+describe("her presses on this phone", () => {
+  it("never keep her look's words, only a fingerprint", async () => {
+    await mount();
+    await fireEvent.press(await createButton());
+    await answer(mockState.generate, LOOK);
+    await fail(mockState.styleSheet, lost());
+    await settle();
+
+    const stored = (await AsyncStorage.getItem("mila-generation-presses")) ?? "";
+    expect(stored).toContain("request-2");
+    expect(stored).not.toContain("Linen");
+    expect(stored).not.toContain("light layer");
   });
 });

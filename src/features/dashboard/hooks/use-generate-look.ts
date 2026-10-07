@@ -40,9 +40,11 @@ export type GenerateLookVariables = { weather: ClimateState; vibe: Vibe } & Look
  * `look_image_pending` so the first visual is free. The visual is a separate
  * call and must stay separate: the accounting depends on the sequence (§6).
  *
- * No retry. A retried credit-charging call is a double charge, and the query
- * client's `mutations: { retry: false }` default is restated nowhere because it
- * applies to every mutation in the app.
+ * No retry. A retried credit-charging call is a double charge, so `retry: false`
+ * is set on this hook itself as well as being the query client's default for
+ * every mutation: the hook stays safe whatever client it runs under. A retry she
+ * asks for ("Try again") resends the same key after a dropped connection, so
+ * the server replays or follows the job she already paid for.
  */
 export function useGenerateLook() {
   const userId = useAuthStore((s) => s.session?.user.id ?? null);

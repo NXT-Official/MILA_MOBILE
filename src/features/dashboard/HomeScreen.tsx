@@ -26,13 +26,20 @@ import { isStyleProfileComplete, toStyleProfileRow } from "@/lib/style-profile/c
 import { formatRetryAfter, resolveApiFailure } from "@/services/api/client";
 import { isGenerationRunning, isLostAnswer } from "@/services/api/look";
 import { files } from "@/services/files";
-import { newClientRequestId, type GenerationJob } from "@/services/supabase/generation-jobs";
+import {
+  fetchGenerationJobByRequest,
+  newClientRequestId,
+  type GenerationJob,
+} from "@/services/supabase/generation-jobs";
 import { useAuthStore } from "@/stores/auth-store";
 import { useConciergeStore } from "@/stores/concierge-store";
 import {
+  expiredPress,
   pendingPresses,
   retryablePress,
   useGenerationPressStore,
+  type PressContext,
+  type PressEntry,
   type PressKind,
 } from "@/stores/generation-press-store";
 import { useVibeStore } from "@/stores/vibe-store";
@@ -69,7 +76,7 @@ import {
   type RecoveredLook,
   type VisualRecovery,
 } from "./generation-recovery";
-import { useGenerateLook } from "./hooks/use-generate-look";
+import { useGenerateLook, type GenerateLookVariables } from "./hooks/use-generate-look";
 import {
   GENERATION_MUTATION_KEYS,
   useGenerationImage,
@@ -104,6 +111,26 @@ import { useWeather } from "./hooks/use-weather";
 type LookImage = { lookKey: string; uri: string };
 /** A press for a visual: its key, the job it was told to follow, and the look it was for. */
 type VisualPress = GenerationAction & { lookKey: string };
+/** The key a look press sends, what it asked for, and whether it resends an earlier one. */
+type LookPressKey = { id: string; context: PressContext; resent: boolean };
+
+/**
+ * What her row says about an old unanswered look key, asked within the read's
+ * own 10 s deadline: "resend" while that job runs or has finished (it is then
+ * followed or replayed, one charge), and when the row cannot be read in time
+ * (resending is always safe); "mint" when it failed or never arrived.
+ * Module level, outside the screen: the compiler does not optimise a try block.
+ */
+async function oldLookKeyDecision(userId: string, id: string): Promise<"resend" | "mint"> {
+  try {
+    const read = await fetchGenerationJobByRequest(userId, "look", id);
+    return read.status === "ok" && read.job !== null && read.job.status !== "failed"
+      ? "resend"
+      : "mint";
+  } catch {
+    return "resend";
+  }
+}
 
 export function HomeScreen() {
   const [hubSheetOpen, setHubSheetOpen] = useState(false);
@@ -145,9 +172,10 @@ export function HomeScreen() {
   /**
    * A press is one request (R7). These hold what is in flight synchronously, so
    * a second tap that lands before the re-render cannot send a second request:
-   * the look press's key, and the look run each visual was asked for under.
+   * the look press (its key once decided, and the hook's last submission when
+   * it began), and the look run each visual was asked for under.
    */
-  const lookInFlight = useRef<string | null>(null);
+  const lookInFlight = useRef<{ key: string | null; since: number } | null>(null);
   const sheetInFlightRun = useRef<number | null>(null);
   const previewInFlightRun = useRef<number | null>(null);
   /**
@@ -168,6 +196,16 @@ export function HomeScreen() {
   const [recovered, setRecovered] = useState<RecoveredLook | null>(null);
   /** Her own look job failed out of sight (after a dropped connection or a restart). */
   const [lookNotice, setLookNotice] = useState<string | null>(null);
+  /**
+   * The press resent an earlier key: what that earlier press asked for. The
+   * server may answer with the look it already made for it, which is shown and
+   * saved as what it was, not as what she has picked since.
+   */
+  const [replayOf, setReplayOf] = useState<{ key: string; context: PressContext } | null>(null);
+  /** When this screen's own look answer arrived (device time). */
+  const [pressAnsweredAt, setPressAnsweredAt] = useState<number | null>(null);
+  /** Her row for an old unanswered key is being asked before this press is sent. */
+  const [resolvingPress, setResolvingPress] = useState(false);
   /** The job ids already acted on: a look is put back, or a failure told, once. */
   const adoptedJob = useRef<string | null>(null);
   const reportedJob = useRef<string | null>(null);
@@ -209,7 +247,8 @@ export function HomeScreen() {
   const lookFromPress =
     generate.data && !isGenerationRunning(generate.data) ? generate.data : null;
   const shownLook = generate.isPending ? null : (lookFromPress ?? recovered?.look ?? null);
-  const pressedHere = (Boolean(generate.variables) && !lookFromPress) || lookMutations > 0;
+  const pressedHere =
+    (Boolean(generate.variables) && !lookFromPress) || lookMutations > 0 || resolvingPress;
   const latestLook = jobs.look?.status === "succeeded" ? parseStoredLook(jobs.look.result) : null;
   const lookRecovery = recoverLook({
     job: jobs.look,
@@ -222,24 +261,52 @@ export function HomeScreen() {
     nowMs: jobs.readAt,
   });
   const composing =
-    generate.isPending || lookRecovery.composing || (jobs.available && lookMutations > 0);
+    generate.isPending ||
+    resolvingPress ||
+    lookRecovery.composing ||
+    (jobs.available && lookMutations > 0);
   const look = composing ? null : shownLook;
   const lookKey = look ? lookKeyOf(look) : null;
   const seasonId = toSeasonId(profile?.color_season);
   const canRenderVisual = Boolean(profile?.photo_consent_at);
 
   /**
-   * A look put back from before today is saved and badged under the vibe and
-   * weather it was composed for, and says when it is from.
+   * A look put back from its job, or replayed by the server under an earlier
+   * key, is saved and badged under the vibe and weather it was composed for:
+   * its row's own when the row has been read, else what that press asked for.
+   * Any look from before today says when it is from.
    */
   const recoveredOnScreen = look && !lookFromPress && recovered ? recovered : null;
-  const lookVibe =
-    recoveredOnScreen?.vibe && isVibe(recoveredOnScreen.vibe) ? recoveredOnScreen.vibe : vibe;
-  const lookFrom = recoveredOnScreen
-    ? recoveredLookLabel(recoveredOnScreen.finishedAt, jobs.readAt)
-    : null;
+  const replay =
+    look && lookFromPress && replayOf && generate.variables?.clientRequestId === replayOf.key
+      ? replayOf
+      : null;
+  const replayRow =
+    replay && jobs.look?.client_request_id === replay.key ? jobs.look.look_input : null;
+  const lookContext: { vibe: string | null; weather: string | null } | null =
+    recoveredOnScreen ??
+    (replay
+      ? {
+          vibe: replayRow?.vibe ?? replay.context.vibe,
+          weather: replayRow?.weather ?? replay.context.weather,
+        }
+      : null);
+  const lookVibe = lookContext?.vibe && isVibe(lookContext.vibe) ? lookContext.vibe : vibe;
+  const pressJob =
+    lookFromPress?.jobId && jobs.look?.id === lookFromPress.jobId ? jobs.look : null;
+  const lookFinishedAt = recoveredOnScreen
+    ? recoveredOnScreen.finishedAt
+    : pressJob
+      ? Date.parse(pressJob.completed_at ?? pressJob.created_at)
+      : pressAnsweredAt;
+  // The clock is the last read of her jobs (no clock in render): the label
+  // appears with the first read of the new day, e.g. on coming back in the morning.
+  const lookFrom =
+    look && lookFinishedAt !== null && jobs.readAt > 0
+      ? recoveredLookLabel(lookFinishedAt, jobs.readAt)
+      : null;
   const lookWeatherBadge =
-    lookFrom ?? weatherBadgeOf(recoveredOnScreen?.weather ?? null) ?? weather.data?.label ?? null;
+    lookFrom ?? weatherBadgeOf(lookContext?.weather ?? null) ?? weather.data?.label ?? null;
 
   /**
    * The visuals: what arrived on this screen for the look on screen, else the
@@ -345,29 +412,99 @@ export function HomeScreen() {
     return kind === "paywall" || kind === "rate-limited" || kind === "suspended" || kind === "auth";
   }
 
-  /**
-   * The key a press sends. An earlier press of hers for the same thing that
-   * never heard back from the server is RESENT with its own key: the server
-   * replays its result, reports it running, or starts it if it never arrived,
-   * so a retry after a dropped connection never pays twice. A key whose job
-   * row has already ended is spent, and a fresh one is minted.
-   */
-  function pressKey(kind: PressKind, forLook: string | null, latest: GenerationJob | null): string {
-    if (!userId) return newClientRequestId();
-    const store = useGenerationPressStore.getState();
-    const earlier = retryablePress(pendingPresses(store, userId, kind, Date.now()), forLook);
-    if (earlier && !(latest?.client_request_id === earlier.id && latest.status !== "running")) {
-      return earlier.id;
-    }
-    if (earlier) store.settle(userId, kind, earlier.id);
-    const id = newClientRequestId();
-    store.remember(userId, kind, { id, at: Date.now(), lookKey: forLook });
-    return id;
-  }
-
   /** The server answered this press (a result or a real error): its key is spent. */
   function settlePress(kind: PressKind, id: string) {
     if (userId) useGenerationPressStore.getState().settle(userId, kind, id);
+  }
+
+  /**
+   * The key a visual press sends. An earlier press of hers for the same look
+   * that never heard back from the server is RESENT with its own key (its time
+   * refreshed): the server replays its result, reports it running, or starts it
+   * if it never arrived, so a retry after a dropped connection never pays
+   * twice. A key is spent only when its row says so: failed, or succeeded and
+   * already on screen (a redraw is then a new request).
+   */
+  function visualPressKey(
+    kind: "style_sheet" | "photo_preview",
+    fingerprint: string,
+    latest: GenerationJob | null,
+    shownJobId: string | null,
+  ): string {
+    if (!userId) return newClientRequestId();
+    const store = useGenerationPressStore.getState();
+    const now = Date.now();
+    const earlier = retryablePress(pendingPresses(store, userId, kind, now), fingerprint);
+    if (earlier) {
+      const ended =
+        latest?.client_request_id === earlier.id &&
+        (latest.status === "failed" || (latest.status === "succeeded" && latest.id === shownJobId));
+      if (!ended) {
+        store.remember(userId, kind, { ...earlier, at: now });
+        return earlier.id;
+      }
+      store.settle(userId, kind, earlier.id);
+    }
+    const id = newClientRequestId();
+    store.remember(userId, kind, { id, at: now, fingerprint });
+    return id;
+  }
+
+  /** Sends an earlier look key again, its time refreshed (R-1). */
+  function resendLookKey(entry: PressEntry, fallback: PressContext): LookPressKey {
+    if (userId) useGenerationPressStore.getState().remember(userId, "look", { ...entry, at: Date.now() });
+    return { id: entry.id, context: entry.context ?? fallback, resent: true };
+  }
+
+  function mintLookKey(context: PressContext): LookPressKey {
+    const id = newClientRequestId();
+    if (userId) {
+      useGenerationPressStore
+        .getState()
+        .remember(userId, "look", { id, at: Date.now(), fingerprint: null, context });
+    }
+    return { id, context, resent: false };
+  }
+
+  /**
+   * The key a look press sends. Her newest unanswered look key inside the 12 h
+   * window is resent, whatever the phone clock thinks of its job: only her row
+   * saying `failed` spends it (the server reaps a dead job before it charges,
+   * so a resend is always one charge). Past the window, her row for the old
+   * key is asked first (`expired`); with none, a fresh key is minted.
+   */
+  function lookPressKey(context: PressContext): LookPressKey | { expired: PressEntry } {
+    if (!userId) return { id: newClientRequestId(), context, resent: false };
+    const store = useGenerationPressStore.getState();
+    const now = Date.now();
+    const earlier = retryablePress(pendingPresses(store, userId, "look", now), null);
+    if (earlier) {
+      if (jobs.look?.client_request_id !== earlier.id || jobs.look.status !== "failed") {
+        return resendLookKey(earlier, context);
+      }
+      store.settle(userId, "look", earlier.id);
+    }
+    const expired = expiredPress(store, userId, "look", now);
+    if (expired) return { expired };
+    return mintLookKey(context);
+  }
+
+  /**
+   * An old unanswered key past the window: her row decides (its read has the
+   * same 10 s deadline as every other). Running or finished: the old key is
+   * sent again, so that job is followed or replayed (one charge). Failed or
+   * never arrived: a new key. Unreadable: the old key, which is always safe.
+   */
+  async function lookPressKeyAfterAsking(
+    entry: PressEntry,
+    context: PressContext,
+  ): Promise<LookPressKey> {
+    if (!userId) return mintLookKey(context);
+    if ((await oldLookKeyDecision(userId, entry.id)) === "resend") {
+      return resendLookKey(entry, context);
+    }
+    settlePress("look", entry.id);
+    return mintLookKey(context);
   }
 
   function requestStyleSheet(currentLook: DailyLook) {
@@ -392,7 +529,12 @@ export function HomeScreen() {
     save.reset();
 
     const press: VisualPress = {
-      clientRequestId: pressKey("style_sheet", forLook, jobs.styleSheet),
+      clientRequestId: visualPressKey(
+        "style_sheet",
+        forLook,
+        jobs.styleSheet,
+        recoveredSheet.image ? (sheetRecovery.succeededJob?.id ?? null) : null,
+      ),
       lookKey: forLook,
     };
     setSheetPress(press);
@@ -454,7 +596,12 @@ export function HomeScreen() {
     save.reset();
 
     const press: VisualPress = {
-      clientRequestId: pressKey("photo_preview", forLook, jobs.photoPreview),
+      clientRequestId: visualPressKey(
+        "photo_preview",
+        forLook,
+        jobs.photoPreview,
+        recoveredPreview.image ? (previewRecovery.succeededJob?.id ?? null) : null,
+      ),
       lookKey: forLook,
     };
     setPreviewPress(press);
@@ -514,25 +661,58 @@ export function HomeScreen() {
 
   /**
    * A look press is in flight until its answer lands here, or until the hook
-   * shows it took that press and is no longer pending (an answer this screen
-   * never heard, e.g. a mutation reset mid-flight, must not leave the CTA dead).
+   * shows a NEW submission since the press began and is done with it (an
+   * answer this screen never heard, e.g. a mutation reset mid-flight, must not
+   * leave the CTA dead). Judged by the submission, not the key: a resend has
+   * the same key as the failed attempt still on screen, so a second tap before
+   * the re-render would otherwise read as "already done" and send again.
    */
   function lookPressInFlight(): boolean {
-    const key = lookInFlight.current;
-    if (key === null) return false;
-    if (generate.variables?.clientRequestId === key && !generate.isPending) {
+    const pending = lookInFlight.current;
+    if (pending === null) return false;
+    if (pending.key !== null && generate.submittedAt !== pending.since && !generate.isPending) {
       lookInFlight.current = null;
       return false;
     }
     return true;
   }
 
+  function sendLook(request: Omit<GenerateLookVariables, "clientRequestId">, key: LookPressKey) {
+    const clientRequestId = key.id;
+    if (lookInFlight.current) lookInFlight.current.key = clientRequestId;
+    setReplayOf(key.resent ? { key: clientRequestId, context: key.context } : null);
+    setPressAnsweredAt(null);
+
+    generate.mutate(
+      { ...request, clientRequestId },
+      {
+        onSuccess: (nextLook) => {
+          if (lookInFlight.current?.key === clientRequestId) lookInFlight.current = null;
+          // Another request of this look is still being composed: its job is
+          // followed (and shown) until it settles. Nothing was charged here.
+          if (isGenerationRunning(nextLook)) return;
+          settlePress("look", clientRequestId);
+          setPressAnsweredAt(Date.now());
+          AccessibilityInfo.announceForAccessibility(`${nextLook.outfit.headline}.`);
+          // The web's rule, verbatim: a visual requires a consented photo —
+          // there is no stock-model fallback. No consent, no attempt.
+          if (profile?.photo_consent_at) requestStyleSheet(nextLook);
+        },
+        onError: (error) => {
+          if (lookInFlight.current?.key === clientRequestId) lookInFlight.current = null;
+          // No answer from the server: the key is kept, and Try again resends it.
+          if (!isLostAnswer(error)) settlePress("look", clientRequestId);
+          handleFailure(error);
+        },
+      },
+    );
+  }
+
   function handleGenerate() {
     // One press, one request: a second tap that lands before the re-render is
     // the same press, not a second paid look.
     if (!weather.data || lookPressInFlight()) return;
-    const clientRequestId = pressKey("look", null, jobs.look);
-    lookInFlight.current = clientRequestId;
+    lookInFlight.current = { key: null, since: generate.submittedAt };
     haptics.selection();
     lookRun.current += 1;
     // "Try another look" clears the look on screen and everything drawn for it at once.
@@ -540,35 +720,28 @@ export function HomeScreen() {
     setLookNotice(null);
     clearVisuals();
 
-    generate.mutate(
-      {
-        weather: weather.data,
-        vibe,
-        agenda: plan.agenda,
-        dressCode: plan.dressCode,
-        indoorOutdoor: plan.indoorOutdoor || undefined,
-        clientRequestId,
-      },
-      {
-        onSuccess: (nextLook) => {
-          if (lookInFlight.current === clientRequestId) lookInFlight.current = null;
-          // Another request of this look is still being composed: its job is
-          // followed (and shown) until it settles. Nothing was charged here.
-          if (isGenerationRunning(nextLook)) return;
-          settlePress("look", clientRequestId);
-          AccessibilityInfo.announceForAccessibility(`${nextLook.outfit.headline}.`);
-          // The web's rule, verbatim: a visual requires a consented photo —
-          // there is no stock-model fallback. No consent, no attempt.
-          if (profile?.photo_consent_at) requestStyleSheet(nextLook);
-        },
-        onError: (error) => {
-          if (lookInFlight.current === clientRequestId) lookInFlight.current = null;
-          // No answer from the server: the key is kept, and Try again resends it.
-          if (!isLostAnswer(error)) settlePress("look", clientRequestId);
-          handleFailure(error);
-        },
-      },
-    );
+    const request: Omit<GenerateLookVariables, "clientRequestId"> = {
+      weather: weather.data,
+      vibe,
+      agenda: plan.agenda,
+      dressCode: plan.dressCode,
+      indoorOutdoor: plan.indoorOutdoor || undefined,
+    };
+    // The same weather string the request sends (and the row stores).
+    const context: PressContext = {
+      vibe,
+      weather: `${weather.data.label} (in ${weather.data.location})`,
+    };
+    const decided = lookPressKey(context);
+    if ("expired" in decided) {
+      setResolvingPress(true);
+      void lookPressKeyAfterAsking(decided.expired, context).then((key) => {
+        setResolvingPress(false);
+        sendLook(request, key);
+      });
+      return;
+    }
+    sendLook(request, decided);
   }
 
   /**
@@ -606,6 +779,8 @@ export function HomeScreen() {
    * Her own look job that ended without a look she could see: its key is spent,
    * and a real failure says whether her credit is back (the row's word, §7).
    * Delivered-but-unsaved was charged and handed over: never a failure (N7).
+   * Only the row saying `failed` ends it: a job the phone clock calls dead may
+   * still be running, and its key must stay hers (it is resent, never replaced).
    */
   const reportOwnLookEnded = useEffectEvent((job: GenerationJob) => {
     settlePress("look", job.client_request_id);
@@ -613,10 +788,7 @@ export function HomeScreen() {
     if (notice) setLookNotice(notice);
   });
   const ownEndedJob =
-    jobs.look &&
-    ownLookIds.includes(jobs.look.client_request_id) &&
-    !lookRecovery.composing &&
-    jobs.look.status !== "succeeded"
+    jobs.look && ownLookIds.includes(jobs.look.client_request_id) && jobs.look.status === "failed"
       ? jobs.look
       : null;
   useEffect(() => {
@@ -630,10 +802,10 @@ export function HomeScreen() {
     // what gets saved.
     const imageToSave = shownSheetImage ?? shownPreviewImage;
     // The web's saved string, verbatim — `label (location)`, no "in", unlike
-    // the generate payload. A look put back from its job is saved under the
-    // weather it was composed for.
-    const savedWeather = recoveredOnScreen?.weather
-      ? savedWeatherOf(recoveredOnScreen.weather)
+    // the generate payload. A look put back from its job, or replayed under an
+    // earlier key, is saved under the weather it was composed for.
+    const savedWeather = lookContext?.weather
+      ? savedWeatherOf(lookContext.weather)
       : weather.data
         ? `${weather.data.label} (${weather.data.location})`
         : null;
