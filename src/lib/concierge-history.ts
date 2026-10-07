@@ -30,9 +30,13 @@ export const MAX_MESSAGE_LENGTH = 2000;
 type SourceMessage = { role: ChatRole; content: string; failed?: boolean };
 
 function capTurn(content: string): string {
-  return content.length <= MAX_TURN_CHARACTERS
-    ? content
-    : `${content.slice(0, MAX_TURN_CHARACTERS - 1)}…`;
+  if (content.length <= MAX_TURN_CHARACTERS) return content;
+  let end = MAX_TURN_CHARACTERS - 1;
+  // Back off one unit rather than leave half of a surrogate pair (an emoji) at
+  // the cut, which would reach the server as an invalid lone surrogate.
+  const last = content.charCodeAt(end - 1);
+  if (last >= 0xd800 && last <= 0xdbff) end -= 1;
+  return `${content.slice(0, end)}…`;
 }
 
 /**

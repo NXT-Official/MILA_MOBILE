@@ -1,8 +1,9 @@
 import { router } from "expo-router";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { Text, View } from "react-native";
 
-import { CaptchaGate, type CaptchaGateHandle } from "@/components/feedback/CaptchaGate";
+import { CaptchaGate } from "@/components/feedback/CaptchaGate";
+import { useCaptchaGate } from "@/components/feedback/use-captcha-gate";
 import { Screen } from "@/components/layout/Screen";
 import { Button } from "@/components/ui/Button";
 import { InlineError } from "@/components/ui/ErrorState";
@@ -98,7 +99,7 @@ export function AccountScreen() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
-  const captcha = useRef<CaptchaGateHandle>(null);
+  const captcha = useCaptchaGate();
 
   const changeEmail = useChangeEmail();
   const changePassword = useChangePassword();
@@ -210,7 +211,7 @@ export function AccountScreen() {
           {/* The re-auth is a password grant, and this project rejects those
               without an hCaptcha token (`captcha_failed`) — without the gate a
               correct current password reads as wrong. Same shape as sign-in. */}
-          <CaptchaGate ref={captcha} verified={Boolean(captchaToken)} onChange={setCaptchaToken} />
+          <CaptchaGate controller={captcha} verified={Boolean(captchaToken)} onChange={setCaptchaToken} />
 
           <Button
             label="Change password"
@@ -218,6 +219,7 @@ export function AccountScreen() {
             loading={changePassword.isPending}
             onPress={() => {
               if (!captchaToken) return;
+              captcha.markUsed();
               changePassword.mutate(
                 { currentPassword, newPassword, captchaToken },
                 {
@@ -229,7 +231,7 @@ export function AccountScreen() {
                   // A token is single-use — reset the gate after every attempt,
                   // pass or fail, matching sign-in.
                   onSettled: () => {
-                    captcha.current?.reset();
+                    captcha.reset();
                     setCaptchaToken(null);
                   },
                 },

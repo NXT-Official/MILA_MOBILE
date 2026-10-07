@@ -81,6 +81,23 @@ describe("toHistory", () => {
     expect(kept).toEqual([{ role: "assistant", content: "recent" }]);
   });
 
+  it("with the default budget, drops the older of two full-length turns", () => {
+    const kept = toHistory([
+      turn("user", "x".repeat(MAX_TURN_CHARACTERS)),
+      turn("assistant", "y".repeat(MAX_TURN_CHARACTERS)),
+    ]);
+    expect(kept).toEqual([{ role: "assistant", content: "y".repeat(MAX_TURN_CHARACTERS) }]);
+  });
+
+  it("never splits a surrogate pair at the cut", () => {
+    // 3998 characters, then an emoji (two UTF-16 units) straddling the 3999 cut.
+    const [only] = toHistory([turn("user", `${"x".repeat(3998)}😀tail`)]);
+    expect(only.content.endsWith("…")).toBe(true);
+    expect(only.content.length).toBeLessThanOrEqual(MAX_TURN_CHARACTERS);
+    expect(only.content).toBe(`${"x".repeat(3998)}…`);
+    expect(/[�-�]/.test(only.content)).toBe(false);
+  });
+
   it("caps one turn at the server's 4000 characters, marking the cut with an ellipsis", () => {
     // The server rejects a turn over 4000 outright, so an unbounded one would
     // fail the whole send instead of just losing its tail.

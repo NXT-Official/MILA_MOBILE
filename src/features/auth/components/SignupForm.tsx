@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { Linking, Text, View } from "react-native";
 
@@ -12,13 +12,14 @@ import { ApiError } from "@/services/api/client";
 import { UNIFORM_AUTH_FAILURE } from "@/services/api/auth";
 
 import { useSignUp } from "../hooks/use-auth-actions";
-import { CaptchaGate, type CaptchaGateHandle } from "@/components/feedback/CaptchaGate";
+import { CaptchaGate } from "@/components/feedback/CaptchaGate";
+import { useCaptchaGate } from "@/components/feedback/use-captcha-gate";
 import { PasswordChecklist } from "@/components/ui/PasswordChecklist";
 
 export function SignupForm() {
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
-  const captcha = useRef<CaptchaGateHandle>(null);
+  const captcha = useCaptchaGate();
   const signUp = useSignUp();
 
   const { control, handleSubmit } = useForm<SignupFormValues>({
@@ -37,15 +38,16 @@ export function SignupForm() {
     setFormError(null);
 
     try {
+      // Spent from here on: a late expiry must not read as a failed check.
+      captcha.markUsed();
       await signUp.mutateAsync({ ...values, captchaToken });
       // The gate navigates, not this form — a brand new account has an empty
       // dossier and belongs in onboarding, which `/` is not.
     } catch (error) {
       setFormError(error instanceof ApiError ? error.message : UNIFORM_AUTH_FAILURE);
-    } finally {
-      setCaptchaToken(null);
-      captcha.current?.reset();
     }
+    setCaptchaToken(null);
+    captcha.reset();
   });
 
   return (
@@ -114,7 +116,7 @@ export function SignupForm() {
         <PasswordChecklist value={password} />
       </View>
 
-      <CaptchaGate ref={captcha} verified={Boolean(captchaToken)} onChange={setCaptchaToken} />
+      <CaptchaGate controller={captcha} verified={Boolean(captchaToken)} onChange={setCaptchaToken} />
 
       {/* The web's notice, verbatim. The two links open the web's own legal
           pages in the browser — the app has no legal screens of its own, and

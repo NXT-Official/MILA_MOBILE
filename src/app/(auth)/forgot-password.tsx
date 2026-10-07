@@ -1,10 +1,11 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { router } from "expo-router";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { Text, View } from "react-native";
 
-import { CaptchaGate, type CaptchaGateHandle } from "@/components/feedback/CaptchaGate";
+import { CaptchaGate } from "@/components/feedback/CaptchaGate";
+import { useCaptchaGate } from "@/components/feedback/use-captcha-gate";
 import { Screen } from "@/components/layout/Screen";
 import { Button } from "@/components/ui/Button";
 import { InlineError } from "@/components/ui/ErrorState";
@@ -19,7 +20,7 @@ export default function ForgotPasswordScreen() {
   const [sent, setSent] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
-  const captcha = useRef<CaptchaGateHandle>(null);
+  const captcha = useCaptchaGate();
   const reset = usePasswordReset();
 
   const { control, handleSubmit } = useForm<ResetRequestValues>({
@@ -33,6 +34,8 @@ export default function ForgotPasswordScreen() {
     setFormError(null);
 
     try {
+      // Spent from here on: a late expiry must not read as a failed check.
+      captcha.markUsed();
       await reset.mutateAsync({ email: values.email, captchaToken });
       // The confirmation is identical whether or not the address exists —
       // telling the member which is which is an account-enumeration oracle.
@@ -41,11 +44,10 @@ export default function ForgotPasswordScreen() {
       setSent(true);
     } catch (error) {
       setFormError(errorMessage(error, "Mila couldn't send that email. Please try again."));
-    } finally {
-      // A token is single-use and short-lived: reset after every attempt.
-      captcha.current?.reset();
-      setCaptchaToken(null);
     }
+    // A token is single-use and short-lived: reset after every attempt.
+    captcha.reset();
+    setCaptchaToken(null);
   });
 
   return (
@@ -90,7 +92,7 @@ export default function ForgotPasswordScreen() {
               )}
             />
             <CaptchaGate
-              ref={captcha}
+              controller={captcha}
               verified={Boolean(captchaToken)}
               onChange={setCaptchaToken}
             />

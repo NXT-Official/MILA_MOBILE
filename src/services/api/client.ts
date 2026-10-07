@@ -102,9 +102,11 @@ export const api = {
  * client timeout). The image call alone budgets 75s server-side, so a 30s
  * default would abort a request that was going to succeed.
  *
- * `generateLook` covers two sequential deepseek calls server-side (inventory
- * review, then outfit plan), each bounded at 75s — 150s worst case, so the old
- * 120s budget could abort a generation that was going to succeed.
+ * `generateLook` covers two sequential server-side AI stages: the inventory
+ * review (85s budget) then the outfit plan (105s budget), inside a 215s compose
+ * deadline and a 300s job deadline on the web server. The client gives up at
+ * 240s, above the compose deadline, so it never aborts a generation the server
+ * was going to finish. The image render (a separate call) is 2 x 75s = 150s.
  *
  * `lookVisual` covers the style-sheet and photo-preview pipelines, which retry
  * a failed QA check up to 3 times before answering — a single attempt already
@@ -127,11 +129,12 @@ export const api = {
  */
 export const TIMEOUTS = {
   default: 30_000,
-  // The compose call runs two sequential server-side AI stages, each bounded
-  // at 110s (MILA's ai.server.ts), plus the inventory load — a worst case of
-  // ~225s. This must sit above that, or a paid generation completes after
-  // the client already gave up (and the credit with it).
+  // Compose runs the review (85s) then the plan (105s) under a 215s compose
+  // deadline (300s job deadline). This must sit above the compose deadline, or
+  // a paid generation completes after the client already gave up (and the
+  // credit with it).
   generateLook: 240_000,
+  // Below the 150s server image budget (2 x 75s) and unused today.
   lookImage: 90_000,
   lookVisual: 300_000,
   analysis: 120_000,

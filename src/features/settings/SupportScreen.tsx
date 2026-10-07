@@ -1,13 +1,14 @@
 import { useMutation } from "@tanstack/react-query";
 import { router } from "expo-router";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { Text, TextInput, View } from "react-native";
 
 import { Screen } from "@/components/layout/Screen";
 import { Button } from "@/components/ui/Button";
 import { Chip } from "@/components/ui/Chip";
 import { InlineError } from "@/components/ui/ErrorState";
-import { CaptchaGate, type CaptchaGateHandle } from "@/components/feedback/CaptchaGate";
+import { CaptchaGate } from "@/components/feedback/CaptchaGate";
+import { useCaptchaGate } from "@/components/feedback/use-captcha-gate";
 import { resolveApiFailure } from "@/services/api/client";
 import {
   MAX_SUPPORT_MESSAGE_LENGTH,
@@ -31,7 +32,7 @@ export function SupportScreen({ initialKind = "help" }: { initialKind?: SupportK
   const [message, setMessage] = useState("");
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
 
-  const captcha = useRef<CaptchaGateHandle>(null);
+  const captcha = useCaptchaGate();
   const placeholderColor = useThemeColor("muted");
 
   const send = useMutation({
@@ -41,7 +42,7 @@ export function SupportScreen({ initialKind = "help" }: { initialKind?: SupportK
     onSettled: () => {
       // Success or failure, the token is spent.
       setCaptchaToken(null);
-      captcha.current?.reset();
+      captcha.reset();
     },
     onSuccess: () => setMessage(""),
   });
@@ -49,9 +50,10 @@ export function SupportScreen({ initialKind = "help" }: { initialKind?: SupportK
   const ready = message.trim().length > 0 && !send.isPending;
 
   async function handleSend() {
-    const token = captchaToken ?? (await captcha.current?.challenge()) ?? null;
+    const token = captchaToken ?? (await captcha.challenge()) ?? null;
     // A dismissed challenge is not an error — she simply closed it.
     if (!token) return;
+    captcha.markUsed();
     send.mutate(token);
   }
 
@@ -102,7 +104,7 @@ export function SupportScreen({ initialKind = "help" }: { initialKind?: SupportK
         </View>
 
         <CaptchaGate
-          ref={captcha}
+          controller={captcha}
           verified={Boolean(captchaToken)}
           onChange={setCaptchaToken}
         />

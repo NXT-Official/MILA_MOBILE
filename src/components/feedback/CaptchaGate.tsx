@@ -1,7 +1,8 @@
 import ConfirmHcaptcha from "@hcaptcha/react-native-hcaptcha";
-import { forwardRef, useImperativeHandle, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
+import type { CaptchaController } from "@/components/feedback/use-captcha-gate";
 import { Icon } from "@/components/ui/Icon";
 import { CAPTCHA_BASE_URL, CAPTCHA_SITEKEY } from "@/services/captcha";
 
@@ -60,8 +61,16 @@ function isToken(event: CaptchaMessage): boolean {
  * settles `null`, so a closed challenge or a dropped connection can never be
  * mistaken for a token and sent to sign-in.
  */
-export const CaptchaGate = forwardRef<CaptchaGateHandle, { verified: boolean; onChange: (token: string | null) => void }>(
-  function CaptchaGate({ verified, onChange }, ref) {
+export const CaptchaGate = forwardRef<
+  CaptchaGateHandle,
+  {
+    verified: boolean;
+    onChange: (token: string | null) => void;
+    /** Lets a screen drive the gate without holding a ref (see `useCaptchaGate`). */
+    controller?: CaptchaController;
+  }
+>(
+  function CaptchaGate({ verified, onChange, controller }, ref) {
     const widget = useRef<ConfirmHcaptcha>(null);
     const resolver = useRef<((token: string | null) => void) | null>(null);
     const [pending, setPending] = useState(false);
@@ -85,7 +94,7 @@ export const CaptchaGate = forwardRef<CaptchaGateHandle, { verified: boolean; on
       widget.current?.show();
     };
 
-    useImperativeHandle(ref, () => ({
+    const handle: CaptchaGateHandle = {
       challenge: () =>
         new Promise<string | null>((resolve) => {
           resolver.current = resolve;
@@ -99,7 +108,15 @@ export const CaptchaGate = forwardRef<CaptchaGateHandle, { verified: boolean; on
       markUsed: () => {
         holdingToken.current = false;
       },
-    }));
+    };
+
+    useImperativeHandle(ref, () => handle);
+
+    // Re-attached on every render so the controller never holds a stale closure.
+    useEffect(() => {
+      controller?.attach(handle);
+      return () => controller?.attach(null);
+    });
 
     const onMessage = (event: CaptchaMessage) => {
       const data = event.nativeEvent.data;

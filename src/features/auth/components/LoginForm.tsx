@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link } from "expo-router";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { Text, View } from "react-native";
 
@@ -11,12 +11,13 @@ import { CredentialsForm, type CredentialsFormValues } from "@/lib/auth-input";
 import { UNIFORM_AUTH_FAILURE } from "@/services/api/auth";
 
 import { useSignIn } from "../hooks/use-auth-actions";
-import { CaptchaGate, type CaptchaGateHandle } from "@/components/feedback/CaptchaGate";
+import { CaptchaGate } from "@/components/feedback/CaptchaGate";
+import { useCaptchaGate } from "@/components/feedback/use-captcha-gate";
 
 export function LoginForm() {
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
-  const captcha = useRef<CaptchaGateHandle>(null);
+  const captcha = useCaptchaGate();
   const signIn = useSignIn();
 
   const { control, handleSubmit } = useForm<CredentialsFormValues>({
@@ -32,6 +33,8 @@ export function LoginForm() {
     setFormError(null);
 
     try {
+      // Spent from here on: a late expiry must not read as a failed check.
+      captcha.markUsed();
       await signIn.mutateAsync({ ...values, captchaToken });
       // No navigation here. The root layout's gate reads the new session and
       // opens the right group — which for a member whose dossier is incomplete
@@ -40,11 +43,10 @@ export function LoginForm() {
     } catch {
       // Always the uniform message — never distinguish which field was wrong.
       setFormError(UNIFORM_AUTH_FAILURE);
-    } finally {
-      // The token is single-use: clear it after every attempt, pass or fail.
-      setCaptchaToken(null);
-      captcha.current?.reset();
     }
+    // The token is single-use: clear it after every attempt, pass or fail.
+    setCaptchaToken(null);
+    captcha.reset();
   });
 
   return (
@@ -100,7 +102,7 @@ export function LoginForm() {
         </Text>
       </Link>
 
-      <CaptchaGate ref={captcha} verified={Boolean(captchaToken)} onChange={setCaptchaToken} />
+      <CaptchaGate controller={captcha} verified={Boolean(captchaToken)} onChange={setCaptchaToken} />
 
       <Button
         label="Enter Mila Studio"
