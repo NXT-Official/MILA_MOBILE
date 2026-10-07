@@ -1,0 +1,25 @@
+__tests__/palette-strip-test.tsx
+  s_755964b2e0c3da::t_a242024a1b2d0e 1-49
+src/features/studio/components/PaletteStrip.tsx
+  s_755964b2e0c3da::t_e379f4ef0c518b 55
+  s_755964b2e0c3da::t_2468e913eae76a 73
+  s_755964b2e0c3da::t_10ff8b0b7ee9c4 5
+__tests__/today-palette-test.tsx
+  s_755964b2e0c3da::t_d3f35e1055bab6 258-276
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ce2b186b55e28e2da8d88481c8eefce3960f2dbf",
+  "prompts": {},
+  "sessions": {
+    "s_755964b2e0c3da": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "41717171-e98d-4ccb-91e6-20f4d84aa5ab",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "naaxtech <naaxtech.official@gmail.com>"
+    }
+  }
+}
