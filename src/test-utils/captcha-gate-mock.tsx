@@ -11,12 +11,13 @@ import { forwardRef, useImperativeHandle } from "react";
 import { Pressable } from "react-native";
 
 export const CaptchaGate = forwardRef<
-  { challenge: () => Promise<string | null>; reset: () => void },
+  { challenge: () => Promise<string | null>; reset: () => void; markUsed: () => void },
   { verified: boolean; onChange: (token: string | null) => void }
 >(function MockCaptchaGate({ onChange }, ref) {
   useImperativeHandle(ref, () => ({
     challenge: async () => null,
     reset: () => onChange(null),
+    markUsed: () => undefined,
   }));
   return (
     <Pressable

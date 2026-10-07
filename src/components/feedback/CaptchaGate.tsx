@@ -9,6 +9,13 @@ export type CaptchaGateHandle = {
   /** Opens the challenge. Resolves with a token, or null if it did not complete. */
   challenge: () => Promise<string | null>;
   reset: () => void;
+  /**
+   * The token has been spent (sent to the server). The library fires `expired`
+   * on its own clock whether or not the token was used, so after this a late
+   * expiry is ignored instead of showing a "timed out" notice for a check that
+   * already did its job. `reset` implies it.
+   */
+  markUsed: () => void;
 };
 
 /**
@@ -59,8 +66,11 @@ export const CaptchaGate = forwardRef<CaptchaGateHandle, { verified: boolean; on
     const resolver = useRef<((token: string | null) => void) | null>(null);
     const [pending, setPending] = useState(false);
     const [notice, setNotice] = useState<Notice | null>(null);
+    // True from a token being issued until it is spent or cleared.
+    const holdingToken = useRef(false);
 
     const settle = (token: string | null, next: Notice | null = null) => {
+      holdingToken.current = token !== null;
       setPending(false);
       setNotice(next);
       widget.current?.hide();
@@ -82,8 +92,12 @@ export const CaptchaGate = forwardRef<CaptchaGateHandle, { verified: boolean; on
           open();
         }),
       reset: () => {
+        holdingToken.current = false;
         onChange(null);
         resolver.current = null;
+      },
+      markUsed: () => {
+        holdingToken.current = false;
       },
     }));
 
@@ -92,7 +106,11 @@ export const CaptchaGate = forwardRef<CaptchaGateHandle, { verified: boolean; on
       if (data === "open") return;
       if (isToken(event)) return settle(data);
       if (data === "cancel" || data === "challenge-closed") return settle(null);
-      if (data === "expired") return settle(null, "expired");
+      if (data === "expired") {
+        // Nothing live to expire: no open challenge and no unspent token.
+        if (!holdingToken.current && !resolver.current) return;
+        return settle(null, "expired");
+      }
       settle(null, "failed");
     };
 

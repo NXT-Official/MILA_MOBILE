@@ -62,7 +62,7 @@ async function mount(verified = false) {
     });
     return () => outcome;
   };
-  return { screen, onChange, open };
+  return { screen, onChange, open, ref };
 }
 
 beforeEach(() => {
@@ -160,4 +160,44 @@ test("shows Verified only when the parent holds a token", async () => {
   const { screen } = await mount(true);
 
   expect(screen.getByText("Verified")).toBeTruthy();
+});
+
+describe("a token that has been used", () => {
+  async function verified() {
+    const m = await mount();
+    const outcome = await m.open();
+    await emit(TOKEN, true);
+    expect(outcome()).toBe(TOKEN);
+    return m;
+  }
+
+  test("does not report a timeout when the library later fires expiry", async () => {
+    const { screen, onChange, ref } = await verified();
+    await act(async () => ref.current?.markUsed());
+    onChange.mockClear();
+
+    await emit("expired", false);
+
+    expect(screen.queryByText("That check timed out. Tap to try again.")).toBeNull();
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  test("reset counts as using it, so a late expiry stays quiet", async () => {
+    const { screen, ref } = await verified();
+    await act(async () => ref.current?.reset());
+
+    await emit("expired", false);
+
+    expect(screen.queryByText("That check timed out. Tap to try again.")).toBeNull();
+  });
+
+  test("an unused token that really expires still says so", async () => {
+    const { screen, onChange } = await verified();
+    onChange.mockClear();
+
+    await emit("expired", false);
+
+    expect(screen.getByText("That check timed out. Tap to try again.")).toBeTruthy();
+    expect(onChange).toHaveBeenCalledWith(null);
+  });
 });

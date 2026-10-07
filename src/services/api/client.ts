@@ -97,7 +97,9 @@ export const api = {
 };
 
 /**
- * Per-endpoint timeouts. The image call alone budgets 75s server-side, so a 30s
+ * Per-endpoint timeouts (the values in `TIMEOUTS` below are authoritative; the
+ * "75s" figures in this block are the server's per-provider-call budget, not a
+ * client timeout). The image call alone budgets 75s server-side, so a 30s
  * default would abort a request that was going to succeed.
  *
  * `generateLook` covers two sequential deepseek calls server-side (inventory

@@ -18,10 +18,22 @@ export const MAX_HISTORY_MESSAGES = 12;
 /** The server's character budget. Mirrored so a long thread is trimmed once, here. */
 export const MAX_HISTORY_CHARACTERS = 6000;
 
+/**
+ * The server's per-turn cap (`history[].content` is 1..4000). A turn over it is
+ * a validation failure for the whole send, so a long reply is cut here instead.
+ */
+export const MAX_TURN_CHARACTERS = 4000;
+
 /** The composer's cap, enforced at the keyboard rather than on submit. */
 export const MAX_MESSAGE_LENGTH = 2000;
 
 type SourceMessage = { role: ChatRole; content: string; failed?: boolean };
+
+function capTurn(content: string): string {
+  return content.length <= MAX_TURN_CHARACTERS
+    ? content
+    : `${content.slice(0, MAX_TURN_CHARACTERS - 1)}…`;
+}
 
 /**
  * The last `MAX_HISTORY_MESSAGES` turns, oldest first, within the character
@@ -46,11 +58,13 @@ export function toHistory(
 
   for (let i = usable.length - 1; i >= 0 && kept.length < maxMessages; i -= 1) {
     const message = usable[i];
+    // Truncated, never dropped: the turn still happened, only its tail is lost.
+    const content = capTurn(message.content);
     // A single message over the whole budget would otherwise send nothing at
     // all; stopping here keeps whatever newer context already fits.
-    if (characters + message.content.length > maxCharacters) break;
-    characters += message.content.length;
-    kept.push({ role: message.role, content: message.content });
+    if (characters + content.length > maxCharacters) break;
+    characters += content.length;
+    kept.push({ role: message.role, content });
   }
 
   return kept.reverse();

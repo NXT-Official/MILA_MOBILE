@@ -1,5 +1,6 @@
 import {
   MAX_HISTORY_MESSAGES,
+  MAX_TURN_CHARACTERS,
   conversationTitle,
   toHistory,
   type ChatRole,
@@ -61,23 +62,44 @@ describe("toHistory", () => {
 
   it("stops at the character budget, keeping the newest that fit", () => {
     const kept = toHistory(
-      [turn("user", "x".repeat(5000)), turn("assistant", "recent")],
+      [turn("user", "x".repeat(3500)), turn("assistant", "recent")],
       12,
       6000,
     );
     expect(kept).toEqual([
-      { role: "user", content: "x".repeat(5000) },
+      { role: "user", content: "x".repeat(3500) },
       { role: "assistant", content: "recent" },
     ]);
   });
 
-  it("drops an oversized older message rather than sending nothing", () => {
+  it("drops an older message that no longer fits the budget rather than sending nothing", () => {
     const kept = toHistory(
-      [turn("user", "x".repeat(7000)), turn("assistant", "recent")],
+      [turn("user", "x".repeat(3500)), turn("assistant", "recent")],
       12,
-      6000,
+      3000,
     );
     expect(kept).toEqual([{ role: "assistant", content: "recent" }]);
+  });
+
+  it("caps one turn at the server's 4000 characters, marking the cut with an ellipsis", () => {
+    // The server rejects a turn over 4000 outright, so an unbounded one would
+    // fail the whole send instead of just losing its tail.
+    const [only] = toHistory([turn("user", "x".repeat(7000))]);
+    expect(only.content).toHaveLength(MAX_TURN_CHARACTERS);
+    expect(only.content.endsWith("…")).toBe(true);
+    expect(only.content.startsWith("xxx")).toBe(true);
+  });
+
+  it("keeps a turn at exactly the cap untouched", () => {
+    const content = "x".repeat(MAX_TURN_CHARACTERS);
+    expect(toHistory([turn("user", content)])).toEqual([{ role: "user", content }]);
+  });
+
+  it("truncates rather than drops a long turn, and still sends the newer ones", () => {
+    const kept = toHistory([turn("user", "x".repeat(7000)), turn("assistant", "recent")]);
+    expect(kept).toHaveLength(2);
+    expect(kept[0].content).toHaveLength(MAX_TURN_CHARACTERS);
+    expect(kept[1]).toEqual({ role: "assistant", content: "recent" });
   });
 
   it("returns nothing for an empty thread", () => {
