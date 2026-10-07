@@ -12,7 +12,11 @@
 export const ANALYSIS_POLL_MS = 3_000;
 /** The reaper fails a running job only this long after its deadline. */
 export const ANALYSIS_REAP_GRACE_MS = 30_000;
-/** A finished job is offered back for this long after it completed. */
+/**
+ * A finished job is offered back until her local day ends, or for this long
+ * after it finished, whichever is later (the shared recovery rule: the same as
+ * a look's `isRecentLook` and the feature jobs' offer).
+ */
 export const ANALYSIS_OFFER_WINDOW_MS = 12 * 60 * 60 * 1000;
 /** How many dismissed job ids each app remembers. */
 export const ANALYSIS_DISMISSED_LIMIT = 20;
@@ -32,6 +36,8 @@ export type AnalysisJobLike = {
   errorCode: string | null;
   deadlineAt: string;
   completedAt: string | null;
+  /** When the job started; stands in for `completedAt` when that is missing. */
+  createdAt?: string | null;
 };
 
 export type AnalysisJobOfferContext = {
@@ -41,10 +47,21 @@ export type AnalysisJobOfferContext = {
   dismissedIds?: readonly string[];
   /** color_read: the job her saved dossier already came from. */
   usedJobId?: string | null;
-  /** check_in: when she last confirmed a check-in (profiles.last_check_in_at). */
+  /**
+   * When she last saved what this kind of job would change. A job that
+   * finished at or before it is never offered.
+   * - check_in: profiles.last_check_in_at.
+   * - color_read: when her current colour profile was saved (a read or a quiz).
+   */
   appliedAt?: string | null;
-  /** Whether a succeeded job's result is one this kind can show. Default: any JSON object. */
+  /**
+   * Whether a succeeded job's result is one this kind can show. Only `true`
+   * counts; a check that throws reads as "does not parse". Default: any JSON
+   * object (never null, text or a list).
+   */
   resultParses?: (result: unknown) => boolean;
+  /** Whether two instants fall on the same local day. Defaults to the device's calendar. */
+  sameLocalDay?: (a: number, b: number) => boolean;
 };
 
 /**
@@ -58,6 +75,18 @@ function timeOf(value: string | null | undefined): number {
 
 function isObject(value: unknown): boolean {
   return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function defaultSameLocalDay(a: number, b: number): boolean {
+  return new Date(a).toDateString() === new Date(b).toDateString();
+}
+
+function resultIsOfferable(result: unknown, check: (result: unknown) => boolean): boolean {
+  try {
+    return check(result) === true;
+  } catch {
+    return false;
+  }
 }
 
 export function analysisJobOffer(
@@ -75,19 +104,22 @@ export function analysisJobOffer(
   if (job.status !== "succeeded" && job.status !== "failed") return null;
   if (ctx.dismissedIds?.includes(job.id)) return null;
 
-  const completed = timeOf(job.completedAt);
-  if (!Number.isFinite(completed)) return null;
-  if (ctx.now - completed > ANALYSIS_OFFER_WINDOW_MS) return null;
+  // Finished on her local day, or within the last 12 hours (so 23:58 still
+  // counts at 00:02). Both times are the server's.
+  const finished = timeOf(job.completedAt ?? job.createdAt);
+  if (!Number.isFinite(finished)) return null;
+  const sameDay = (ctx.sameLocalDay ?? defaultSameLocalDay)(finished, ctx.now);
+  const recent = ctx.now >= finished && ctx.now - finished <= ANALYSIS_OFFER_WINDOW_MS;
+  if (!sameDay && !recent) return null;
 
   if (job.status === "failed") {
     return job.errorCode === PERSIST_FAILED_DELIVERED ? null : "failed";
   }
 
-  const parses = ctx.resultParses ?? isObject;
-  if (!parses(job.result)) return null;
+  if (!resultIsOfferable(job.result, ctx.resultParses ?? isObject)) return null;
   if (ctx.usedJobId && job.id === ctx.usedJobId) return null;
   const applied = timeOf(ctx.appliedAt);
-  if (Number.isFinite(applied) && applied >= completed) return null;
+  if (Number.isFinite(applied) && applied >= finished) return null;
   return "ready";
 }
 

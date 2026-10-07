@@ -186,13 +186,21 @@ describe("analysisJobOffer", () => {
       }),
     ).toBe("stale");
 
-    // ready within 12 hours; exactly 12 hours is still ready, a moment later is not.
+    // ready within 12 hours; exactly 12 hours is still ready, a moment later is not
+    // (on another local day: the calendar is pinned so this holds in every time zone).
+    const otherDay = () => false;
     expect(analysisJobOffer(job(), { now: NOW })).toBe("ready");
-    expect(analysisJobOffer(job({ completedAt: "2026-10-07T00:00:00+00:00" }), { now: NOW })).toBe(
-      "ready",
-    );
     expect(
-      analysisJobOffer(job({ completedAt: "2026-10-06T23:59:59.999+00:00" }), { now: NOW }),
+      analysisJobOffer(job({ completedAt: "2026-10-07T00:00:00+00:00" }), {
+        now: NOW,
+        sameLocalDay: otherDay,
+      }),
+    ).toBe("ready");
+    expect(
+      analysisJobOffer(job({ completedAt: "2026-10-06T23:59:59.999+00:00" }), {
+        now: NOW,
+        sameLocalDay: otherDay,
+      }),
     ).toBeNull();
 
     // failed within 12 hours.
@@ -225,6 +233,78 @@ describe("analysisJobOffer", () => {
     expect(analysisJobOffer(job(), { now: NOW, dismissedIds: ["job-1"] })).toBeNull();
     expect(analysisJobOffer(failed, { now: NOW, dismissedIds: ["job-1"] })).toBeNull();
     expect(analysisJobOffer(job(), { now: NOW, dismissedIds: ["job-2"] })).toBe("ready");
+  });
+
+  test("offers a job finished on her local day, or within 12 hours (the shared recovery rule)", () => {
+    // Local wall-clock times, so these hold in every time zone.
+    const at = (day: number, h: number, m = 0, s = 0, ms = 0) =>
+      new Date(2026, 9, day, h, m, s, ms).getTime();
+    const iso = (time: number) => new Date(time).toISOString();
+    const failed = { status: "failed", result: null, errorCode: "provider_error" };
+
+    // Earlier today always counts, however long ago: 00:30, opened at 23:00.
+    expect(analysisJobOffer(job({ completedAt: iso(at(7, 0, 30)) }), { now: at(7, 23) })).toBe(
+      "ready",
+    );
+    expect(
+      analysisJobOffer(job({ ...failed, completedAt: iso(at(7, 0, 30)) }), { now: at(7, 23) }),
+    ).toBe("failed");
+
+    // Across midnight within 12 hours: 23:58 still counts at 00:02.
+    expect(analysisJobOffer(job({ completedAt: iso(at(6, 23, 58)) }), { now: at(7, 0, 2) })).toBe(
+      "ready",
+    );
+    expect(
+      analysisJobOffer(job({ ...failed, completedAt: iso(at(6, 23, 58)) }), { now: at(7, 0, 2) }),
+    ).toBe("failed");
+
+    // Yesterday 23:30: exactly 12 hours counts, one millisecond more does not.
+    expect(analysisJobOffer(job({ completedAt: iso(at(6, 23, 30)) }), { now: at(7, 11, 30) })).toBe(
+      "ready",
+    );
+    expect(
+      analysisJobOffer(job({ completedAt: iso(at(6, 23, 30)) }), { now: at(7, 11, 30, 0, 1) }),
+    ).toBeNull();
+
+    // No completed_at: created_at is when it finished.
+    expect(
+      analysisJobOffer(job({ completedAt: null, createdAt: iso(at(7, 8)) }), { now: at(7, 9) }),
+    ).toBe("ready");
+
+    // The calendar can be injected.
+    expect(
+      analysisJobOffer(job({ completedAt: iso(at(5, 8)) }), {
+        now: at(7, 9),
+        sameLocalDay: () => true,
+      }),
+    ).toBe("ready");
+  });
+
+  test("a colour read respects appliedAt like the others: a profile saved after it hides it", () => {
+    // usedJobId is another read, but she saved her colours (a quiz) after this one finished.
+    expect(
+      analysisJobOffer(job(), {
+        now: NOW,
+        usedJobId: "job-0",
+        appliedAt: "2026-10-07T11:30:00.000000+00:00",
+      }),
+    ).toBeNull();
+    expect(
+      analysisJobOffer(job(), {
+        now: NOW,
+        usedJobId: "job-0",
+        appliedAt: "2026-10-07T10:00:00.000000+00:00",
+      }),
+    ).toBe("ready");
+  });
+
+  test("a result check that throws, or answers anything but true, is not offerable", () => {
+    const throwing = () => {
+      throw new Error("unexpected shape");
+    };
+    expect(analysisJobOffer(job(), { now: NOW, resultParses: throwing })).toBeNull();
+    const notBoolean = (() => ({ success: false })) as unknown as (result: unknown) => boolean;
+    expect(analysisJobOffer(job(), { now: NOW, resultParses: notBoolean })).toBeNull();
   });
 
   test("a result that does not parse is never offered as ready", () => {
