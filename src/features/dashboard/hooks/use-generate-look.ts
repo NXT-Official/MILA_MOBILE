@@ -33,7 +33,18 @@ export type GenerateLookVariables = { weather: ClimateState; vibe: Vibe } & Look
    * being composed it answers `{ status: "running", jobId }` instead.
    */
   clientRequestId: string;
+  /**
+   * The key was sent before and never answered: the answer is (most likely) the
+   * look that first press already paid for, not a new one. Not sent to the server.
+   */
+  resent?: boolean;
 };
+
+/**
+ * The jobs this app has already counted as `look_generated`: a job is one
+ * generated look, however many times its answer arrives.
+ */
+const countedJobs = new Set<string>();
 
 /**
  * `POST /look/generate` — **1 credit**, charged server-side, which also sets
@@ -93,10 +104,18 @@ export function useGenerateLook() {
       }, clientRequestId);
     },
 
-    onSuccess: (data, { vibe }) => {
+    onSuccess: (data, { vibe, resent }) => {
       // "Running" means another request's look is still being composed; this
       // call composed nothing, so it is not a generated look.
-      if (userId && !isGenerationRunning(data)) trackEvent(userId, "look_generated", { vibe });
+      if (!userId || isGenerationRunning(data)) return;
+      // A replay (the server's word, or the answer to a resent key) is the look
+      // she already paid for: the money-path event counts each job once.
+      if (data.replayed === true || resent) return;
+      if (data.jobId) {
+        if (countedJobs.has(data.jobId)) return;
+        countedJobs.add(data.jobId);
+      }
+      trackEvent(userId, "look_generated", { vibe });
     },
 
     /**

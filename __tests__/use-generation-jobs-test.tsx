@@ -206,6 +206,19 @@ describe("useGenerationImage", () => {
     expect(fetchImage).toHaveBeenCalledWith(done, expect.objectContaining({ aborted: false }));
   });
 
+  it("does not retry a failed read on its own: the slot's Retry is the retry, after one 30 s attempt", async () => {
+    queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: 3, retryDelay: 0, gcTime: Infinity } },
+    });
+    fetchImage.mockRejectedValue(new Error("The image took too long to load."));
+    const done = job({ kind: "style_sheet", status: "succeeded", image_path: "member/sheet.jpg" });
+    const { result } = await renderHook(() => useGenerationImage(done), { wrapper });
+    await advance(10);
+
+    expect(fetchImage).toHaveBeenCalledTimes(1);
+    expect(result.current).toMatchObject({ image: null, loading: false, failed: true });
+  });
+
   it("reads nothing without a succeeded render", async () => {
     const { result } = await renderHook(() => useGenerationImage(null), { wrapper });
     await advance(0);

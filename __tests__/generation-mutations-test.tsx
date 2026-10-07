@@ -108,6 +108,43 @@ describe("useGenerateLook", () => {
     expect(trackEvent).toHaveBeenCalledWith("member", "look_generated", { vibe: "Everyday Casual" });
   });
 
+  describe("look_generated, the money-path event", () => {
+    const press = async (data: unknown, extra: Record<string, unknown> = {}) => {
+      jest.mocked(generateDailyLook).mockResolvedValue(data as never);
+      const { result } = await renderHook(() => useGenerateLook(), { wrapper });
+      await act(async () => {
+        await result.current.mutateAsync({
+          weather: WEATHER,
+          vibe: "Everyday Casual",
+          clientRequestId: KEY,
+          ...extra,
+        });
+      });
+    };
+
+    it("fires once per job, even when the same job is answered again", async () => {
+      await press({ ...LOOK, jobId: "job-once" });
+      await press({ ...LOOK, jobId: "job-once" });
+      expect(trackEvent).toHaveBeenCalledTimes(1);
+    });
+
+    it("never fires on a server replay", async () => {
+      await press({ ...LOOK, jobId: "job-replayed", replayed: true });
+      expect(trackEvent).not.toHaveBeenCalled();
+    });
+
+    it("never fires for a resent key: its answer is the job she already paid for", async () => {
+      await press({ ...LOOK, jobId: "job-resent" }, { resent: true });
+      expect(trackEvent).not.toHaveBeenCalled();
+    });
+
+    it("still fires for an answer that carries no job (the migration is not applied)", async () => {
+      await press(LOOK);
+      await press(LOOK);
+      expect(trackEvent).toHaveBeenCalledTimes(2);
+    });
+  });
+
   it("does not count a look it was only told is still running", async () => {
     jest.mocked(generateDailyLook).mockResolvedValue({ status: "running", jobId: "job-1" });
     const { result } = await renderHook(() => useGenerateLook(), { wrapper });

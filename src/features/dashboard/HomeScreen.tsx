@@ -132,6 +132,48 @@ async function oldLookKeyDecision(userId: string, id: string): Promise<"resend" 
   }
 }
 
+/** Sends an earlier look key again, its time refreshed (R-1). */
+function resendLookKey(userId: string | null, entry: PressEntry, fallback: PressContext): LookPressKey {
+  if (userId) useGenerationPressStore.getState().remember(userId, "look", { ...entry, at: Date.now() });
+  return { id: entry.id, context: entry.context ?? fallback, resent: true };
+}
+
+function mintLookKey(userId: string | null, context: PressContext): LookPressKey {
+  const id = newClientRequestId();
+  if (userId) {
+    useGenerationPressStore
+      .getState()
+      .remember(userId, "look", { id, at: Date.now(), fingerprint: null, context });
+  }
+  return { id, context, resent: false };
+}
+
+/**
+ * The check of an old unanswered look key, one per member at a time and
+ * shared by every screen: a Create on a remounted Home while the first check
+ * is still asking waits for the same answer, and gets the same key, instead of
+ * minting a second one (two keys would be two charges for one press).
+ */
+const oldKeyChecks = new Map<string, Promise<LookPressKey>>();
+
+function resolveOldLookKey(
+  userId: string,
+  entry: PressEntry,
+  context: PressContext,
+): Promise<LookPressKey> {
+  const inFlight = oldKeyChecks.get(userId);
+  if (inFlight) return inFlight;
+  const check = oldLookKeyDecision(userId, entry.id)
+    .then((decision) => {
+      if (decision === "resend") return resendLookKey(userId, entry, context);
+      useGenerationPressStore.getState().settle(userId, "look", entry.id);
+      return mintLookKey(userId, context);
+    })
+    .finally(() => oldKeyChecks.delete(userId));
+  oldKeyChecks.set(userId, check);
+  return check;
+}
+
 export function HomeScreen() {
   const [hubSheetOpen, setHubSheetOpen] = useState(false);
   /** True when the hub sheet was opened by the pin rather than the city row. */
@@ -450,22 +492,6 @@ export function HomeScreen() {
     return id;
   }
 
-  /** Sends an earlier look key again, its time refreshed (R-1). */
-  function resendLookKey(entry: PressEntry, fallback: PressContext): LookPressKey {
-    if (userId) useGenerationPressStore.getState().remember(userId, "look", { ...entry, at: Date.now() });
-    return { id: entry.id, context: entry.context ?? fallback, resent: true };
-  }
-
-  function mintLookKey(context: PressContext): LookPressKey {
-    const id = newClientRequestId();
-    if (userId) {
-      useGenerationPressStore
-        .getState()
-        .remember(userId, "look", { id, at: Date.now(), fingerprint: null, context });
-    }
-    return { id, context, resent: false };
-  }
-
   /**
    * The key a look press sends. Her newest unanswered look key inside the 12 h
    * window is resent, whatever the phone clock thinks of its job: only her row
@@ -480,13 +506,13 @@ export function HomeScreen() {
     const earlier = retryablePress(pendingPresses(store, userId, "look", now), null);
     if (earlier) {
       if (jobs.look?.client_request_id !== earlier.id || jobs.look.status !== "failed") {
-        return resendLookKey(earlier, context);
+        return resendLookKey(userId, earlier, context);
       }
       store.settle(userId, "look", earlier.id);
     }
     const expired = expiredPress(store, userId, "look", now);
     if (expired) return { expired };
-    return mintLookKey(context);
+    return mintLookKey(userId, context);
   }
 
   /**
@@ -495,16 +521,10 @@ export function HomeScreen() {
    * sent again, so that job is followed or replayed (one charge). Failed or
    * never arrived: a new key. Unreadable: the old key, which is always safe.
    */
-  async function lookPressKeyAfterAsking(
-    entry: PressEntry,
-    context: PressContext,
-  ): Promise<LookPressKey> {
-    if (!userId) return mintLookKey(context);
-    if ((await oldLookKeyDecision(userId, entry.id)) === "resend") {
-      return resendLookKey(entry, context);
-    }
-    settlePress("look", entry.id);
-    return mintLookKey(context);
+  function lookPressKeyAfterAsking(entry: PressEntry, context: PressContext): Promise<LookPressKey> {
+    return userId
+      ? resolveOldLookKey(userId, entry, context)
+      : Promise.resolve(mintLookKey(null, context));
   }
 
   function requestStyleSheet(currentLook: DailyLook) {
@@ -684,7 +704,7 @@ export function HomeScreen() {
     setPressAnsweredAt(null);
 
     generate.mutate(
-      { ...request, clientRequestId },
+      { ...request, clientRequestId, resent: key.resent },
       {
         onSuccess: (nextLook) => {
           if (lookInFlight.current?.key === clientRequestId) lookInFlight.current = null;

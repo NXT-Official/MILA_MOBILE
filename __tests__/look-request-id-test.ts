@@ -100,3 +100,19 @@ it("tells a call that never heard back from the server apart from a real answer"
   expect(isLostAnswer(new Error("Style Profile is incomplete."))).toBe(false);
   expect(isLostAnswer(null)).toBe(false);
 });
+
+it("keeps the key when the answer says nothing about her job", () => {
+  // A proxy's non-JSON 502, 503 or 520-523 reaches the app as INTERNAL with that
+  // status: the job may have started, so the key is kept.
+  for (const status of [500, 502, 503, 520, 521, 522, 523]) {
+    expect(isLostAnswer(new ApiError("INTERNAL", "Something went wrong.", status))).toBe(true);
+  }
+  // A 401 during a token refresh: resending is safe, the server dedupes the key.
+  expect(isLostAnswer(new ApiError("UNAUTHENTICATED", "Please sign in again.", 401))).toBe(true);
+  expect(isLostAnswer(new ApiError("INTERNAL", "Something went wrong.", 401))).toBe(true);
+  // Our server's own answers about the request spend it.
+  expect(isLostAnswer(new ApiError("UPSTREAM_UNAVAILABLE", "Provider down", 502))).toBe(false);
+  expect(isLostAnswer(new ApiError("INSUFFICIENT_CREDITS", "No credits", 402))).toBe(false);
+  expect(isLostAnswer(new ApiError("VALIDATION_FAILED", "Bad input", 400))).toBe(false);
+  expect(isLostAnswer(new ApiError("INTERNAL", "Something went wrong.", 400))).toBe(false);
+});

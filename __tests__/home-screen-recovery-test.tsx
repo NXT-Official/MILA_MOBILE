@@ -531,6 +531,25 @@ describe("Try again after a call that ended", () => {
     await fireEvent.press(screen.getByRole("button", { name: "Try again" }));
 
     expect(mockState.generate.mutate.mock.calls.map(keyOf)).toEqual(["request-1", "request-1"]);
+    // The resend is marked, so its (replayed) answer is not counted as a new look.
+    const resentFlags = mockState.generate.mutate.mock.calls.map(
+      (call) => (call[0] as { resent?: boolean }).resent,
+    );
+    expect(resentFlags).toEqual([false, true]);
+  });
+
+  it.each([
+    ["a gateway's non-JSON 502", () => new ApiError("INTERNAL", "Something went wrong.", 502)],
+    ["a 503 page from a proxy", () => new ApiError("INTERNAL", "Something went wrong.", 503)],
+    ["a 401 while her session refreshes", () => new ApiError("UNAUTHENTICATED", "Please sign in again.", 401)],
+  ])("resends the same key after %s, which says nothing about her job", async (_label, error) => {
+    await mount();
+    await fireEvent.press(await createButton());
+    await fail(mockState.generate, error());
+
+    await fireEvent.press(screen.getByRole("button", { name: "Try again" }));
+
+    expect(mockState.generate.mutate.mock.calls.map(keyOf)).toEqual(["request-1", "request-1"]);
   });
 
   it("mints a new key after a real answer from the server", async () => {
@@ -980,6 +999,27 @@ describe("a press key is never forgotten while its job might still be running or
       await settle();
 
       expect(mockState.generate.mutate.mock.calls.map(keyOf)).toEqual(["request-old"]);
+    });
+
+    it("is asked once, and gives one key, when the screen remounts and she presses again meanwhile", async () => {
+      let answerRead: (value: { status: "ok"; job: null }) => void = () => {};
+      fetchByRequest.mockReturnValue(new Promise((resolve) => (answerRead = resolve)));
+      await mount();
+      await fireEvent.press(await createButton());
+      const firstScreen = mockState.generate;
+
+      await unmountScreen();
+      freshMutations();
+      await mount();
+      await fireEvent.press(await createButton());
+
+      await act(async () => answerRead({ status: "ok", job: null }));
+      await settle();
+
+      expect(fetchByRequest).toHaveBeenCalledTimes(1);
+      expect(newClientRequestId).toHaveBeenCalledTimes(1);
+      const keys = [...firstScreen.mutate.mock.calls, ...mockState.generate.mutate.mock.calls].map(keyOf);
+      expect(new Set(keys)).toEqual(new Set(["request-1"]));
     });
 
     it("shows the press as composing while it asks, and a second tap sends nothing", async () => {

@@ -64,19 +64,30 @@ export function isGenerationRunning(value: unknown): value is GenerationRunning 
 }
 
 /**
- * The call ended without an answer from the server: a client timeout, a proxy
- * timeout, or a dropped connection. The job may still be running or may have
- * finished, so the press KEEPS its key: resending it replays or follows that
- * job instead of paying again. Any real answer, even an error, spends the key.
+ * The call ended without an answer about her job: a client timeout, a proxy
+ * timeout, a dropped connection, a gateway's non-JSON 5xx (the client reads it
+ * as INTERNAL with that status), our own unexpected 500, or a 401 while her
+ * token was being refreshed. The job may still be running or may have
+ * finished, so the press KEEPS its key: resending it replays, follows or starts
+ * that job, never a second charge (the server dedupes the key). Any other
+ * answer from our server, even an error, spends the key; so does her job row
+ * saying it failed.
  */
 export function isLostAnswer(error: unknown): boolean {
-  return error instanceof ApiError && (error.code === "NETWORK" || error.code === "TIMEOUT");
+  if (!(error instanceof ApiError)) return false;
+  if (error.code === "NETWORK" || error.code === "TIMEOUT") return true;
+  if (error.status === 401) return true;
+  return error.code === "INTERNAL" && error.status >= 500;
 }
 
 /** Today's look, plus the generation job it was recorded as (absent until the
  * server's generation_jobs migration is applied, null when it was delivered
  * without being stored). */
-export type LookResponse = DailyLook & { jobId?: string | null };
+export type LookResponse = DailyLook & {
+  jobId?: string | null;
+  /** Set by a server that says the answer replays a job it already made. */
+  replayed?: boolean;
+};
 
 /**
  * `clientRequestId` is the press's idempotency key (one per press, never per

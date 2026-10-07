@@ -139,6 +139,9 @@ export function useGenerationImage(job: GenerationJob | null): GenerationImage {
     enabled: readable,
     staleTime: Infinity,
     gcTime: 10 * 60_000,
+    // One attempt (30 s at most): the slot offers its own re-read Retry, so the
+    // client's automatic retries would only keep Create disabled for longer.
+    retry: false,
     queryFn: ({ signal }) => fetchGenerationImage(job as GenerationJob, signal),
   });
   const retry = () => void query.refetch();
