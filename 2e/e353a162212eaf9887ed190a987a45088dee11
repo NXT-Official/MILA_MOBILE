@@ -1,0 +1,54 @@
+src/lib/saved-palette.ts
+  s_755964b2e0c3da::t_cdba65d1ffb6e0 32-45,48,50-57,60-77
+src/stores/palette-recent-store.ts
+  s_755964b2e0c3da::t_c626ca6b5866f1 1-120
+src/components/palette/TodayPalette.tsx
+  s_755964b2e0c3da::t_449d80763a8c13 114-116,122
+  s_755964b2e0c3da::t_9ed98fceec61c1 139-141,145
+  s_755964b2e0c3da::t_0a3f11cb016ac4 1-113,117-121,123-138,142-144,146-350
+__tests__/saved-palette-test.ts
+  s_755964b2e0c3da::t_7020a4c3e56067 1
+  s_755964b2e0c3da::t_a5d92ea07f48d4 54-61,64-96
+__tests__/palette-recent-store-test.ts
+  s_755964b2e0c3da::t_fa5bfe80a24acc 1-163
+src/lib/color-analysis/paletteGenerator.ts
+  s_755964b2e0c3da::t_b80ae900db2125 90
+  s_755964b2e0c3da::t_375216a1218502 13-14,18,20,22-23
+src/features/palettes/PalettesScreen.tsx
+  s_755964b2e0c3da::t_c9ff8da142021d 57-58
+__tests__/palettes-screen-test.tsx
+  s_755964b2e0c3da::t_049054e5397d88 1-111,113-127
+  s_755964b2e0c3da::t_27aeb2a0cd16ba 112
+__tests__/today-palette-test.tsx
+  s_755964b2e0c3da::t_23112b103884d5 1-66,78-141,143-152,154-241,243-247,255-306,309-382,384-386
+  s_755964b2e0c3da::t_b6c53c935ddf2d 67-77
+  s_755964b2e0c3da::t_eff5fccea013d8 383
+  s_755964b2e0c3da::t_8759520b83d4f2 248-254
+  s_755964b2e0c3da::t_8007386394d820 242
+  s_755964b2e0c3da::t_37e1f9ef62e2d2 142,153,307-308
+src/features/palettes/components/PaletteCard.tsx
+  s_755964b2e0c3da::t_692c17fbc76dcf 31
+  s_755964b2e0c3da::t_e7fc2821030d0d 13-15
+  s_755964b2e0c3da::t_40ebb591908a86 51,56
+  s_755964b2e0c3da::t_565722cb0f1dd7 5
+src/lib/color-analysis/daily-palette.ts
+  s_755964b2e0c3da::t_ab489b2307238f 1-165
+__tests__/daily-palette-test.ts
+  s_755964b2e0c3da::t_b4c410152cfabf 1-170
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2ee353a162212eaf9887ed190a987a45088dee11",
+  "prompts": {},
+  "sessions": {
+    "s_755964b2e0c3da": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "41717171-e98d-4ccb-91e6-20f4d84aa5ab",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "naaxtech <naaxtech.official@gmail.com>"
+    }
+  }
+}
