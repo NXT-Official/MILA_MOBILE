@@ -1025,13 +1025,21 @@ re-sets the flag or refunds. Do not reorder or merge these calls — the billing
 | Endpoint                   | Method | Cost     | Rate limit | Request                               | Response                                                     |
 | -------------------------- | ------ | -------- | ---------- | ------------------------------------- | ------------------------------------------------------------ |
 | `/analysis/outfit`         | POST   | 1 credit | 15/hour    | `{ imageUrl, bodyType, colorSeason }` | `{ color_match, silhouette, overall_score: 0-100, verdict }` |
-| `/analysis/personal-color` | POST   | 1 credit | yes        | `{ imageBase64, diagnostics? }`       | `{ success: true, ... } \| { success: false, error: CODE }`  |
+| `/analysis/personal-color` | POST   | 1 credit | yes        | `{ imageBase64, diagnostics?, clientRequestId? }` | `{ success: true, jobId?, ... } \| { success: false, error: CODE }`  |
+| `/analysis/body-scan`      | POST   | free once, then 1 credit | 10/hour | `{ bodyImageBase64, clientRequestId? }` | `{ success: true, silhouette, jobId? } \| { success: false, error: CODE }` |
+| `/check-in`                | POST   | first each UTC day free, then 1 credit | 5/hour | `{ faceImageBase64, bodyImageBase64?, clientRequestId? }` | `{ success: true, read, jobId? } \| { success: false, error: CODE }` |
+| `/check-in/status`         | GET    | none     | none       | none                                  | `{ available, freeToday, checkInCost, bodyScan: { available, free, cost } }` |
 
 `imageUrl` **must** be a Mila public-storage URL — upload first, then analyse. The server rejects
 anything else.
 
 `imageBase64` accepts up to 15 MB, but **compress to ~1440px / q0.85 before sending** — a raw phone
 capture is 3–6 MB of needless upload on cellular.
+
+Wave D: `clientRequestId` is a fresh `newClientRequestId()` per press (a double press and a
+retry after a lost answer reuse it; a retry after a reported, refunded failure mints a new one).
+`jobId` names the generation job that recorded the read. The colour read, check-in and body scan
+return failures on the 200, like the rest of this group.
 
 Personal-colour error codes: `CONFIG_MISSING_API_KEY`, `ANALYSIS_RATE_LIMITED`,
 `ANALYSIS_CREDITS_EXHAUSTED`, `ANALYSIS_PARSING_FAILED`, `ANALYSIS_GATEWAY_FAILURE`. Map each to
@@ -1175,6 +1183,8 @@ running system; every table it touches is already governed by RLS that assumes a
 | `subscription_plans`      | read active, non-archived | direct                                                             |
 | `products` / `brands`     | read (dupe results)       | via API                                                            |
 | `user_favorites`          | read (data export only)   | direct                                                             |
+| `profiles` (Wave D)       | read own, update own      | `hair_color` and `last_check_in_at` writable; `founding_body_read_at` is service-role only. Read apart from the launch profile, through `profile-extras` |
+| `user_entitlements` (Wave D) | read only              | `free_check_in_on` is service-role only and is read only by the server |
 | `generation_jobs`         | read own (latest per kind) | direct; written only by the server's job functions. Home re-attaches to a look or visual she left mid-generation (R7). Missing table = today's behaviour |
 
 ### Tables the mobile app must never touch
@@ -1203,6 +1213,20 @@ composing the daily look; the client only writes the member's selection and
 displays it back.
 
 Sending `suspended` will fail the grant, not silently no-op.
+
+#### Wave D columns (additive migration, may not be applied yet)
+
+| Column                               | Member access | Meaning                                                                                   |
+| ------------------------------------ | ------------- | ----------------------------------------------------------------------------------------- |
+| `profiles.hair_color`                | read + write  | Her hair colour as last confirmed. Max 40 characters, app-validated against `HAIR_COLORS` |
+| `profiles.last_check_in_at`          | read + write  | When she last confirmed Today's check-in                                                  |
+| `profiles.founding_body_read_at`     | read only     | Her once-ever free body scan has been used (server write)                                 |
+| `user_entitlements.free_check_in_on`  | none          | The UTC day her free daily check-in was claimed (server write)                            |
+
+None of these is in `PROFILE_READ_COLUMNS`: a missing column there would break every profile read
+and the launch gate. They are read only through `services/supabase/profile-extras.ts`, which answers
+`unavailable` when the column is missing (PGRST204, PGRST205, 42703 and the other codes in
+`wave-d-availability`), and every Wave D surface hides itself on that answer.
 
 ### Credit model (read-only from mobile)
 
@@ -1632,6 +1656,10 @@ fallback pointing at a hosted challenge page.
 | Account deletion    | **Must be reachable in the app** (an App Store requirement). Type-your-email confirmation; cancels billing immediately, purges storage, deletes the auth user, cascades every row |
 | Analytics           | None today. If added, no PII, no image content, and a documented disclosure                                                                                                       |
 | Crash reporting     | Scrub tokens, emails, and image data from breadcrumbs                                                                                                                             |
+
+Wave D reads: the check-in and the body scan send their photos as base64 in memory, exactly like the
+colour read. Nothing is uploaded to storage, no photo is stored in a job row, the temporary capture
+file is deleted after it is encoded, and the consented-photo save is never offered in these flows.
 
 Store listings must declare: camera, photo library, approximate location, email address, and
 user-generated content.
@@ -4285,6 +4313,11 @@ portraits get different seasons.
 | `src/constants/query-keys.ts`                                      | `src/constants/query-keys.ts`             | **Minus** `staffGate` and the 5 `admin*` keys                                        |
 | `src/lib/utils.ts` (`errorMessage`, `relativeTime`, `formatPrice`) | `src/utils/`                              | Split per function; keep `cn` — NativeWind uses it (see [§11](#11-ui-design-system)) |
 | `src/integrations/supabase/types.ts`                               | `src/services/supabase/types.ts`          | Generated DB types                                                                   |
+| `src/constants/style-profile/hair-colors.ts` (Wave D)              | `src/constants/style-profile/hair-colors.ts` | The shared stored hair colour values                                              |
+| `src/lib/wave-d-availability.ts` (Wave D)                          | `src/lib/wave-d-availability.ts`          | The error codes that mean the migration is missing                                   |
+| `src/lib/analysis-job-offer.ts` (Wave D)                           | `src/lib/analysis-job-offer.ts`           | Running, stale, ready or failed, decided one way on both clients                     |
+| `src/lib/color-analysis/colour-math.ts` (Wave D)                   | `src/lib/color-analysis/colour-math.ts`   | CIE L* and swatch maths                                                              |
+| `src/lib/color-analysis/member-swatches.ts` (Wave D)               | `src/lib/color-analysis/member-swatches.ts` | Her own swatch list, deduped, at most 8                                            |
 
 **Do not copy:** `authorization.ts`, `admin.functions.ts`, `staff-route.ts`, `queries/admin.ts`,
 anything under `components/staff/` or `components/admin/`, or `landing-content*`.
@@ -4343,7 +4376,8 @@ keeps one implementation serving two clients.
 | ------------- | -------------------------------------------------------- |
 | auth (2)      | `sign-in`, `sign-up`                                     |
 | look (3)      | `generate`, `image`, `save`                              |
-| analysis (2)  | `outfit`, `personal-color`                               |
+| analysis (3)  | `outfit`, `personal-color`, `body-scan` _(Wave D)_       |
+| check-in (2)  | `check-in`, `check-in/status` _(Wave D)_                 |
 | items (2)     | `analyze`, `update`                                      |
 | dupes (2)     | `find`, `similar`                                        |
 | concierge (1) | `chat`                                                   |

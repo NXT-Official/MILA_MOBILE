@@ -54,6 +54,9 @@ describe("assertWritableColumns", () => {
     // `StyleProfileUpdatePayload` when the five missing onboarding steps were
     // ported — the server's AI prompt reads the first three, so a client that
     // could not write them could not complete onboarding at all.
+    //
+    // `hair_color` and `last_check_in_at` are Wave D: member-writable by the
+    // additive migration. `founding_body_read_at` is deliberately NOT here.
     expect([...PROFILE_WRITABLE_COLUMNS].sort()).toEqual(
       [
         "beauty_preferences",
@@ -65,9 +68,11 @@ describe("assertWritableColumns", () => {
         "face_shape",
         "full_name",
         "gender",
+        "hair_color",
         "hair_length",
         "hair_type",
         "height_cm",
+        "last_check_in_at",
         "makeup_preference",
         "photo_consent_at",
         "profile_photo_path",

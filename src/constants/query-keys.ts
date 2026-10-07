@@ -13,5 +13,9 @@ export const queryKeys = {
   savedPalettes: (userId: string | undefined) => ["saved-palettes", userId] as const,
   savedProducts: (userId: string | undefined) => ["saved-products", userId] as const,
   similarItems: (postItemId: string) => ["similar-items", postItemId] as const,
+  /** Wave D columns, read apart from the launch profile so a missing column cannot break it. */
+  profileExtras: (userId: string | undefined) => ["profile-extras", userId] as const,
+  analysisJob: (userId: string | undefined, kind: string) =>
+    ["analysis-job", userId, kind] as const,
   profilePhotoUrl: (userId: string | undefined) => ["profile-photo-url", userId] as const,
 };

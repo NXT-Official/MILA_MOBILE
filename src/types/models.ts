@@ -109,6 +109,10 @@ export type StudioColorProfile = {
   calculatedUndertone?: string;
   confidenceScore?: number;
   confidenceLabel?: string;
+  /** Wave D: her hair colour as the read saw it. A HAIR_COLORS value; filled only when she had none. */
+  hairColor?: string;
+  /** Wave D: her skin depth as the read saw it (SKIN_DEPTHS). */
+  skinDepth?: string;
 };
 
 /**
@@ -140,7 +144,13 @@ export type PersonalColorTelemetry = {
  * is a different class of failure entirely (auth, transport).
  */
 export type PersonalColorAnalysisResult =
-  | { success: true; profile: StudioColorProfile; telemetry: PersonalColorTelemetry }
+  | {
+      success: true;
+      profile: StudioColorProfile;
+      telemetry: PersonalColorTelemetry;
+      /** The generation job that recorded this read, once the server writes one. */
+      jobId?: string;
+    }
   | { success: false; error: string };
 
 /** Columns a member is granted INSERT/UPDATE on — §7. Never send others. */
@@ -168,6 +178,8 @@ export const PROFILE_WRITABLE_COLUMNS = [
   "skin_depth",
   "height_cm",
   "weight_kg",
+  "hair_color",
+  "last_check_in_at",
 ] as const;
 
 /**

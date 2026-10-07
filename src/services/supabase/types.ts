@@ -432,12 +432,15 @@ export type Database = {
           default_location: string | null;
           delivery_country: string | null;
           face_shape: string | null;
+          founding_body_read_at: string | null;
           full_name: string | null;
           gender: string | null;
+          hair_color: string | null;
           hair_length: string | null;
           hair_type: string | null;
           height_cm: number | null;
           id: string;
+          last_check_in_at: string | null;
           makeup_preference: string;
           paddle_customer_id: string | null;
           photo_consent_at: string | null;
@@ -461,12 +464,15 @@ export type Database = {
           default_location?: string | null;
           delivery_country?: string | null;
           face_shape?: string | null;
+          founding_body_read_at?: string | null;
           full_name?: string | null;
           gender?: string | null;
+          hair_color?: string | null;
           hair_length?: string | null;
           hair_type?: string | null;
           height_cm?: number | null;
           id: string;
+          last_check_in_at?: string | null;
           makeup_preference?: string;
           paddle_customer_id?: string | null;
           photo_consent_at?: string | null;
@@ -490,12 +496,15 @@ export type Database = {
           default_location?: string | null;
           delivery_country?: string | null;
           face_shape?: string | null;
+          founding_body_read_at?: string | null;
           full_name?: string | null;
           gender?: string | null;
+          hair_color?: string | null;
           hair_length?: string | null;
           hair_type?: string | null;
           height_cm?: number | null;
           id?: string;
+          last_check_in_at?: string | null;
           makeup_preference?: string;
           paddle_customer_id?: string | null;
           photo_consent_at?: string | null;
@@ -835,6 +844,7 @@ export type Database = {
           ai_credits: number;
           created_at: string;
           credits_reset_at: string | null;
+          free_check_in_on: string | null;
           look_image_pending: boolean;
           purchased_credits: number;
           updated_at: string;
@@ -844,6 +854,7 @@ export type Database = {
           ai_credits?: number;
           created_at?: string;
           credits_reset_at?: string | null;
+          free_check_in_on?: string | null;
           look_image_pending?: boolean;
           purchased_credits?: number;
           updated_at?: string;
@@ -853,6 +864,7 @@ export type Database = {
           ai_credits?: number;
           created_at?: string;
           credits_reset_at?: string | null;
+          free_check_in_on?: string | null;
           look_image_pending?: boolean;
           purchased_credits?: number;
           updated_at?: string;
@@ -935,6 +947,14 @@ export type Database = {
           allowed: boolean;
           remaining: number;
         }[];
+      };
+      release_rate_limit: {
+        Args: {
+          _cost?: number;
+          _key: string;
+          _reset_at: string;
+        };
+        Returns: boolean;
       };
       derive_username: {
         Args: { desired: string; email: string };
