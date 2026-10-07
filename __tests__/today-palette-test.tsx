@@ -255,6 +255,25 @@ describe("TodayPalette from her own colours", () => {
     expect(usePaletteRecentStore.getState().read("member-1", "2026-10-08").attempt).toBe(0);
   });
 
+  it("the day key follows midnight on its own timer, with no foreground event", async () => {
+    jest.useRealTimers();
+    jest.useFakeTimers({ now: new Date(2026, 9, 7, 23, 59, 0) });
+    withRead();
+    const s = await render(<TodayPalette seasonId="true_autumn" />);
+    await waitFor(() =>
+      expect(usePaletteRecentStore.getState().read("member-1", "2026-10-07").shown).toBeDefined(),
+    );
+
+    await act(async () => {
+      jest.advanceTimersByTime(2 * 60 * 1000);
+    });
+
+    await waitFor(() =>
+      expect(usePaletteRecentStore.getState().read("member-1", "2026-10-08").shown).toBeDefined(),
+    );
+    expect(s.getByText("Mila's take:")).toBeTruthy();
+  });
+
   it("pins the palette as one built from her own colours, and unpins it again", async () => {
     withRead();
     const s = await render(<TodayPalette seasonId="true_autumn" />);

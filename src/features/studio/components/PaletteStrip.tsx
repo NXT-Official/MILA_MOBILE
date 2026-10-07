@@ -2,7 +2,7 @@ import { router } from "expo-router";
 import { Pressable, ScrollView, Text, View } from "react-native";
 
 import { Skeleton } from "@/components/ui/Skeleton";
-import { paletteSwatches } from "@/lib/saved-palette";
+import { paletteSwatches, paletteVibe } from "@/lib/saved-palette";
 import type { SavedPalette } from "@/services/supabase/palettes";
 import { spacing } from "@/theme/tokens";
 
@@ -52,7 +52,7 @@ export function PaletteStrip({
           <Pressable
             key={saved.id}
             accessibilityRole="button"
-            accessibilityLabel={`${saved.palette.styleVibe} palette: ${swatches
+            accessibilityLabel={`${paletteVibe(saved.palette)} palette: ${swatches
               .map((s) => s.name)
               .join(", ")}`}
             onPress={() => router.push("/palettes")}
@@ -70,7 +70,7 @@ export function PaletteStrip({
                 />
               ))}
             </View>
-            <Text className="font-body text-micro text-muted">{saved.palette.styleVibe}</Text>
+            <Text className="font-body text-micro text-muted">{paletteVibe(saved.palette)}</Text>
           </Pressable>
         );
       })}
