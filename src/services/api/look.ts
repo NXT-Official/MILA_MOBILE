@@ -48,8 +48,43 @@ export type GenerateLookInput = {
   region?: string;
 };
 
-export function generateDailyLook(input: GenerateLookInput): Promise<DailyLook> {
-  return api.post<DailyLook>("/look/generate", input, { timeoutMs: TIMEOUTS.generateLook });
+/**
+ * The server is still working on this generation (R7). Answered to a request
+ * that carries a `clientRequestId` when that request's job, or the same
+ * request from another device, is already running: nothing was charged for
+ * this call, and the caller follows the job's row until it settles.
+ */
+export type GenerationRunning = { status: "running"; jobId: string };
+
+export function isGenerationRunning(value: unknown): value is GenerationRunning {
+  if (value === null || typeof value !== "object") return false;
+  const answer = value as { status?: unknown; jobId?: unknown };
+  return answer.status === "running" && typeof answer.jobId === "string";
+}
+
+/** Today's look, plus the generation job it was recorded as (absent until the
+ * server's generation_jobs migration is applied, null when it was delivered
+ * without being stored). */
+export type LookResponse = DailyLook & { jobId?: string | null };
+
+/**
+ * `clientRequestId` is the press's idempotency key (one per press, never per
+ * attempt): the server charges a key once and replays its stored result for a
+ * repeat. Optional, so the body is exactly today's without one.
+ */
+function withRequestId<T extends object>(body: T, clientRequestId?: string) {
+  return clientRequestId ? { ...body, clientRequestId } : body;
+}
+
+export function generateDailyLook(
+  input: GenerateLookInput,
+  clientRequestId?: string,
+): Promise<LookResponse | GenerationRunning> {
+  return api.post<LookResponse | GenerationRunning>(
+    "/look/generate",
+    withRequestId(input, clientRequestId),
+    { timeoutMs: TIMEOUTS.generateLook },
+  );
 }
 
 /**
@@ -62,8 +97,15 @@ export type StyleSheetResult =
   | { imageDataUri: string; mode: "style_sheet" }
   | { imageDataUri: null; mode: "unavailable"; reason: string };
 
-export function generateStyleSheetPreview(outfit: DailyLook): Promise<StyleSheetResult> {
-  return api.post<StyleSheetResult>("/look/style-sheet", { outfit }, { timeoutMs: TIMEOUTS.lookVisual });
+export function generateStyleSheetPreview(
+  outfit: DailyLook,
+  clientRequestId?: string,
+): Promise<StyleSheetResult | GenerationRunning> {
+  return api.post<StyleSheetResult | GenerationRunning>(
+    "/look/style-sheet",
+    withRequestId({ outfit }, clientRequestId),
+    { timeoutMs: TIMEOUTS.lookVisual },
+  );
 }
 
 /**
@@ -75,10 +117,15 @@ export type PhotoPreviewResult =
   | { imageDataUri: string; mode: "photo_edit" }
   | { imageDataUri: null; mode: "unavailable"; reason: string };
 
-export function generatePhotoPreview(outfit: DailyLook): Promise<PhotoPreviewResult> {
-  return api.post<PhotoPreviewResult>("/look/photo-preview", { outfit }, {
-    timeoutMs: TIMEOUTS.lookVisual,
-  });
+export function generatePhotoPreview(
+  outfit: DailyLook,
+  clientRequestId?: string,
+): Promise<PhotoPreviewResult | GenerationRunning> {
+  return api.post<PhotoPreviewResult | GenerationRunning>(
+    "/look/photo-preview",
+    withRequestId({ outfit }, clientRequestId),
+    { timeoutMs: TIMEOUTS.lookVisual },
+  );
 }
 
 export type SaveLookInput = DailyLook & {

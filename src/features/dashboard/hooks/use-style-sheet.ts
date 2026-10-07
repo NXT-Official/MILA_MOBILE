@@ -1,9 +1,21 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { queryKeys } from "@/constants/query-keys";
-import { generateStyleSheetPreview, type StyleSheetResult } from "@/services/api/look";
+import {
+  generateStyleSheetPreview,
+  type GenerationRunning,
+  type StyleSheetResult,
+} from "@/services/api/look";
 import { useAuthStore } from "@/stores/auth-store";
 import type { DailyLook } from "@/types/look";
+
+import { generationJobsKey } from "./use-generation-jobs";
+
+/** Every request of this render shares this key, so the cache can find it by kind. */
+export const STYLE_SHEET_KEY = ["generation", "style_sheet"] as const;
+
+/** The look to draw, and the press's idempotency key (minted once per press). */
+export type VisualVariables = { outfit: DailyLook; clientRequestId: string };
 
 /**
  * `POST /look/style-sheet` — the identity-locked 5-view visual, rendered from
@@ -25,10 +37,13 @@ export function useStyleSheet() {
   const userId = useAuthStore((s) => s.session?.user.id ?? null);
   const queryClient = useQueryClient();
 
-  return useMutation<StyleSheetResult, unknown, DailyLook>({
-    mutationFn: generateStyleSheetPreview,
+  return useMutation<StyleSheetResult | GenerationRunning, unknown, VisualVariables>({
+    mutationKey: STYLE_SHEET_KEY,
+    mutationFn: ({ outfit, clientRequestId }) => generateStyleSheetPreview(outfit, clientRequestId),
     onSettled: () => {
-      if (userId) void queryClient.invalidateQueries({ queryKey: queryKeys.credits(userId) });
+      if (!userId) return;
+      void queryClient.invalidateQueries({ queryKey: queryKeys.credits(userId) });
+      void queryClient.invalidateQueries({ queryKey: generationJobsKey(userId) });
     },
   });
 }

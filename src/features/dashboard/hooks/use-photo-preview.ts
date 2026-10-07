@@ -1,9 +1,18 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { queryKeys } from "@/constants/query-keys";
-import { generatePhotoPreview, type PhotoPreviewResult } from "@/services/api/look";
+import {
+  generatePhotoPreview,
+  type GenerationRunning,
+  type PhotoPreviewResult,
+} from "@/services/api/look";
 import { useAuthStore } from "@/stores/auth-store";
-import type { DailyLook } from "@/types/look";
+
+import { generationJobsKey } from "./use-generation-jobs";
+import type { VisualVariables } from "./use-style-sheet";
+
+/** Every request of this render shares this key, so the cache can find it by kind. */
+export const PHOTO_PREVIEW_KEY = ["generation", "photo_preview"] as const;
 
 /**
  * `POST /look/photo-preview` — the optional portrait edit: the member's own
@@ -17,10 +26,13 @@ export function usePhotoPreview() {
   const userId = useAuthStore((s) => s.session?.user.id ?? null);
   const queryClient = useQueryClient();
 
-  return useMutation<PhotoPreviewResult, unknown, DailyLook>({
-    mutationFn: generatePhotoPreview,
+  return useMutation<PhotoPreviewResult | GenerationRunning, unknown, VisualVariables>({
+    mutationKey: PHOTO_PREVIEW_KEY,
+    mutationFn: ({ outfit, clientRequestId }) => generatePhotoPreview(outfit, clientRequestId),
     onSettled: () => {
-      if (userId) void queryClient.invalidateQueries({ queryKey: queryKeys.credits(userId) });
+      if (!userId) return;
+      void queryClient.invalidateQueries({ queryKey: queryKeys.credits(userId) });
+      void queryClient.invalidateQueries({ queryKey: generationJobsKey(userId) });
     },
   });
 }

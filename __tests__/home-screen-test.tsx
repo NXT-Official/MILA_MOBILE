@@ -61,6 +61,14 @@ jest.mock("../src/services/weather", () => ({
   ...jest.requireActual("../src/services/weather"),
   fetchHubWeather: jest.fn(),
 }));
+// Generation jobs (R7) read as not available yet: every promise below is the
+// screen's own behaviour, exactly as before the jobs existed. Recovery from
+// job rows is `home-screen-recovery-test.tsx`.
+jest.mock("../src/services/supabase/generation-jobs", () => ({
+  fetchLatestGenerationJob: async () => ({ status: "unavailable" }),
+  fetchGenerationImage: jest.fn(),
+  newClientRequestId: () => "0b9d6a52-3c7e-4f8a-9d61-2f4e8c1a7b30",
+}));
 
 const mockState = {
   profile: undefined as DashboardProfile | undefined,
