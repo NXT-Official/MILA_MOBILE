@@ -1,10 +1,12 @@
 import { Image } from "expo-image";
 import { Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Button } from "@/components/ui/Button";
 import { InlineError } from "@/components/ui/ErrorState";
 import { Input } from "@/components/ui/Input";
 import type { CapturedPhoto } from "@/services/camera";
+import { spacing } from "@/theme/tokens";
 
 /**
  * The review step: retake, or spend a credit.
@@ -39,6 +41,7 @@ export function CapturedPreview({
   onRetake: () => void;
   onAnalyse: () => void;
 }) {
+  const insets = useSafeAreaInsets();
   return (
     <View className="flex-1">
       <Image
@@ -50,7 +53,10 @@ export function CapturedPreview({
         accessibilityLabel="The photo you just captured"
       />
 
-      <View className="gap-md px-xl py-lg">
+      {/* The buttons are the last thing on the screen, so they clear the
+          phone's own navigation bar: edge-to-edge Android draws the system
+          buttons over the app, and Retake sat underneath them. */}
+      <View className="gap-md px-xl pt-lg" style={{ paddingBottom: insets.bottom + spacing.lg }}>
         {/* Blocked wins over the failure that caused it: a rate limit reports
             through both, and only this one counts down. */}
         {blockedMessage ? (
