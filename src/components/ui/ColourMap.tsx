@@ -32,6 +32,17 @@ function roleWords(role: WearRole, kind: GarmentKind): string {
     : ROLE_NAMES[role];
 }
 
+/** The row as one spoken sentence: garment, colour, then the role in plain words. */
+function rowLabel(label: string, wear: { name: string; role: WearRole } | null, kind: GarmentKind) {
+  if (!wear) return `${label}. No colour picked for this piece`;
+  const place = ROLE_PLACES[wear.role];
+  const words =
+    wear.role === defaultRoleFor(kind)
+      ? `${ROLE_NAMES[wear.role]}, ${place.charAt(0).toLowerCase()}${place.slice(1)}`
+      : ROLE_NAMES[wear.role];
+  return `${label}. ${wear.name}. ${words}`;
+}
+
 /**
  * "Your colour map": which of her own colours to wear each piece of a saved
  * look in, its role beside it. The swatch is her colour as data, never the
@@ -57,7 +68,13 @@ export function ColourMap({ rows }: { rows: readonly SavedColourMapRow[] }) {
       <Text className="font-body text-sm text-body">Wear each piece in one of your colours.</Text>
       <View className="gap-lg pt-sm">
         {checked.map((row, index) => (
-          <View key={`${row.kind}-${index}`} className="flex-row items-start gap-md">
+          <View
+            key={`${row.kind}-${index}`}
+            // One stop per piece: a screen reader hears the whole sentence once.
+            accessible
+            accessibilityLabel={rowLabel(row.label, row.wear, row.kind)}
+            className="flex-row items-start gap-md"
+          >
             <View
               testID="colour-dot"
               accessibilityElementsHidden

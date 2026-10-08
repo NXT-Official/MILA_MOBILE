@@ -117,4 +117,45 @@ describe("LookDetailScreen save and share", () => {
     await waitFor(() => expect(mockSaveAndShare).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(s.queryByText("This look didn't save. Please try again.")).toBeNull());
   });
+
+  it("a double press starts one save, not two", async () => {
+    show(DAILY);
+    let finish: (v: string) => void = () => undefined;
+    mockSaveAndShare.mockReturnValue(new Promise((resolve) => { finish = resolve; }));
+    const s = await render(<LookDetailScreen id="o1" />);
+    const button = s.getByLabelText("Save or share this look");
+    await fireEvent.press(button);
+    await fireEvent.press(button);
+    expect(mockSaveAndShare).toHaveBeenCalledTimes(1);
+    finish("shared");
+    await waitFor(() => expect(mockSaveAndShare).toHaveBeenCalledTimes(1));
+    // Free again once it settles.
+    mockSaveAndShare.mockResolvedValue("shared");
+    await fireEvent.press(button);
+    await waitFor(() => expect(mockSaveAndShare).toHaveBeenCalledTimes(2));
+  });
+
+  it("Try again during a run is busy, disabled and ignored; the error clears when it works", async () => {
+    show(DAILY);
+    let finish: (v: string) => void = () => undefined;
+    mockSaveAndShare
+      .mockRejectedValueOnce(new Error("down"))
+      .mockReturnValueOnce(new Promise((resolve) => { finish = resolve; }));
+    const s = await render(<LookDetailScreen id="o1" />);
+    await fireEvent.press(s.getByLabelText("Save or share this look"));
+    await s.findByText("This look didn't save. Please try again.");
+
+    await fireEvent.press(s.getByLabelText("Try again"));
+    await waitFor(() => expect(mockSaveAndShare).toHaveBeenCalledTimes(2));
+    const retry = s.getByLabelText("Try again");
+    expect(retry.props.accessibilityState).toEqual(
+      expect.objectContaining({ busy: true, disabled: true }),
+    );
+    await fireEvent.press(retry);
+    await fireEvent.press(s.getByLabelText("Save or share this look"));
+    expect(mockSaveAndShare).toHaveBeenCalledTimes(2);
+
+    finish("shared");
+    await waitFor(() => expect(s.queryByText("This look didn't save. Please try again.")).toBeNull());
+  });
 });

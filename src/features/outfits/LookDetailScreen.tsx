@@ -1,6 +1,6 @@
 import { Image } from "expo-image";
 import { router } from "expo-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
 import { Screen } from "@/components/layout/Screen";
@@ -29,6 +29,10 @@ import { radii } from "@/theme/tokens";
 export function LookDetailScreen({ id }: { id: string }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
+  const [saving, setSaving] = useState(false);
+  // Set synchronously on press: state would still read false for a second tap
+  // landing in the same frame.
+  const savingRef = useRef(false);
   const { data: outfit, isPending, isError, refetch } = useOutfit(id);
   const remove = useDeleteOutfit();
   const anchor = useConciergeStore((s) => s.anchor);
@@ -81,16 +85,25 @@ export function LookDetailScreen({ id }: { id: string }) {
 
   // A rejected download or share is the failure; the member closing the share
   // sheet resolves "cancelled" and is not one. Plain words, never the raw error.
+  // One run at a time: a double press, or Try again while a save is running, is
+  // ignored, so a late failure can never overwrite a save that worked.
   const saveOrShare = async () => {
-    setSaveFailed(false);
+    if (savingRef.current) return;
+    savingRef.current = true;
+    setSaving(true);
     try {
       await files.saveAndShareRemoteImage({
         filename: `mila-look-${headlineSlug(title)}.jpg`,
         url: outfit.image_url,
       });
+      setSaveFailed(false);
     } catch {
       setSaveFailed(true);
     }
+    // After the try, not in a finally: React Compiler does not compile a
+    // finalizer. The catch never rethrows, so this runs on both paths.
+    savingRef.current = false;
+    setSaving(false);
   };
 
   // The web's detail dialog, in the same three sections and the same order —
@@ -134,7 +147,12 @@ export function LookDetailScreen({ id }: { id: string }) {
         {saveFailed ? (
           <View className="gap-sm">
             <InlineError message="This look didn't save. Please try again." />
-            <Button label="Try again" variant="secondary" onPress={() => void saveOrShare()} />
+            <Button
+              label="Try again"
+              variant="secondary"
+              loading={saving}
+              onPress={() => void saveOrShare()}
+            />
           </View>
         ) : null}
 

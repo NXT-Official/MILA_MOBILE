@@ -82,6 +82,14 @@ describe("ColourMap", () => {
     expect(s.queryByText(/Shoes, bag and jewellery/)).toBeNull();
   });
 
+  it("each row is one screen-reader stop with a combined label", async () => {
+    const s = await render(<ColourMap rows={ROWS} />);
+    expect(s.getByLabelText("Coat. Charcoal. Base, bottoms and outer layers")).toBeTruthy();
+    expect(s.getByLabelText("Shirt. Cream. Statement, near your face")).toBeTruthy();
+    expect(s.getByLabelText("Tote. Camel. Accent, shoes, bag and jewellery")).toBeTruthy();
+    expect(s.getByLabelText("Jeans. No colour picked for this piece")).toBeTruthy();
+  });
+
   it("never renders US spelling or a dash", async () => {
     const s = await render(<ColourMap rows={ROWS} />);
     const all = JSON.stringify(s.toJSON());
