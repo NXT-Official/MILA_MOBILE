@@ -48,7 +48,10 @@ export const DEFAULT_HISTORY_FILTER: HistoryFilter = {
 
 /** Lower case with accents removed, so "Café" and "cafe" are the same word. */
 function fold(value: string): string {
-  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
 }
 
 /** The searchable text of one entry, from whichever parts it has. */
