@@ -27,6 +27,12 @@ jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
 jest.mock("../src/components/ui/Sheet", () => require("../src/test-utils/sheet-mock"));
+jest.mock("expo-web-browser", () => ({ openBrowserAsync: jest.fn() }));
+jest.mock("../src/hooks/use-saved-products", () => ({
+  useSavedProducts: () => ({ data: { status: "ok", items: [] } }),
+  useSetProductSaved: () => ({ mutate: jest.fn(), isPending: false }),
+  useSaveFailure: () => null,
+}));
 
 import { LookDetailScreen } from "@/features/outfits/LookDetailScreen";
 
@@ -75,6 +81,35 @@ describe("LookDetailScreen colour map", () => {
     expect(s.queryByText("Your colour map")).toBeNull();
     expect(s.queryByText(/no colour map/i)).toBeNull();
     expect(s.getByText("Linen Day")).toBeTruthy();
+  });
+});
+
+describe("LookDetailScreen suggested items", () => {
+  const PICK = {
+    id: "p1",
+    title: "Striped Cotton Jacket",
+    brand_id: "b1",
+    category: "outerwear",
+    price: 89,
+    currency: "USD",
+    image_url: "https://img.example.test/p1.jpg",
+    affiliate_link: "https://shop.example.test/p1",
+    verification_status: "verified",
+    last_verified_at: null,
+    rationale: "Echoes the stripe.",
+  };
+
+  it("a look saved with its suggested items shows them, each with a shop link", async () => {
+    show({ ...DAILY, shoppable_picks: [PICK] });
+    const s = await render(<LookDetailScreen id="o1" />);
+    expect(s.getByLabelText("Shop Striped Cotton Jacket")).toBeTruthy();
+  });
+
+  it("a look saved before the field existed shows no items section", async () => {
+    show(DAILY);
+    const s = await render(<LookDetailScreen id="o1" />);
+    expect(s.queryByText("No verified matching item found.")).toBeNull();
+    expect(s.queryByLabelText(/^Shop /)).toBeNull();
   });
 });
 

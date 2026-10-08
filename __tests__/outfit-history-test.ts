@@ -63,6 +63,58 @@ describe("normalizeAnalysisResult", () => {
   });
 });
 
+describe("saved shoppable picks", () => {
+  const pick = {
+    id: "p1",
+    title: "Silk Blouse",
+    brand_id: "b1",
+    category: "Tops",
+    price: 120,
+    currency: "USD",
+    image_url: "https://img.example/a.jpg",
+    affiliate_link: "https://shop.example/p1",
+    verification_status: "verified",
+    last_verified_at: "2026-10-01T00:00:00Z",
+    rationale: "Suits the palette.",
+  };
+
+  it("reads the picks saved with the look, links intact", () => {
+    const entry = normalizeAnalysisResult({ ...dailyLook, shoppable_picks: [pick] });
+    if (entry.kind !== "daily_look") throw new Error("wrong branch");
+
+    expect(entry.look.shoppable_picks).toHaveLength(1);
+    expect(entry.look.shoppable_picks?.[0]?.title).toBe("Silk Blouse");
+    expect(entry.look.shoppable_picks?.[0]?.affiliate_link).toBe("https://shop.example/p1");
+  });
+
+  it("keeps an empty saved array empty — the grid renders its own empty copy", () => {
+    const entry = normalizeAnalysisResult({ ...dailyLook, shoppable_picks: [] });
+    if (entry.kind !== "daily_look") throw new Error("wrong branch");
+    expect(entry.look.shoppable_picks).toEqual([]);
+  });
+
+  it("leaves rows saved before the field existed undefined — the section hides", () => {
+    const entry = normalizeAnalysisResult(dailyLook);
+    if (entry.kind !== "daily_look") throw new Error("wrong branch");
+    expect(entry.look.shoppable_picks).toBeUndefined();
+  });
+
+  it("drops a pick whose link is not http(s) and nulls a non-http image", () => {
+    const entry = normalizeAnalysisResult({
+      ...dailyLook,
+      shoppable_picks: [
+        pick,
+        { ...pick, id: "evil", affiliate_link: "javascript:alert(1)" },
+        { ...pick, id: "img", image_url: "data:image/png;base64,xx" },
+      ],
+    });
+    if (entry.kind !== "daily_look") throw new Error("wrong branch");
+
+    expect(entry.look.shoppable_picks?.map((item) => item.id)).toEqual(["p1", "img"]);
+    expect(entry.look.shoppable_picks?.[1]?.image_url).toBeNull();
+  });
+});
+
 describe("lookSections", () => {
   it("returns Outfit, Hair and Makeup in the §3 order", () => {
     const entry = normalizeAnalysisResult(dailyLook);
