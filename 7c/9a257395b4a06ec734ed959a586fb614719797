@@ -1,0 +1,30 @@
+src/services/supabase/outfits.ts
+  s_755964b2e0c3da::t_2eb1c9e6a9b513 4,90-95,146-148
+src/features/outfits/LookDetailScreen.tsx
+  s_755964b2e0c3da::t_2eb1c9e6a9b513 15,193-198
+src/lib/outfit-history.ts
+  s_755964b2e0c3da::t_2eb1c9e6a9b513 44-55,58-62,68,76,82
+__tests__/look-detail-screen-colour-map-test.tsx
+  s_755964b2e0c3da::t_2f5dda5f1bca79 87-115
+  s_755964b2e0c3da::t_b63d00a7d260c1 30-35
+src/features/dashboard/hooks/use-save-look.ts
+  s_755964b2e0c3da::t_2eb1c9e6a9b513 45-47
+__tests__/outfit-history-test.ts
+  s_755964b2e0c3da::t_2eb1c9e6a9b513 66-117
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7c9a257395b4a06ec734ed959a586fb614719797",
+  "prompts": {},
+  "sessions": {
+    "s_755964b2e0c3da": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "41717171-e98d-4ccb-91e6-20f4d84aa5ab",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "naaxtech <naaxtech.official@gmail.com>"
+    }
+  }
+}
