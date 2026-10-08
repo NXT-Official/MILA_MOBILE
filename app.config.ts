@@ -21,6 +21,7 @@ const BUNDLE_ID = {
 
 const config: ExpoConfig = {
   name: NAME,
+  owner: "naaxtechs-team",
   slug: "mila-mobile",
   version: "1.0.0",
   orientation: "portrait",
