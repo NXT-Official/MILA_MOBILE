@@ -94,32 +94,46 @@ export function LookDetailScreen({ id }: { id: string }) {
     <Screen scroll>
       <View className="gap-xl py-xl">
         <View>
-          <Image
-            source={{ uri: outfit.image_url }}
-            // Case 1 of the StyleSheet exceptions: expo-image takes a style object.
-            style={{ width: "100%", aspectRatio: 3 / 4, borderRadius: radii.card }}
-            contentFit="cover"
-            transition={200}
-            accessibilityLabel="Saved look"
-          />
+          {outfit.image_url ? (
+            <Image
+              source={{ uri: outfit.image_url }}
+              // Case 1 of the StyleSheet exceptions: expo-image takes a style object.
+              style={{ width: "100%", aspectRatio: 3 / 4, borderRadius: radii.card }}
+              contentFit="cover"
+              transition={200}
+              accessibilityLabel="Saved look"
+            />
+          ) : (
+            // Auto-saved before its visual existed — the written look is
+            // still below, there is just no picture yet.
+            <View
+              style={{ aspectRatio: 3 / 4, borderRadius: radii.card }}
+              className="w-full items-center justify-center bg-accent-soft/50 dark:bg-accent-soft/20"
+            >
+              <Text className="font-body text-sm text-muted">No visual yet</Text>
+            </View>
+          )}
           {/* The web's Download button, as the share sheet: the image is
               already in storage, so it is downloaded and handed over rather
               than re-encoded. Remounted on every render is fine — it is a
               press target, not state. */}
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Save or share this look"
-            onPress={() =>
-              void files.saveAndShareRemoteImage({
-                filename: `mila-look-${headlineSlug(title)}.jpg`,
-                url: outfit.image_url,
-              })
-            }
-            hitSlop={8}
-            className="absolute right-md top-md min-h-tap min-w-tap items-center justify-center rounded-pill border border-border bg-canvas/90 dark:border-border/12"
-          >
-            <Icon name="download" size="sm" color="ink" />
-          </Pressable>
+          {outfit.image_url ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Save or share this look"
+              onPress={() => {
+                if (!outfit.image_url) return;
+                void files.saveAndShareRemoteImage({
+                  filename: `mila-look-${headlineSlug(title)}.jpg`,
+                  url: outfit.image_url,
+                });
+              }}
+              hitSlop={8}
+              className="absolute right-md top-md min-h-tap min-w-tap items-center justify-center rounded-pill border border-border bg-canvas/90 dark:border-border/12"
+            >
+              <Icon name="download" size="sm" color="ink" />
+            </Pressable>
+          ) : null}
         </View>
 
         <Text className="font-body text-micro tracking-label-xwide uppercase text-muted">

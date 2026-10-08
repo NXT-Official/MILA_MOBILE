@@ -18,7 +18,8 @@ import type { LensAnalysisRecord, ShoppablePick } from "@/types/look";
  */
 export type OutfitRow = {
   id: string;
-  image_url: string;
+  /** Null for an auto-saved look whose visual hadn't rendered yet. */
+  image_url: string | null;
   analysis_result: Json | null;
   match_score: number | null;
   created_at: string;
@@ -77,7 +78,8 @@ export async function saveLensAnalysis(
 }
 
 export type SaveDailyLookInput = {
-  imageDataUri: string;
+  /** The visual to save — null when the look has none (auto-save). */
+  imageDataUri: string | null;
   weather: string;
   vibe: string;
   outfit: Json;
@@ -93,7 +95,7 @@ export type SaveDailyLookInput = {
    * the look had no picks: the key stays present, the section stays hidden.
    */
   shoppable_picks: ShoppablePick[] | null;
-  previewMode: "style_sheet" | "photo_edit";
+  previewMode?: "style_sheet" | "photo_edit";
   /**
    * Snapshot of the eligibility inputs active at save time. The web reads these
    * server-side inside `saveOutfitToHistory`; mobile saves direct, so the
@@ -123,13 +125,18 @@ export async function saveDailyLook(
   userId: string,
   input: SaveDailyLookInput,
 ): Promise<OutfitRow> {
-  const { publicUrl, storagePath } = await uploadGeneratedOutfitImage(userId, input.imageDataUri);
+  // A missing visual is a valid save: the compose flow auto-saves before the
+  // style sheet exists (and never renders one without photo consent), so the
+  // row's image is optional — upload only when there is one.
+  const uploaded = input.imageDataUri
+    ? await uploadGeneratedOutfitImage(userId, input.imageDataUri)
+    : null;
 
   const { data, error } = await supabase
     .from("outfits")
     .insert({
       user_id: userId,
-      image_url: publicUrl,
+      image_url: uploaded?.publicUrl ?? null,
       // Key-for-key the web's row. `makeup` is nullable — the server omits the
       // section entirely for makeup-ineligible members, and history renders
       // the absence rather than inventing one.
@@ -146,7 +153,7 @@ export async function saveDailyLook(
         // The items themselves, the web's key verbatim — History reads them
         // back through `normalizeAnalysisResult` and renders the same grid.
         shoppable_picks: input.shoppable_picks,
-        previewMode: input.previewMode,
+        previewMode: input.previewMode ?? "inspiration",
         gender: input.gender,
         makeupEnabled: input.makeupEnabled,
         hairLength: input.hairLength,
@@ -158,7 +165,7 @@ export async function saveDailyLook(
     .single();
 
   if (error) {
-    await removeOutfitImage(storagePath).catch(() => {});
+    if (uploaded) await removeOutfitImage(uploaded.storagePath).catch(() => {});
     throw error;
   }
 

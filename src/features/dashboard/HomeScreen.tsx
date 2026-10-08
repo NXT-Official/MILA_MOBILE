@@ -165,7 +165,7 @@ export function HomeScreen() {
     return kind === "paywall" || kind === "rate-limited" || kind === "suspended" || kind === "auth";
   }
 
-  function requestStyleSheet(currentLook: DailyLook) {
+  function requestStyleSheet(currentLook: DailyLook, opts?: { autoSave?: boolean }) {
     setSheetAttempted(true);
     // A fresh render: the CTA stays disabled until this one is on screen.
     setSheetRendered(false);
@@ -186,10 +186,17 @@ export function HomeScreen() {
         } else {
           setSheetDetail(result.reason);
         }
+        // The automatic save waits for this attempt, so the row carries the
+        // sheet when there is one — and is still written when there isn't.
+        if (opts?.autoSave) {
+          void autoSaveLook(currentLook, result.mode === "style_sheet" ? result.imageDataUri : null);
+        }
       },
       onError: (error) => {
         if (!ownsItsOwnSurface(error)) setSheetDetail(resolveApiFailure(error).message);
         handleFailure(error);
+        // The generation still auto-saves — text and picks, no visual.
+        if (opts?.autoSave) void autoSaveLook(currentLook, null);
       },
     });
   }
@@ -241,28 +248,58 @@ export function HomeScreen() {
         onSuccess: (nextLook) => {
           AccessibilityInfo.announceForAccessibility(`${nextLook.outfit.headline}.`);
           // The web's rule, verbatim: a visual requires a consented photo —
-          // there is no stock-model fallback. No consent, no attempt.
-          if (profile?.photo_consent_at) requestStyleSheet(nextLook);
+          // there is no stock-model fallback. No consent, no attempt — the
+          // look still saves automatically, text and picks only.
+          if (profile?.photo_consent_at) {
+            requestStyleSheet(nextLook, { autoSave: true });
+          } else {
+            void autoSaveLook(nextLook, null);
+          }
         },
         onError: handleFailure,
       },
     );
   }
 
-  function handleSave() {
-    // The style sheet — when it rendered — is the richer artifact, so it is
-    // what gets saved.
-    const imageToSave = sheetImage ?? previewImage;
-    if (!look || !imageToSave || !weather.data) return;
+  /**
+   * The automatic save: every composed look lands in the member's history as
+   * soon as its visual attempt settles — with the style sheet when one was
+   * drawn, text and picks only otherwise (a look without photo consent never
+   * gets a visual). The manual Save button is only ever the retry path.
+   */
+  function autoSaveLook(currentLook: DailyLook, imageDataUri: string | null) {
+    if (!weather.data) return;
     save.mutate(
       {
-        ...look,
-        imageDataUri: imageToSave,
+        ...currentLook,
+        imageDataUri,
         // The web's saved string, verbatim — `label (location)`, no "in",
         // unlike the generate payload.
         weather: `${weather.data.label} (${weather.data.location})`,
         vibe,
-        previewMode: sheetImage ? "style_sheet" : "photo_edit",
+        previewMode: imageDataUri ? "style_sheet" : undefined,
+      },
+      { onError: handleFailure },
+    );
+  }
+
+  function handleSave() {
+    if (!look || !weather.data) return;
+    // One generation, one row: while the automatic save is in flight the
+    // manual button waits rather than writing a duplicate.
+    if (save.isPending) return;
+    // The style sheet — when it rendered — is the richer artifact, so it is
+    // what gets saved; without one the look is still saved, text only.
+    const imageToSave = sheetImage ?? previewImage;
+    save.mutate(
+      {
+        ...look,
+        imageDataUri: imageToSave ?? null,
+        // The web's saved string, verbatim — `label (location)`, no "in",
+        // unlike the generate payload.
+        weather: `${weather.data.label} (${weather.data.location})`,
+        vibe,
+        previewMode: imageToSave ? (sheetImage ? "style_sheet" : "photo_edit") : undefined,
       },
       {
         onSuccess: () => haptics.success(),
@@ -517,7 +554,6 @@ export function HomeScreen() {
 
             {look ? (
               <LookActions
-                hasVisual={Boolean(sheetImage ?? previewImage)}
                 saved={save.isSuccess}
                 saving={save.isPending}
                 saveError={save.isError ? resolveApiFailure(save.error).message : null}

@@ -5,7 +5,7 @@ import {
   type BottomSheetBackdropProps,
 } from "@gorhom/bottom-sheet";
 import { useCallback, useEffect, useMemo, useRef, type ReactNode } from "react";
-import { Text, View } from "react-native";
+import { BackHandler, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { radii, shadows, spacing } from "@/theme/tokens";
@@ -81,6 +81,22 @@ export function Sheet({ visible, onClose, title, height = DEFAULT_HEIGHT, childr
       presented.current = false;
       ref.current?.dismiss();
     }
+  }, [visible]);
+
+  /**
+   * Android's Back is the primary way a member dismisses a sheet, and the
+   * hardware button belongs to the top-most thing on screen. Without this it
+   * reached the tab navigator underneath — closing the app on Home, or
+   * switching the tab behind an orphaned sheet on Concierge (MMM-A1). While
+   * this sheet is up it consumes Back and closes itself, and nothing else.
+   */
+  useEffect(() => {
+    if (!visible) return;
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      ref.current?.dismiss();
+      return true;
+    });
+    return () => sub.remove();
   }, [visible]);
 
   const renderBackdrop = useCallback(

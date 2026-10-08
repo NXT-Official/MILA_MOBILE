@@ -1,5 +1,5 @@
 import { render } from "@testing-library/react-native";
-import { Text } from "react-native";
+import { BackHandler, Text } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 /**
@@ -81,4 +81,32 @@ test("opening presents, and closing an open sheet dismisses", async () => {
 
   await s.rerender(sheet(false));
   expect(dismiss).toHaveBeenCalledTimes(1);
+});
+
+type BackListener = (() => boolean | null | undefined) | undefined;
+
+/** Registers the sheet, then digs the hardware-back handler out of the spy. */
+async function backHandlerFor(visible: boolean, renderSheet: () => Promise<unknown>) {
+  const spy = jest.spyOn(BackHandler, "addEventListener");
+  await renderSheet();
+  const call = spy.mock.calls.find(([eventName]) => eventName === "hardwareBackPress");
+  spy.mockRestore();
+  return call?.[1] as BackListener;
+}
+
+describe("Android Back closes the sheet, and only the sheet (MMM-A1)", () => {
+  test("Back while the sheet is up dismisses it and is consumed", async () => {
+    const handler = await backHandlerFor(true, () => render(sheet(true)));
+    expect(handler).toBeTruthy();
+
+    const handled = handler?.();
+    expect(handled).toBe(true);
+    expect(dismiss).toHaveBeenCalledTimes(1);
+  });
+
+  test("Back with the sheet closed is left to the app underneath", async () => {
+    const handler = await backHandlerFor(false, () => render(sheet(false)));
+    expect(handler).toBeUndefined();
+    expect(dismiss).not.toHaveBeenCalled();
+  });
 });

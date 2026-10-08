@@ -82,9 +82,10 @@ export function generatePhotoPreview(outfit: DailyLook): Promise<PhotoPreviewRes
 }
 
 export type SaveLookInput = DailyLook & {
-  imageDataUri: string;
+  /** The visual to save — null/omitted when the look has none (auto-save). */
+  imageDataUri?: string | null;
   weather: string;
   vibe: Vibe;
-  /** Which pipeline produced the saved visual — written into the row. */
-  previewMode: "style_sheet" | "photo_edit";
+  /** Which pipeline produced the saved visual — omitted when there is none. */
+  previewMode?: "style_sheet" | "photo_edit";
 };
