@@ -85,6 +85,13 @@ describe("Chip", () => {
     // structurally rather than only by colour.
     expect(JSON.stringify(s.toJSON())).not.toBe(unselected);
   });
+
+  it("as one choice among many it reports a radio, not a checkbox", async () => {
+    const s = await render(<Chip label="Brunch" selected single onPress={() => {}} />);
+    const chip = s.getByRole("radio", { name: "Brunch" });
+    expect(chip.props.accessibilityState).toMatchObject({ checked: true });
+    expect(s.queryByRole("checkbox")).toBeNull();
+  });
 });
 
 describe("SeasonTag", () => {

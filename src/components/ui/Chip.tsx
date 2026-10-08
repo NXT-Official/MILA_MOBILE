@@ -7,6 +7,9 @@ import { Icon } from "./Icon";
 type ChipProps = {
   label: string;
   selected: boolean;
+  /** One choice among many (a view, a filter) rather than one of several
+   * picks: screen readers hear a radio, so the group reads as exclusive. */
+  single?: boolean;
   onPress: () => void;
 };
 
@@ -18,10 +21,10 @@ type ChipProps = {
  * 44px minimum target: chips sit in a wrapping grid where a mis-tap picks the
  * neighbouring preference.
  */
-export function Chip({ label, selected, onPress }: ChipProps) {
+export function Chip({ label, selected, single = false, onPress }: ChipProps) {
   return (
     <Pressable
-      accessibilityRole="checkbox"
+      accessibilityRole={single ? "radio" : "checkbox"}
       accessibilityState={{ checked: selected }}
       accessibilityLabel={label}
       onPress={onPress}

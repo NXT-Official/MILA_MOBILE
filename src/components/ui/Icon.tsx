@@ -45,6 +45,7 @@ import {
   Plus,
   RefreshCw,
   Ruler,
+  Search,
   Send,
   Settings,
   ShieldCheck,
@@ -145,6 +146,8 @@ export const icons = {
   wind: Wind,
   outfit: Shirt,
   offline: WifiOff,
+  // History
+  search: Search,
   // Lens. `gallery` is the single-frame glyph so it does not read as the Feed
   // tab's stack, which sits two controls away in the capture bar.
   gallery: ImageIcon,

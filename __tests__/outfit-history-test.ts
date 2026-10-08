@@ -1,4 +1,4 @@
-import { lookSections, normalizeAnalysisResult } from "@/lib/outfit-history";
+import { historySummary, lookSections, normalizeAnalysisResult } from "@/lib/outfit-history";
 
 const dailyLook = {
   type: "daily_look",
@@ -191,5 +191,63 @@ describe("normalizeAnalysisResult: the saved colour map", () => {
     const entry = normalizeAnalysisResult({ ...dailyLook, colourMap: many });
     if (entry.kind !== "daily_look") throw new Error("wrong branch");
     expect(entry.look.colourMap).toHaveLength(12);
+  });
+});
+
+describe("historySummary", () => {
+  const row = (analysis_result: unknown) => ({
+    id: "o1",
+    created_at: "2026-10-07T08:00:00Z",
+    analysis_result,
+  });
+
+  it("a saved look is filed under its vibe, scored, and searchable by what it said and suggested", () => {
+    const summary = historySummary(
+      row({
+        ...dailyLook,
+        makeup: { palette: "Warm terracotta", details: "" },
+        shoppable_picks: [
+          {
+            id: "p1",
+            title: "Striped Cotton Jacket",
+            affiliate_link: "https://shop.example.test/p1",
+          },
+        ],
+      }),
+    );
+    expect(summary).toMatchObject({
+      id: "o1",
+      createdAt: "2026-10-07T08:00:00Z",
+      title: "The Architectural Linen Silhouette",
+      kind: "look",
+      category: "Brunch",
+      score: 88,
+    });
+    for (const word of ["brunch", "partly cloudy", "cuff the hem", "terracotta", "striped cotton jacket"]) {
+      expect(summary.searchText).toContain(word);
+    }
+  });
+
+  it("a Lens analysis has no vibe and is searchable by its verdict", () => {
+    const summary = historySummary(
+      row({ overall_score: 82, verdict: "Navy reads cool.", color_match: "", silhouette: "Boxy" }),
+    );
+    expect(summary).toMatchObject({ kind: "analysis", category: null, score: null });
+    expect(summary.searchText).toContain("navy reads cool");
+    expect(summary.searchText).toContain("boxy");
+  });
+
+  it("an unreadable row is still listed, under no category", () => {
+    expect(historySummary(row("{not json"))).toMatchObject({
+      kind: "other",
+      category: null,
+      score: null,
+      title: "Saved look",
+    });
+  });
+
+  it("a look saved without a vibe is listed under All only", () => {
+    const { vibe: _vibe, ...noVibe } = dailyLook;
+    expect(historySummary(row(noVibe)).category).toBeNull();
   });
 });

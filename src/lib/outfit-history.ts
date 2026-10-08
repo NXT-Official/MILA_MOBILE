@@ -1,6 +1,7 @@
 import type { DailyLook, LensAnalysisRecord, ShoppablePick } from "@/types/look";
 
 import { GARMENT_KIND_ORDER, type GarmentKind } from "./garment-label";
+import { searchTextOf, type HistorySummary } from "./history-filter";
 import { asWearColour, MAX_SAVED_COLOUR_MAP_ROWS, type SavedColourMapRow } from "./wear-colour";
 
 /**
@@ -215,4 +216,57 @@ export function lookSections(
     { title: "Hair", body: hairBody },
     { title: "Makeup", body: makeupBody },
   ].filter((section) => section.body.length > 0);
+}
+
+/**
+ * What History's search, sort and category views read for one saved row (see
+ * `history-filter.ts`, shared with the web). A look is filed under its vibe and
+ * found by what it said and the items it suggested; an analysis by its verdict.
+ */
+export function historySummary(row: {
+  id: string;
+  created_at: string;
+  analysis_result: unknown;
+}): HistorySummary {
+  const entry = normalizeAnalysisResult(row.analysis_result);
+  const title = outfitTitle(entry);
+  const base = { id: row.id, createdAt: row.created_at, title };
+
+  if (entry.kind === "daily_look") {
+    const { look } = entry;
+    return {
+      ...base,
+      kind: "look",
+      category: entry.vibe?.trim() || null,
+      score: look.vibe_alignment_score,
+      searchText: searchTextOf([
+        title,
+        entry.vibe,
+        entry.weather,
+        look.outfit.description,
+        look.outfit.styling_notes,
+        look.hair.style,
+        look.makeup?.palette,
+        ...(look.shoppable_picks ?? []).map((pick) => pick.title),
+      ]),
+    };
+  }
+
+  if (entry.kind === "lens") {
+    const { analysis } = entry;
+    return {
+      ...base,
+      kind: "analysis",
+      category: null,
+      score: null,
+      searchText: searchTextOf([
+        title,
+        analysis.verdict,
+        analysis.color_match,
+        analysis.silhouette,
+      ]),
+    };
+  }
+
+  return { ...base, kind: "other", category: null, score: null, searchText: searchTextOf([title]) };
 }
