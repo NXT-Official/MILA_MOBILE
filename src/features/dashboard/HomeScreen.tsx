@@ -527,6 +527,28 @@ export function HomeScreen() {
       : Promise.resolve(mintLookKey(null, context));
   }
 
+  /**
+   * The automatic save: every composed look lands in the member's history as
+   * soon as its visual attempt settles — with the style sheet when one was
+   * drawn, text and picks only otherwise (a look without photo consent never
+   * gets a visual). The manual Save button is only ever the retry path.
+   */
+  function autoSaveLook(currentLook: DailyLook, imageDataUri: string | null) {
+    if (!weather.data) return;
+    save.mutate(
+      {
+        ...currentLook,
+        imageDataUri,
+        // The web's saved string, verbatim — `label (location)`, no "in",
+        // unlike the generate payload.
+        weather: `${weather.data.label} (${weather.data.location})`,
+        vibe,
+        previewMode: imageDataUri ? "style_sheet" : undefined,
+      },
+      { onError: handleFailure },
+    );
+  }
+
   function requestStyleSheet(currentLook: DailyLook, opts?: { autoSave?: boolean }) {
     const run = lookRun.current;
     // One press, one request: a second tap for this look while its sheet is on
@@ -835,28 +857,6 @@ export function HomeScreen() {
     reportedJob.current = ownEndedJob.id;
     reportOwnLookEnded(ownEndedJob);
   }, [ownEndedJob]);
-
-  /**
-   * The automatic save: every composed look lands in the member's history as
-   * soon as its visual attempt settles — with the style sheet when one was
-   * drawn, text and picks only otherwise (a look without photo consent never
-   * gets a visual). The manual Save button is only ever the retry path.
-   */
-  function autoSaveLook(currentLook: DailyLook, imageDataUri: string | null) {
-    if (!weather.data) return;
-    save.mutate(
-      {
-        ...currentLook,
-        imageDataUri,
-        // The web's saved string, verbatim — `label (location)`, no "in",
-        // unlike the generate payload.
-        weather: `${weather.data.label} (${weather.data.location})`,
-        vibe,
-        previewMode: imageDataUri ? "style_sheet" : undefined,
-      },
-      { onError: handleFailure },
-    );
-  }
 
   function handleSave() {
     // The style sheet — when it rendered — is the richer artifact, so it is
