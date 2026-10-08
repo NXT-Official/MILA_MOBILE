@@ -752,12 +752,24 @@ describe("a visual belongs to exactly one look", () => {
 
     await answer(mockState.generate, { ...OTHER_LOOK, jobId: "look-2" });
     expect(mockState.styleSheet.mutate).toHaveBeenCalledTimes(1);
-    // While the new sheet renders, the new look has no visual of its own yet.
+    // While the new sheet renders, Save waits so the automatic save cannot be
+    // doubled.
     expect(isDisabled(saveButton())).toBe(true);
 
     await fail(mockState.styleSheet, lost());
     expect(sheetImageOf(OTHER_LOOK)).toBeNull();
-    expect(isDisabled(saveButton())).toBe(true);
+    // The lost sheet never shows or saves; with nothing drawing, the look is
+    // saveable text-only — never with the old look's cleared sheet.
+    expect(isDisabled(saveButton())).toBe(false);
+    await fireEvent.press(saveButton());
+    expect(mockState.saveMutate).toHaveBeenCalledWith(
+      expect.objectContaining({ imageDataUri: null }),
+      expect.anything(),
+    );
+    expect(mockState.saveMutate).not.toHaveBeenCalledWith(
+      expect.objectContaining({ imageDataUri: IMAGE_A }),
+      expect.anything(),
+    );
   });
 
   it("keeps the look on screen, and its sheet, when another device composes a newer look", async () => {

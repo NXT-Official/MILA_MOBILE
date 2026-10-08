@@ -33,13 +33,23 @@ export function LookCard({ outfit, onPress }: { outfit: OutfitRow; onPress: () =
       onPress={onPress}
       className="active:opacity-90 flex-1 gap-sm"
     >
-      <Image
-        source={{ uri: outfit.image_url }}
-        // Case 1 of the StyleSheet exceptions: expo-image takes a style object.
-        style={{ width: "100%", aspectRatio: 3 / 4, borderRadius: radii.panel }}
-        contentFit="cover"
-        transition={150}
-      />
+      {outfit.image_url ? (
+        <Image
+          source={{ uri: outfit.image_url }}
+          // Case 1 of the StyleSheet exceptions: expo-image takes a style object.
+          style={{ width: "100%", aspectRatio: 3 / 4, borderRadius: radii.panel }}
+          contentFit="cover"
+          transition={150}
+        />
+      ) : (
+        // Auto-saved before its visual existed — there is just no picture yet.
+        <View
+          style={{ aspectRatio: 3 / 4, borderRadius: radii.panel }}
+          className="w-full items-center justify-center bg-accent-soft/50 dark:bg-accent-soft/20"
+        >
+          <Text className="font-body text-micro text-muted">No visual yet</Text>
+        </View>
+      )}
       <View className="gap-xs">
         {vibe ? (
           <Text className="font-body text-micro tracking-label uppercase text-muted">{vibe}</Text>

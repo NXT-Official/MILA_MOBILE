@@ -217,7 +217,7 @@ export type Database = {
           analysis_result: Json | null;
           created_at: string;
           id: string;
-          image_url: string;
+          image_url: string | null;
           match_score: number | null;
           user_id: string;
         };
@@ -225,7 +225,7 @@ export type Database = {
           analysis_result?: Json | null;
           created_at?: string;
           id?: string;
-          image_url: string;
+          image_url?: string | null;
           match_score?: number | null;
           user_id: string;
         };
@@ -233,7 +233,7 @@ export type Database = {
           analysis_result?: Json | null;
           created_at?: string;
           id?: string;
-          image_url?: string;
+          image_url?: string | null;
           match_score?: number | null;
           user_id?: string;
         };

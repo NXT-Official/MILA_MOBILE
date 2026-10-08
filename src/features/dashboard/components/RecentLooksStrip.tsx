@@ -76,13 +76,20 @@ export function RecentLooksStrip({
               onPress={() => router.push(`/look/${look.id}`)}
               className="active:opacity-90 h-28 w-24 overflow-hidden rounded-control border border-border dark:border-border/12"
             >
-              <RemoteImage
-                uri={look.image_url}
-                recyclingKey={look.id}
-                accessibilityLabel={`Saved look from ${relativeTime(look.created_at)}`}
-                onExpired={onExpired}
-                style={{ width: "100%", height: "100%" }}
-              />
+              {look.image_url ? (
+                <RemoteImage
+                  uri={look.image_url}
+                  recyclingKey={look.id}
+                  accessibilityLabel={`Saved look from ${relativeTime(look.created_at)}`}
+                  onExpired={onExpired}
+                  style={{ width: "100%", height: "100%" }}
+                />
+              ) : (
+                // Auto-saved before its visual existed — no picture yet.
+                <View className="h-full w-full items-center justify-center bg-accent-soft/50 dark:bg-accent-soft/20">
+                  <Text className="font-body text-micro text-muted">No visual yet</Text>
+                </View>
+              )}
               <View className="absolute inset-x-0 bottom-0 bg-ink/60 px-sm py-xs">
                 <Text className="font-body text-label text-on-ink" numberOfLines={1}>
                   {relativeTime(look.created_at)}

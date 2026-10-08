@@ -527,7 +527,7 @@ export function HomeScreen() {
       : Promise.resolve(mintLookKey(null, context));
   }
 
-  function requestStyleSheet(currentLook: DailyLook) {
+  function requestStyleSheet(currentLook: DailyLook, opts?: { autoSave?: boolean }) {
     const run = lookRun.current;
     // One press, one request: a second tap for this look while its sheet is on
     // its way is the same press.
@@ -587,11 +587,21 @@ export function HomeScreen() {
           } else {
             setSheetDetail(result.reason);
           }
+          // The automatic save waits for this attempt so the row carries the
+          // sheet when there is one — and is still written when there isn't.
+          // A sheet for a look she has moved on from is dropped, never saved
+          // under the new one.
+          if (opts?.autoSave) {
+            void autoSaveLook(currentLook, result.mode === "style_sheet" ? result.imageDataUri : null);
+          }
         },
         onError: (error) => {
           if (sheetInFlightRun.current === run) sheetInFlightRun.current = null;
           // No answer from the server: the key is kept, and Retry resends it.
           if (!isLostAnswer(error)) settlePress("style_sheet", press.clientRequestId);
+          // A lost answer may still be drawing — it saves when its row says
+          // how it ended. A real refusal settles here, text and picks only.
+          if (!isLostAnswer(error) && opts?.autoSave) void autoSaveLook(currentLook, null);
           // The paywall and the rate limit belong to the account, not the look,
           // so they still surface; the slot's own message is for the current look.
           if (lookRun.current === run && !ownsItsOwnSurface(error)) {
@@ -715,8 +725,13 @@ export function HomeScreen() {
           setPressAnsweredAt(Date.now());
           AccessibilityInfo.announceForAccessibility(`${nextLook.outfit.headline}.`);
           // The web's rule, verbatim: a visual requires a consented photo —
-          // there is no stock-model fallback. No consent, no attempt.
-          if (profile?.photo_consent_at) requestStyleSheet(nextLook);
+          // there is no stock-model fallback. No consent, no attempt — the
+          // look still saves automatically, text and picks only.
+          if (profile?.photo_consent_at) {
+            requestStyleSheet(nextLook, { autoSave: true });
+          } else {
+            void autoSaveLook(nextLook, null);
+          }
         },
         onError: (error) => {
           if (lookInFlight.current?.key === clientRequestId) lookInFlight.current = null;
@@ -782,7 +797,11 @@ export function HomeScreen() {
     }
     AccessibilityInfo.announceForAccessibility(`${next.look.outfit.headline}.`);
     if (next.own && profile?.photo_consent_at && sheetNeverDrawn(jobs.styleSheet, next.look)) {
-      requestStyleSheet(next.look);
+      requestStyleSheet(next.look, { autoSave: true });
+    } else if (next.own) {
+      // A look that already has its sheet (or a look with no visual to draw)
+      // still lands in her history, once, with the sheet when it is loaded.
+      void autoSaveLook(next.look, recoveredSheet.image ?? null);
     }
   });
   const candidate = lookRecovery.candidate;
@@ -817,6 +836,28 @@ export function HomeScreen() {
     reportOwnLookEnded(ownEndedJob);
   }, [ownEndedJob]);
 
+  /**
+   * The automatic save: every composed look lands in the member's history as
+   * soon as its visual attempt settles — with the style sheet when one was
+   * drawn, text and picks only otherwise (a look without photo consent never
+   * gets a visual). The manual Save button is only ever the retry path.
+   */
+  function autoSaveLook(currentLook: DailyLook, imageDataUri: string | null) {
+    if (!weather.data) return;
+    save.mutate(
+      {
+        ...currentLook,
+        imageDataUri,
+        // The web's saved string, verbatim — `label (location)`, no "in",
+        // unlike the generate payload.
+        weather: `${weather.data.label} (${weather.data.location})`,
+        vibe,
+        previewMode: imageDataUri ? "style_sheet" : undefined,
+      },
+      { onError: handleFailure },
+    );
+  }
+
   function handleSave() {
     // The style sheet — when it rendered — is the richer artifact, so it is
     // what gets saved.
@@ -829,14 +870,17 @@ export function HomeScreen() {
       : weather.data
         ? `${weather.data.label} (${weather.data.location})`
         : null;
-    if (!look || !imageToSave || !savedWeather) return;
+    if (!look || !savedWeather) return;
+    // One generation, one row: while the automatic save is in flight the
+    // manual button waits rather than writing a duplicate.
+    if (save.isPending) return;
     save.mutate(
       {
         ...look,
-        imageDataUri: imageToSave,
+        imageDataUri: imageToSave ?? null,
         weather: savedWeather,
         vibe: lookVibe,
-        previewMode: shownSheetImage ? "style_sheet" : "photo_edit",
+        previewMode: imageToSave ? (shownSheetImage ? "style_sheet" : "photo_edit") : undefined,
       },
       {
         onSuccess: () => haptics.success(),
@@ -1143,7 +1187,6 @@ export function HomeScreen() {
 
             {look ? (
               <LookActions
-                hasVisual={Boolean(shownSheetImage ?? shownPreviewImage)}
                 saved={save.isSuccess}
                 saving={save.isPending}
                 saveError={save.isError ? resolveApiFailure(save.error).message : null}

@@ -31,7 +31,7 @@ export function useSaveLook() {
     mutationFn: (input) => {
       if (!userId) throw new Error("Not signed in.");
       return saveDailyLook(userId, {
-        imageDataUri: input.imageDataUri,
+        imageDataUri: input.imageDataUri ?? null,
         weather: input.weather,
         vibe: input.vibe,
         outfit: input.outfit,

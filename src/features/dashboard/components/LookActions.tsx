@@ -2,11 +2,8 @@ import { router } from "expo-router";
 import { Text, View } from "react-native";
 
 import { Button } from "@/components/ui/Button";
-import { Icon } from "@/components/ui/Icon";
 
 import { CreditCostHint } from "./CreditCostHint";
-
-const NO_VISUAL_COPY = "Your look needs its visual before it can be saved.";
 
 /**
  * What she can do with a finished look — the web's hero action row
@@ -19,7 +16,6 @@ const NO_VISUAL_COPY = "Your look needs its visual before it can be saved.";
  * cannot do anything is a worse answer than no button.
  */
 export function LookActions({
-  hasVisual,
   saved,
   saving,
   saveError,
@@ -32,7 +28,6 @@ export function LookActions({
   onTryAnother,
   onAskConcierge,
 }: {
-  hasVisual: boolean;
   saved: boolean;
   saving: boolean;
   saveError: string | null;
@@ -62,20 +57,14 @@ export function LookActions({
       ) : (
         <Button
           label="Save to history"
-          disabled={!hasVisual}
+          // Saving no longer needs a visual first — every generation is
+          // auto-saved and this button is the retry path; it only waits while
+          // a sheet is drawing so the automatic save can't be doubled.
+          disabled={newVisualLoading}
           loading={saving}
           onPress={onSave}
         />
       )}
-
-      {!hasVisual && !saved ? (
-        <View accessibilityLiveRegion="polite" className="flex-row items-start gap-sm">
-          <View className="mt-xs">
-            <Icon name="alert" size="xs" color="muted" />
-          </View>
-          <Text className="flex-1 font-body text-sm text-body">{NO_VISUAL_COPY}</Text>
-        </View>
-      ) : null}
 
       {saveError ? (
         <Text accessibilityLiveRegion="assertive" className="font-body text-sm text-body">

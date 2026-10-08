@@ -83,6 +83,7 @@ const mockState = {
   },
   styleSheet: { isPending: false, mutate: jest.fn() },
   photoPreview: { isPending: false, mutate: jest.fn() },
+  saveMutate: jest.fn(),
 };
 
 jest.mock("../src/hooks/use-profile", () => ({
@@ -122,7 +123,7 @@ jest.mock("../src/features/dashboard/hooks/use-save-look", () => ({
     isError: false,
     error: null,
     data: undefined,
-    mutate: jest.fn(),
+    mutate: mockState.saveMutate,
     reset: jest.fn(),
   }),
 }));
@@ -326,13 +327,28 @@ describe("Try another look", () => {
     await act(async () => nextCallbacks.onSuccess(LOOK_B));
     await refresh();
 
-    // Nothing from look A may be saveable under look B's headline.
-    expect(isDisabled(saveButton())).toBe(true);
+    // Nothing from look A may be saveable under look B's headline: B is
+    // saveable text-only (the automatic save's retry path), never with A's
+    // dropped sheet.
+    expect(isDisabled(saveButton())).toBe(false);
+    await fireEvent.press(saveButton());
+    expect(mockState.saveMutate).toHaveBeenCalledWith(
+      expect.objectContaining({ imageDataUri: null }),
+      expect.anything(),
+    );
+    expect(mockState.saveMutate).not.toHaveBeenCalledWith(
+      expect.objectContaining({ imageDataUri: IMAGE_A }),
+      expect.anything(),
+    );
 
     const sheetForB = mockState.styleSheet.mutate.mock.calls[1][1];
     await act(async () => sheetForB.onSuccess({ mode: "style_sheet", imageDataUri: IMAGE_B }));
     await refresh();
-    expect(isDisabled(saveButton())).toBe(false);
+    // The sheet that landed for B is what the automatic save carried.
+    expect(mockState.saveMutate).toHaveBeenCalledWith(
+      expect.objectContaining({ imageDataUri: IMAGE_B }),
+      expect.anything(),
+    );
   });
 
   it("drops a style sheet that lands after the next look has asked for its own", async () => {
@@ -343,7 +359,17 @@ describe("Try another look", () => {
     await act(async () => sheetForA.onSuccess({ mode: "style_sheet", imageDataUri: IMAGE_A }));
     await refresh();
 
-    expect(isDisabled(saveButton())).toBe(true);
+    // B is saveable text-only; A's late sheet never rides along.
+    expect(isDisabled(saveButton())).toBe(false);
+    await fireEvent.press(saveButton());
+    expect(mockState.saveMutate).toHaveBeenCalledWith(
+      expect.objectContaining({ imageDataUri: null }),
+      expect.anything(),
+    );
+    expect(mockState.saveMutate).not.toHaveBeenCalledWith(
+      expect.objectContaining({ imageDataUri: IMAGE_A }),
+      expect.anything(),
+    );
   });
 
   describe("while a portrait preview is being drawn", () => {
@@ -406,11 +432,25 @@ describe("Try another look", () => {
 
       await act(async () => previewForA.onSuccess({ mode: "photo_edit", imageDataUri: IMAGE_A }));
       await refresh();
-      expect(isDisabled(saveButton())).toBe(true);
+      // B is saveable text-only; A's dropped preview never rides along.
+      expect(isDisabled(saveButton())).toBe(false);
+      await fireEvent.press(saveButton());
+      expect(mockState.saveMutate).toHaveBeenCalledWith(
+        expect.objectContaining({ imageDataUri: null }),
+        expect.anything(),
+      );
+      expect(mockState.saveMutate).not.toHaveBeenCalledWith(
+        expect.objectContaining({ imageDataUri: IMAGE_A }),
+        expect.anything(),
+      );
 
       await act(async () => previewForB.onSuccess({ mode: "photo_edit", imageDataUri: IMAGE_B }));
       await refresh();
-      expect(isDisabled(saveButton())).toBe(false);
+      await fireEvent.press(saveButton());
+      expect(mockState.saveMutate).toHaveBeenCalledWith(
+        expect.objectContaining({ imageDataUri: IMAGE_B }),
+        expect.anything(),
+      );
     });
 
     it("does not report its failure under the new look", async () => {
