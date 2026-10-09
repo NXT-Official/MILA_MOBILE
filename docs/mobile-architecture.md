@@ -1569,6 +1569,7 @@ is exactly as trusted as an anonymous browser: not at all.**
 | `EXPO_PUBLIC_SENTRY_DSN`                  | Yes — a DSN is a write-only ingest endpoint |
 | `EXPO_PUBLIC_POSTHOG_KEY`                 | Yes — project keys are publishable |
 | `EXPO_PUBLIC_POSTHOG_HOST`                | Yes — an ingest hostname        |
+| `google-services.json`                    | Yes — the Firebase Android client config (committed; every value in it ships in any Firebase-enabled APK) |
 | `SUPABASE_SERVICE_ROLE_KEY`               | **Never**                       |
 | `AI_API_KEY` / Gemini                     | **Never**                       |
 | `CLOUDFLARE_API_TOKEN`                    | **Never**                       |
@@ -1659,14 +1660,16 @@ fallback pointing at a hosted challenge page.
 | Data export         | Assembled client-side from `profiles`, `outfits`, `posts`, `user_favorites` → `expo-file-system` → `expo-sharing`                                                                 |
 | Account deletion    | **Must be reachable in the app** (an App Store requirement). Type-your-email confirmation; cancels billing immediately, purges storage, deletes the auth user, cascades every row |
 | Analytics           | None today. If added, no PII, no image content, and a documented disclosure                                                                                                       |
-| Crash reporting     | Scrub tokens, emails, and image data from breadcrumbs                                                                                                                             |
+| Crash reporting     | Two reporters, both scrubbed with `services/observability/scrub.ts` before anything leaves the device: Sentry (`EXPO_PUBLIC_SENTRY_DSN`, no-op without it) and Firebase Crashlytics (`services/observability/crashlytics.ts`, release builds only). Neither ever receives an email, a name, or image content — only the Supabase user id |
 
 Wave D reads: the check-in and the body scan send their photos as base64 in memory, exactly like the
 colour read. Nothing is uploaded to storage, no photo is stored in a job row, the temporary capture
 file is deleted after it is encoded, and the consented-photo save is never offered in these flows.
 
 Store listings must declare: camera, photo library, approximate location, email address, and
-user-generated content.
+user-generated content. The Play data-safety form must also declare **crash logs / diagnostics**
+(Crashlytics) and **device identifiers** — Crashlytics is off in debug builds but on in every
+installed build, and an undeclared collection is a Play policy violation.
 
 ### Suspension
 

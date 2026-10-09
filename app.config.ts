@@ -51,6 +51,12 @@ const config: ExpoConfig = {
 
   android: {
     package: BUNDLE_ID,
+    // Committed at the repo root, one client entry per variant package name
+    // (com.mila.app, .preview, .dev) — the google-services gradle plugin fails
+    // the build outright without it, and every EAS profile builds a different
+    // package. The env override exists for a build against another Firebase
+    // project; it is an EAS file variable when used.
+    googleServicesFile: process.env.GOOGLE_SERVICES_JSON ?? "./google-services.json",
     adaptiveIcon: {
       backgroundColor: "#f5f0e8",
       foregroundImage: "./assets/images/android-icon-foreground.png",
@@ -159,6 +165,22 @@ const config: ExpoConfig = {
         isIosBackgroundLocationEnabled: false,
       },
     ],
+    [
+      // Firebase: Crashlytics only. The app plugin adds the google-services
+      // gradle plugin and copies `google-services.json` into the build; the
+      // crashlytics plugin adds its own gradle plugin plus the NDK symbol
+      // upload, which is what turns a native crash into a readable frame.
+      //
+      // Analytics is deliberately not installed — see
+      // `src/services/observability/index.ts`.
+      "@react-native-firebase/app",
+      {
+        android: {
+          googleServicesFile: process.env.GOOGLE_SERVICES_JSON ?? "./google-services.json",
+        },
+      },
+    ],
+    "@react-native-firebase/crashlytics",
     [
       // Uploads debug symbols at build time so a native stack trace resolves
       // to real source rather than addresses — `Sentry.init` itself lives in

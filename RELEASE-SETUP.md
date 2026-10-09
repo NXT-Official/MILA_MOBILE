@@ -69,6 +69,26 @@ launch with `Missing EXPO_PUBLIC_SUPABASE_URL` before this was set.
   set `SENTRY_AUTH_TOKEN` (EAS secret or build env), and source-map/symbol
   uploads resume — the same flag also gates the iOS upload script.
 
+## 4b. Firebase Crashlytics
+
+- Project **`mila-app-3942c`** (`Mila App`, Spark/free). Three Android apps are registered in it —
+  `com.mila.app` (production), `com.mila.app.preview`, `com.mila.app.dev` — matching the three
+  `APP_VARIANT` package names in `app.config.ts`.
+- `google-services.json` is **committed at the repo root** and carries one `client` entry per
+  package name. `app.config.ts` points both the `android.googleServicesFile` field and the
+  `@react-native-firebase/app` config plugin at it, so every EAS profile resolves its own entry.
+  The google-services gradle plugin fails the build outright if the file is missing, and the file is
+  not a secret (it ships inside every Firebase-enabled APK) — do not move it to an EAS file variable
+  unless the project changes; `GOOGLE_SERVICES_JSON` exists as an override for that case.
+- A new Android app in the same project must be added to the console **and** to
+  `google-services.json`, or that profile's build fails with a "no matching client" error.
+- `src/services/observability/crashlytics.ts` is the adapter; it collects in release builds only
+  (`shouldCollect(__DEV__)`) and is a no-op when the native module is absent. Reporting reaches
+  Crashlytics from the `services/observability` facade, alongside Sentry — see
+  `docs/mobile-architecture.md` §10.
+- Analytics is deliberately **not** installed. Adding `@react-native-firebase/analytics` means a
+  new adapter entry, a jest mock, and an updated Play data-safety declaration.
+
 ## 5. Legal — privacy policy and terms of service
 
 - Pages are hosted at `https://mila-umber.vercel.app/privacy` and `/terms`,

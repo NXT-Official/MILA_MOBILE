@@ -1,0 +1,67 @@
+{
+  "project_info": {
+    "project_number": "702118597445",
+    "project_id": "mila-app-3942c",
+    "storage_bucket": "mila-app-3942c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:702118597445:android:e8a8536065de884e4de42c",
+        "android_client_info": {
+          "package_name": "com.mila.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAS2_mqzJt_3oihQgo5KVfPW1exk2Yzz5Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:702118597445:android:9cbfa0ef1e5f60304de42c",
+        "android_client_info": {
+          "package_name": "com.mila.app.preview"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAS2_mqzJt_3oihQgo5KVfPW1exk2Yzz5Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:702118597445:android:684c5a124118846d4de42c",
+        "android_client_info": {
+          "package_name": "com.mila.app.dev"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAS2_mqzJt_3oihQgo5KVfPW1exk2Yzz5Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

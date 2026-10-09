@@ -1,5 +1,6 @@
 import { capturePhEvent, captureScreen, identifyPhUser, resetPh } from "@/services/posthog";
 
+import * as crashlytics from "./crashlytics";
 import * as sentry from "./sentry";
 import { scrubPath, scrubText } from "./scrub";
 
@@ -8,12 +9,12 @@ import { scrubPath, scrubText } from "./scrub";
  * errors, logs, events and screen views. Each SDK is wrapped on its own, so
  * one failing or unconfigured SDK never breaks the others or the caller, and
  * every SDK is a no-op when its env var is unset (Sentry: EXPO_PUBLIC_SENTRY_DSN,
- * PostHog: EXPO_PUBLIC_POSTHOG_KEY).
+ * PostHog: EXPO_PUBLIC_POSTHOG_KEY) or its native module is absent (Crashlytics).
  *
- * Firebase Analytics is intentionally not installed. It stays gated on the
- * `GOOGLE_SERVICES_JSON` EAS file variable, which the owner supplies. When it
- * exists, add `@react-native-firebase/app` + `analytics` behind an adapter here
- * (one more entry in `safely` calls) and update the Play data-safety form.
+ * Crashlytics is installed for the Google side (native crashes in the Firebase
+ * console the Play Console links to). Firebase Analytics is still intentionally
+ * not installed — when it is wanted, add `@react-native-firebase/analytics`
+ * behind one more `safely` entry here and update the Play data-safety form.
  */
 
 function safely(fn: () => void): void {
@@ -37,6 +38,7 @@ function scrubbedError(error: unknown): unknown {
 /** Reports an error. `context` becomes searchable tags; keep values short and non-personal. */
 export function captureError(error: unknown, context?: Record<string, string>): void {
   safely(() => sentry.captureError(scrubbedError(error), context));
+  safely(() => crashlytics.captureError(scrubbedError(error), context));
 }
 
 /** Product event (PostHog). */
@@ -47,12 +49,14 @@ export function track(event: string, properties?: Record<string, unknown>): void
 /** Associates the device with a member: user id only, never email or name. */
 export function identify(userId: string): void {
   safely(() => sentry.setUser(userId));
+  safely(() => crashlytics.setUser(userId));
   safely(() => identifyPhUser(userId));
 }
 
 /** Clears the identified member (sign-out). */
 export function reset(): void {
   safely(() => sentry.clearUser());
+  safely(() => crashlytics.clearUser());
   safely(() => resetPh());
 }
 
@@ -73,6 +77,7 @@ type LogAttributes = Record<string, string | number | boolean>;
 
 function send(level: "info" | "warn" | "error", message: string, attributes?: LogAttributes): void {
   safely(() => sentry.log(level, scrubText(message), attributes));
+  safely(() => crashlytics.log(level, scrubText(message), attributes));
 }
 
 export const log = {
