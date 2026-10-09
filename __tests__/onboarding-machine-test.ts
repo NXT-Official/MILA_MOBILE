@@ -1,7 +1,9 @@
 import {
+  CORE_QUESTION_COUNT,
   COUNTED_STEPS,
   ONBOARDING_STEPS,
   ONBOARDING_STEP_IDS,
+  getCoreQuestionNumber,
   getFirstIncompleteOnboardingStep,
   getOnboardingStepIndex,
   isOnboardingStepComplete,
@@ -68,7 +70,7 @@ const withHair: DashboardProfile = { ...withFace, hair_type: "Wavy" };
 const withHairLength: DashboardProfile = { ...withHair, hair_length: "Medium" };
 
 describe("step order", () => {
-  it("is the sixteen steps in the documented order", () => {
+  it("is the seventeen steps in the documented order", () => {
     expect(ONBOARDING_STEP_IDS).toEqual([
       "welcome",
       "color-path",
@@ -76,10 +78,11 @@ describe("step order", () => {
       "gender",
       "skin-depth",
       "body-type",
-      "measurements",
       "face-shape",
       "hair-type",
       "hair-length",
+      "refine",
+      "measurements",
       "makeup-preference",
       "beauty-preferences",
       "location",
@@ -89,14 +92,40 @@ describe("step order", () => {
     ]);
   });
 
-  it("counts fifteen steps, never welcome", () => {
-    expect(COUNTED_STEPS).toHaveLength(15);
+  it("counts sixteen steps, never welcome", () => {
+    expect(COUNTED_STEPS).toHaveLength(16);
     expect(COUNTED_STEPS.map((s) => s.id)).not.toContain("welcome");
   });
 
-  it("reads 'Step 1 of 15' on the first counted step", () => {
+  it("reads 'Question 1 of 7' on the first core screen", () => {
     expect(getOnboardingStepIndex("color-path") + 1).toBe(1);
     expect(getOnboardingStepIndex("review") + 1).toBe(COUNTED_STEPS.length);
+  });
+
+  it("numbers only the seven core questions", () => {
+    expect(getCoreQuestionNumber("color-path")).toBe(1);
+    expect(getCoreQuestionNumber("color-result")).toBe(1);
+    expect(getCoreQuestionNumber("gender")).toBe(2);
+    expect(getCoreQuestionNumber("skin-depth")).toBe(3);
+    expect(getCoreQuestionNumber("body-type")).toBe(4);
+    expect(getCoreQuestionNumber("face-shape")).toBe(5);
+    expect(getCoreQuestionNumber("hair-type")).toBe(6);
+    expect(getCoreQuestionNumber("hair-length")).toBe(7);
+    // Everything after the seventh answer is unnumbered — that is what the
+    // progress bar reads as "optional extras".
+    for (const id of [
+      "refine",
+      "measurements",
+      "makeup-preference",
+      "beauty-preferences",
+      "location",
+      "shopping-preferences",
+      "styling-constraints",
+      "review",
+    ] as const) {
+      expect(getCoreQuestionNumber(id)).toBeNull();
+    }
+    expect(CORE_QUESTION_COUNT).toBe(7);
   });
 
   it("has no index for welcome, so the progress bar can hide itself", () => {
@@ -137,15 +166,23 @@ describe("next / previous", () => {
   });
 
   it("skips makeup-preference for a makeup-ineligible member, both ways", () => {
-    // The web's `SELECT_STEPS["hair-length"].next` and `BeautyPreferencesStep.onBack`.
+    // The web's `SELECT_STEPS["measurements"].next` and `BeautyPreferencesStep.onBack`.
     const male = { gender: "Male" };
-    expect(nextStep("hair-length", male)).toBe("beauty-preferences");
-    expect(previousStep("beauty-preferences", male)).toBe("hair-length");
+    expect(nextStep("measurements", male)).toBe("beauty-preferences");
+    expect(previousStep("beauty-preferences", male)).toBe("measurements");
 
     // Everyone else keeps the linear order.
     const female = { gender: "Female" };
-    expect(nextStep("hair-length", female)).toBe("makeup-preference");
+    expect(nextStep("measurements", female)).toBe("makeup-preference");
     expect(previousStep("beauty-preferences", female)).toBe("makeup-preference");
+  });
+
+  it("sends the seventh answer to the fork, not into the optional steps", () => {
+    // `refine` is the screen that tells her the profile is already usable; the
+    // optional extras start only after she opts in from there.
+    expect(nextStep("hair-length")).toBe("refine");
+    expect(nextStep("refine")).toBe("measurements");
+    expect(previousStep("measurements")).toBe("refine");
   });
 
   it("is a bijection over the step list", () => {
@@ -158,10 +195,11 @@ describe("next / previous", () => {
 });
 
 describe("isOnboardingStepComplete", () => {
-  it("treats welcome, color-path, and every optional step as always complete", () => {
+  it("treats welcome, color-path, the fork, and every optional step as always complete", () => {
     for (const id of [
       "welcome",
       "color-path",
+      "refine",
       "measurements",
       "makeup-preference",
       "beauty-preferences",
@@ -214,7 +252,9 @@ describe("getFirstIncompleteOnboardingStep", () => {
     [withBody, "face-shape"],
     [withFace, "hair-type"],
     [withHair, "hair-length"],
-    [withHairLength, "beauty-preferences"],
+    // The seventh answer completes the profile, so the resume point is the fork
+    // that says so — not a question.
+    [withHairLength, "refine"],
   ] as const)("resumes at %#: %s", (profile, expected) => {
     expect(getFirstIncompleteOnboardingStep(profile)).toBe(expected);
   });

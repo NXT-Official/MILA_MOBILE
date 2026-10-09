@@ -31,11 +31,11 @@ export function nextStep(
   step: OnboardingStepId,
   profile?: { gender?: string | null } | null,
 ): OnboardingStepId | null {
-  // The web's `SELECT_STEPS["hair-length"].next` is conditional: makeup-
+  // The web's `SELECT_STEPS["measurements"].next` is conditional: makeup-
   // ineligible members skip `makeup-preference` entirely rather than seeing it
   // and being bounced. Mirrored here so the sequence is the same whether she
   // taps Continue or deep-links ahead.
-  if (step === "hair-length" && profile?.gender === "Male") return "beauty-preferences";
+  if (step === "measurements" && profile?.gender === "Male") return "beauty-preferences";
   const index = ONBOARDING_STEPS.findIndex((s) => s.id === step);
   return ONBOARDING_STEPS[index + 1]?.id ?? null;
 }
@@ -47,7 +47,7 @@ export function previousStep(
   // The web's `BeautyPreferencesStep.onBack` — same skip, walked backwards.
   // Without this, Back from `beauty-preferences` on a no-stack deep link lands
   // on `makeup-preference`, which redirects straight forward again.
-  if (step === "beauty-preferences" && profile?.gender === "Male") return "hair-length";
+  if (step === "beauty-preferences" && profile?.gender === "Male") return "measurements";
   const index = ONBOARDING_STEPS.findIndex((s) => s.id === step);
   return index > 0 ? ONBOARDING_STEPS[index - 1].id : null;
 }

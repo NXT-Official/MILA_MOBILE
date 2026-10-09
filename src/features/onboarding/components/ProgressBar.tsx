@@ -1,25 +1,51 @@
 import { Text, View } from "react-native";
 
-import { COUNTED_STEPS, getOnboardingStepIndex, type OnboardingStepId } from "@/constants/steps";
+import {
+  CORE_QUESTION_COUNT,
+  CORE_QUESTION_STEPS,
+  COUNTED_STEPS,
+  getCoreQuestionNumber,
+  getOnboardingStepIndex,
+  type OnboardingStepId,
+} from "@/constants/steps";
 import { cn } from "@/utils/cn";
 
 /**
- * Reads COUNTED_STEPS, which excludes `welcome` — so the first counted step is
- * "Step 1 of 8", not "Step 2 of 9". Returns null on `welcome` rather than
- * rendering a zero state.
+ * Two readings, on purpose.
+ *
+ * Through the required questions it counts questions — "Question 3 of 7" — so
+ * the end is always in sight, and the two colour screens count as one question
+ * because they are one answer.
+ *
+ * From the fork onwards the count is finished and the bar says so: the steps
+ * left are optional extras she opted into, not a numbered queue. "Step 9 of 16"
+ * there is what made registration feel bottomless.
+ *
+ * Returns null on `welcome` rather than rendering a zero state.
  */
 export function ProgressBar({ current }: { current: OnboardingStepId }) {
   const index = getOnboardingStepIndex(current);
   const step = COUNTED_STEPS[index];
-  const total = COUNTED_STEPS.length;
   if (index === -1 || !step) return null;
 
-  const label = `Step ${index + 1} of ${total}: ${step.title}${step.optional ? ", optional" : ""}`;
+  const question = getCoreQuestionNumber(current);
+  const filled = question ?? CORE_QUESTION_COUNT;
+  const label = `${
+    question !== null
+      ? `Question ${question} of ${CORE_QUESTION_COUNT}`
+      : step.optional
+        ? "Optional extras"
+        : "All seven questions answered"
+  }: ${step.title}${step.optional ? ", optional" : ""}`;
 
   return (
     <View className="gap-md">
       <Text className="font-body-semibold text-section tracking-section uppercase text-accent">
-        Step {index + 1} of {total}
+        {question !== null
+          ? `Question ${question} of ${CORE_QUESTION_COUNT}`
+          : step.optional
+            ? "Optional extras"
+            : "All seven questions answered"}
         {step.optional ? (
           <Text className="font-body text-section tracking-normal text-muted"> · Optional</Text>
         ) : null}
@@ -27,17 +53,17 @@ export function ProgressBar({ current }: { current: OnboardingStepId }) {
 
       <View
         accessibilityRole="progressbar"
-        accessibilityValue={{ min: 1, max: total, now: index + 1, text: label }}
+        accessibilityValue={{ min: 1, max: CORE_QUESTION_COUNT, now: filled, text: label }}
         className="flex-row gap-xs"
       >
-        {COUNTED_STEPS.map((s, i) => (
+        {CORE_QUESTION_STEPS.map((id, i) => (
           <View
-            key={s.id}
+            key={id}
             className={cn(
               "h-1 flex-1 rounded-pill",
-              i < index && "bg-accent",
-              i === index && "bg-ink",
-              i > index && "bg-border dark:bg-border/12",
+              i < filled - 1 && "bg-accent",
+              i === filled - 1 && "bg-ink",
+              i > filled - 1 && "bg-border dark:bg-border/12",
             )}
           />
         ))}

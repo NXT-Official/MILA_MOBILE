@@ -56,6 +56,7 @@ export function Review({
   onBack,
   onEdit,
   onComplete,
+  onAddDetail,
   completing,
   completionError,
 }: {
@@ -64,6 +65,8 @@ export function Review({
   onBack: () => void;
   onEdit: (step: OnboardingStepId) => void;
   onComplete: () => void;
+  /** Offered while the optional extras are still untouched. */
+  onAddDetail?: () => void;
   completing: boolean;
   completionError: string | null;
 }) {
@@ -157,6 +160,26 @@ export function Review({
             </View>
           ))}
         </View>
+
+        {onAddDetail ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Add more detail, optional"
+            onPress={onAddDetail}
+            hitSlop={8}
+            className="min-h-tap"
+          >
+            <Card>
+              <Text className="font-body-medium text-base text-ink">
+                Optional: add a few details for sharper looks
+              </Text>
+              <Text className="font-body text-sm text-body mt-xs">
+                Measurements, makeup preference, beauty priorities, location, and shopping
+                preferences — all optional, and all editable later.
+              </Text>
+            </Card>
+          </Pressable>
+        ) : null}
 
         {completionError ? (
           <Text accessibilityLiveRegion="assertive" className="font-body text-sm text-destructive">

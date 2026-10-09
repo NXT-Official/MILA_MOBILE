@@ -36,6 +36,7 @@ import { ColorPath } from "./steps/ColorPath";
 import { ColorResult } from "./steps/ColorResult";
 import { Location } from "./steps/Location";
 import { Measurements } from "./steps/Measurements";
+import { Refine } from "./steps/Refine";
 import { Review } from "./steps/Review";
 import { SingleSelect } from "./steps/SingleSelect";
 import { TagSelect } from "./steps/TagSelect";
@@ -363,12 +364,28 @@ export function OnboardingScreen({ rawStep }: { rawStep: string | undefined }) {
     );
   }
 
+  if (step === "refine") {
+    /**
+     * The fork. Its primary CTA jumps straight to the review — the linear
+     * `nextStep("refine")` is `measurements`, which is exactly the offer this
+     * screen exists to make optional, so taking it must be a deliberate tap.
+     */
+    return (
+      <Refine
+        onBack={() => goBack("refine")}
+        onFinish={() => goTo("review")}
+        onAddDetail={() => goTo("measurements")}
+      />
+    );
+  }
+
   return (
     <Review
       profile={profile as NonNullable<typeof profile>}
       dossier={dossier}
       onBack={() => goBack("review")}
       onEdit={(target: OnboardingStepId) => goTo(target)}
+      onAddDetail={() => goTo("measurements")}
       onComplete={handleComplete}
       completing={completing}
       completionError={completionError}

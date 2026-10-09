@@ -56,8 +56,9 @@ export function Welcome({ onBegin }: { onBegin: () => void }) {
               recommendations that are specific to you — not generic inspiration.
             </Text>
             <Text className="font-body text-base text-muted">
-              It usually takes about five minutes. Your progress is saved as you go, and you can
-              update your profile at any time.
+              Seven quick questions — under two minutes. After that everything else is optional:
+              answer the extras only if you want even more precise looks. Your progress saves as you
+              go, and you can update your profile any time.
             </Text>
           </View>
 

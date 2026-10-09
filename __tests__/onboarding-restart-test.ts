@@ -1,14 +1,15 @@
 import { renderHook } from "@testing-library/react-native";
 
 /**
- * "Restart Style Analysis" must start the wizard at its first counted step —
- * `color-path`, "Step 1 of 15" — not at the resume point. For a complete
- * profile the resume point is `beauty-preferences` ("Step 11 of 15"), which is
- * exactly where the restart kept landing: first because the action's own
- * `router.push` was dropped when the gate unmounted it, and then because the
- * store update that clears `restartRequested` re-ran the resolver before the
- * router reflected the new route — the stale run saw the group index
- * (`requested === undefined`) and replaced the restart with the resume point.
+ * "Restart Style Analysis" must start the wizard at its first question —
+ * `color-path`, "Question 1 of 7" — not at the resume point. For a complete
+ * profile the resume point is `refine`, the fork that offers the optional
+ * extras after the seven questions; that is exactly where the restart kept
+ * landing: first because the action's own `router.push` was dropped when the
+ * gate unmounted it, and then because the store update that clears
+ * `restartRequested` re-ran the resolver before the router reflected the new
+ * route — the stale run saw the group index (`requested === undefined`) and
+ * replaced the restart with the resume point.
  *
  * These tests drive the hook with the real store and a mocked router/profile,
  * at the route the member is actually on when the restart fires: the group
@@ -74,7 +75,7 @@ beforeEach(() => {
   });
 });
 
-it("a restart request from the group index starts at 1/15 and survives the stale resolver run", async () => {
+it("a restart request from the group index starts at the first question and survives the stale resolver run", async () => {
   useOnboardingStore.setState({ restartRequested: true });
 
   const view = await renderHook(
@@ -86,7 +87,7 @@ it("a restart request from the group index starts at 1/15 and survives the stale
   expect(mockReplace).toHaveBeenCalledWith("/onboarding/color-path");
   // …and the run that sees the cleared request — still reading the group index
   // because the router has not caught up — must not fire the resume redirect.
-  expect(mockReplace).not.toHaveBeenCalledWith("/onboarding/beauty-preferences");
+  expect(mockReplace).not.toHaveBeenCalledWith("/onboarding/refine");
   expect(useOnboardingStore.getState().restartRequested).toBe(false);
 
   // The route lands on color-path: no further navigation, and no bounce to the
@@ -99,5 +100,5 @@ it("a restart request from the group index starts at 1/15 and survives the stale
 it("without a restart request the group index resolves to the resume point", async () => {
   await renderHook(() => useOnboardingMachine(undefined));
 
-  expect(mockReplace).toHaveBeenCalledWith("/onboarding/beauty-preferences");
+  expect(mockReplace).toHaveBeenCalledWith("/onboarding/refine");
 });

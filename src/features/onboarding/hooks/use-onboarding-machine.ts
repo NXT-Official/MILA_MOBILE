@@ -53,19 +53,20 @@ export function useOnboardingMachine(rawStep: string | undefined) {
   // immediately, and on the group index that stale run still reads
   // `requested === undefined` — indistinguishable from a cold start — so
   // without this guard the resume-point logic replaces the restart with the
-  // resume point (11/15 over 1/15). Seen on device; the first regression test
-  // missed it by rendering at an explicit step instead of the index route.
+  // resume point (question 1 replaced by the `refine` fork). Seen on device;
+  // the first regression test missed it by rendering at an explicit step
+  // instead of the index route.
   const restartNavigationRef = useRef(false);
   useEffect(() => {
     if (!settled) return;
 
     // "Restart Style Analysis" asks for the wizard from its first question —
-    // `color-path`, "Step 1 of 15" — not the resume point (which for a
-    // complete profile is `beauty-preferences`, "Step 11 of 15"). It asks from
-    // a component the gate unmounts in the same commit, so the request travels
-    // through the store instead of a router call from the action itself.
-    // Consumed once, before the resume-point logic below can decide anything
-    // else.
+    // `color-path`, "Question 1 of 7" — not the resume point (which for a
+    // complete profile is `refine`, the fork offering the optional extras). It
+    // asks from a component the gate unmounts in the same commit, so the
+    // request travels through the store instead of a router call from the
+    // action itself. Consumed once, before the resume-point logic below can
+    // decide anything else.
     if (restartRequested) {
       clearRestart();
       restartNavigationRef.current = true;
