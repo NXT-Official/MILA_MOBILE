@@ -51,6 +51,7 @@ import { DailyPaletteGenerator } from "./components/DailyPaletteGenerator";
 import { GenerateButton, resolveBlockedReason } from "./components/GenerateButton";
 import { Greeting } from "./components/Greeting";
 import { HeroCard } from "./components/HeroCard";
+import { GettingStartedCard } from "./components/GettingStartedCard";
 import { HubSheet } from "./components/HubSheet";
 import { LookActions } from "./components/LookActions";
 import { LookVisual, type LookVisualState } from "./components/LookVisual";
@@ -926,6 +927,16 @@ export function HomeScreen() {
       {busy ? <KeepAwake /> : null}
 
       <View className="gap-xl pb-2xl">
+        {/* Before the hero: for a new member this is the only thing that says
+            what to do. It disappears once all three moves are done. */}
+        {!profilePending && !outfits.isPending ? (
+          <GettingStartedCard
+            profilePercent={profile ? styleProfileCompletionPercent(toStyleProfileRow(profile)) : 0}
+            hasPhotoConsent={Boolean(profile?.photo_consent_at)}
+            hasComposedLook={(outfits.data?.length ?? 0) > 0}
+          />
+        ) : null}
+
         {/* Greeting, weather, mood, and the CTA are one object: everything the
             member needs to press the button lives inside the card with it. */}
         <HeroCard>
