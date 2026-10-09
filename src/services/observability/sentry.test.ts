@@ -2,7 +2,7 @@ import * as Sentry from "@sentry/react-native";
 
 import { useAuthStore } from "@/stores/auth-store";
 
-import { bindSentryUserToAuth } from "./sentry";
+import { bindSentryUserToAuth, isUsableDsn } from "./sentry";
 
 jest.mock("@sentry/react-native", () => ({
   init: jest.fn(),
@@ -17,6 +17,7 @@ describe("sentry adapter", () => {
   it("is disabled without a DSN and masks replay", () => {
     const opts = jest.mocked(Sentry.init).mock.calls[0]?.[0];
     expect(opts?.enabled).toBe(false);
+    expect(opts?.dsn).toBeUndefined();
     expect(opts?.sendDefaultPii).toBe(false);
     expect(opts?.enableLogs).toBe(true);
     expect(opts?.replaysSessionSampleRate).toBe(0);
@@ -41,5 +42,33 @@ describe("sentry adapter", () => {
     useAuthStore.setState({ session: null });
     expect(Sentry.setUser).toHaveBeenLastCalledWith(null);
     unbind();
+  });
+
+  /**
+   * The DSN is read once at import, so the guard is exercised directly rather
+   * than by re-importing the module with a doctored environment.
+   */
+  it("switches on only for a well-formed DSN", () => {
+    for (const wellFormed of [
+      "https://***@o4505.ingest.sentry.io/4505",
+      "http://***@127.0.0.1:9000/7",
+      "  https://***@o4505.ingest.sentry.io/4505  ",
+    ]) {
+      expect(isUsableDsn(wellFormed)).toBe(true);
+    }
+
+    for (const malformed of [
+      undefined,
+      "",
+      "   ",
+      "https://o4505.ingest.sentry.io/4505", // public key stripped
+      "https://***@o4505.ingest.sentry.io", // no project id
+      "https://***@o4505.ingest.sentry.io/not-a-number",
+      "https://***@", // no host
+      "o4505.ingest.sentry.io/4505",
+      "not-a-url",
+    ]) {
+      expect(isUsableDsn(malformed)).toBe(false);
+    }
   });
 });

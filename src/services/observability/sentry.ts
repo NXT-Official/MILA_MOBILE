@@ -22,6 +22,27 @@ import { scrubSentryEvent } from "./scrub";
  */
 const dsn = process.env.EXPO_PUBLIC_SENTRY_DSN;
 
+/**
+ * `enabled` used to be `Boolean(dsn)`, so a half-configured value — a DSN whose
+ * public key was stripped, or a bare project URL — left the SDK switched on and
+ * every capture failed inside its own pipeline (see the predecessor of this
+ * file, crash-reporting.ts, for the reports that came out of it). Only a
+ * well-formed DSN, public key and project id included, turns reporting on.
+ * src: https://docs.sentry.io/platforms/react-native/configuration/options/#dsn
+ */
+const DSN_PATTERN = /^https?:\/\/[^@\s/]+@[^/\s?#]+\/\d+$/;
+
+/**
+ * True only for a DSN the SDK can actually deliver to: scheme, public key,
+ * host and a numeric project id. Exported so the guard is testable without
+ * re-importing the module with a doctored environment.
+ */
+export function isUsableDsn(value: string | undefined): value is string {
+  return typeof value === "string" && DSN_PATTERN.test(value.trim());
+}
+
+const reportingEnabled = isUsableDsn(dsn);
+
 // Ties every event to the exact released build (see git history of this file's
 // predecessor, crash-reporting.ts, for why dist is read at runtime).
 const release = `mila-mobile@${Constants.expoConfig?.version ?? "0.0.0"}`;
@@ -44,8 +65,8 @@ function replayIntegrations() {
 }
 
 Sentry.init({
-  dsn,
-  enabled: Boolean(dsn),
+  dsn: reportingEnabled ? dsn?.trim() : undefined,
+  enabled: reportingEnabled,
   release,
   dist,
   environment,

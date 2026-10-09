@@ -31,6 +31,16 @@ const NOTICE_COPY: Record<Notice, string> = {
   expired: "That check timed out. Tap to try again.",
 };
 
+/**
+ * How long a challenge may sit unanswered before the gate gives up on it. The
+ * library posts nothing at all when its session expires mid-check — the WebView
+ * rejects its own promise and React Native is never told — which left the
+ * checkbox reading "Opening challenge…" with the sign-in button dead behind it.
+ * A watchdog turns that silence into the same "timed out" notice a real expiry
+ * gets, so the member can try again instead of being stuck.
+ */
+const CHALLENGE_TIMEOUT_MS = 120_000;
+
 /** The library's message event, narrowed to the two fields the gate reads. */
 type CaptchaMessage = { nativeEvent: { data: string }; success?: boolean };
 
@@ -77,8 +87,16 @@ export const CaptchaGate = forwardRef<
     const [notice, setNotice] = useState<Notice | null>(null);
     // True from a token being issued until it is spent or cleared.
     const holdingToken = useRef(false);
+    // Armed while a challenge is open; see CHALLENGE_TIMEOUT_MS.
+    const watchdog = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const stopWatchdog = () => {
+      if (watchdog.current) clearTimeout(watchdog.current);
+      watchdog.current = null;
+    };
 
     const settle = (token: string | null, next: Notice | null = null) => {
+      stopWatchdog();
       holdingToken.current = token !== null;
       setPending(false);
       setNotice(next);
@@ -92,6 +110,10 @@ export const CaptchaGate = forwardRef<
       setNotice(null);
       setPending(true);
       widget.current?.show();
+      // The library stays silent if its session dies mid-challenge; see
+      // CHALLENGE_TIMEOUT_MS. Anything the library does report clears it.
+      stopWatchdog();
+      watchdog.current = setTimeout(() => settle(null, "expired"), CHALLENGE_TIMEOUT_MS);
     };
 
     const handle: CaptchaGateHandle = {
@@ -101,6 +123,7 @@ export const CaptchaGate = forwardRef<
           open();
         }),
       reset: () => {
+        stopWatchdog();
         holdingToken.current = false;
         onChange(null);
         resolver.current = null;
@@ -117,6 +140,16 @@ export const CaptchaGate = forwardRef<
       controller?.attach(handle);
       return () => controller?.attach(null);
     });
+
+    // Drop the watchdog with the component; an unmounted gate has nobody left to
+    // tell. Inlined rather than reusing stopWatchdog so the effect has no
+    // rebuild-per-render dependency.
+    useEffect(
+      () => () => {
+        if (watchdog.current) clearTimeout(watchdog.current);
+      },
+      [],
+    );
 
     const onMessage = (event: CaptchaMessage) => {
       const data = event.nativeEvent.data;

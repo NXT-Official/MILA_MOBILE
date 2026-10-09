@@ -7,7 +7,7 @@ on:
 
 jobs:
   verify:
-    name: Typecheck, lint, test, doctor
+    name: Typecheck, lint, test, doctor, secret scan
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -39,3 +39,9 @@ jobs:
 
       - name: Expo doctor
         run: npx expo-doctor
+
+      # docs/mobile-architecture.md §10 requires the bundle be checked for
+      # server-only secret names; without this step a leaked secret name could
+      # merge green. The script is only as good as its being run.
+      - name: Secret scan
+        run: npm run scan:secrets

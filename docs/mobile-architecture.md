@@ -1565,6 +1565,10 @@ is exactly as trusted as an anonymous browser: not at all.**
 | `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`    | Yes — anon key, RLS-constrained |
 | `EXPO_PUBLIC_API_BASE_URL`                | Yes                             |
 | `EXPO_PUBLIC_HCAPTCHA_SITEKEY`            | Yes — site keys are public      |
+| `EXPO_PUBLIC_AUTH_TRANSPORT`              | Yes — migration switch, defaults to `supabase` |
+| `EXPO_PUBLIC_SENTRY_DSN`                  | Yes — a DSN is a write-only ingest endpoint |
+| `EXPO_PUBLIC_POSTHOG_KEY`                 | Yes — project keys are publishable |
+| `EXPO_PUBLIC_POSTHOG_HOST`                | Yes — an ingest hostname        |
 | `SUPABASE_SERVICE_ROLE_KEY`               | **Never**                       |
 | `AI_API_KEY` / Gemini                     | **Never**                       |
 | `CLOUDFLARE_API_TOKEN`                    | **Never**                       |

@@ -201,3 +201,47 @@ describe("a token that has been used", () => {
     expect(onChange).toHaveBeenCalledWith(null);
   });
 });
+
+describe("a challenge the library never answers", () => {
+  test("is given up on rather than left pending forever", async () => {
+    jest.useFakeTimers();
+    try {
+      const { screen, onChange, open } = await mount();
+      const outcome = await open();
+      expect(screen.getByText("Opening challenge…")).toBeTruthy();
+
+      // The library posts nothing at all when its session dies mid-check, so
+      // the gate's own clock is the only thing that can settle this.
+      await act(async () => {
+        jest.advanceTimersByTime(120_000);
+      });
+
+      expect(outcome()).toBeNull();
+      expect(onChange).toHaveBeenCalledWith(null);
+      expect(screen.getByText("That check timed out. Tap to try again.")).toBeTruthy();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test("is forgotten when the member answers before the watchdog fires", async () => {
+    jest.useFakeTimers();
+    try {
+      const { screen, onChange, open } = await mount();
+      const outcome = await open();
+
+      await emit(TOKEN, true);
+      onChange.mockClear();
+
+      await act(async () => {
+        jest.advanceTimersByTime(120_000);
+      });
+
+      expect(outcome()).toBe(TOKEN);
+      expect(onChange).not.toHaveBeenCalled();
+      expect(screen.queryByText("That check timed out. Tap to try again.")).toBeNull();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+});
