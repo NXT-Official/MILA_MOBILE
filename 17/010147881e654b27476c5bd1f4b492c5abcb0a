@@ -1,0 +1,51 @@
+src/components/ui/Sheet.tsx
+  s_f8d6ceb53516cd::t_460a95a9aaf56d 32-36
+  s_f8d6ceb53516cd::t_73575834c5932b 56-63
+  s_f8d6ceb53516cd::t_4e8903d946a9cf 163-174
+src/components/layout/AccountSheet.tsx
+  s_f8d6ceb53516cd::t_1fc18b67c58aed 30-32,35-36
+  s_f8d6ceb53516cd::t_78cddd3877db99 156,178
+  s_f8d6ceb53516cd::t_67bfaaabb0ec1b 62-74,76-89,91-102,106-110,113-116,118-155,157-158,164-177
+  s_f8d6ceb53516cd::t_6645fd54d6f5eb 159-163
+  s_f8d6ceb53516cd::t_27ef6ec30827a9 2,5-6,14
+  s_f8d6ceb53516cd::t_6eb0c9a0fcde10 61
+  s_f8d6ceb53516cd::t_f8ebef2a303cf6 75
+__tests__/account-sheet-saved-row-test.tsx
+  s_f8d6ceb53516cd::t_30f7d7bd7703a0 21-23
+src/components/ui/ConfirmSheet.tsx
+  s_f8d6ceb53516cd::t_5c55b7a68b9b54 4
+  s_f8d6ceb53516cd::t_7d745ac8628a0f 35-36,42
+  s_f8d6ceb53516cd::t_d8b3b43990f381 24
+__tests__/sheet-present-test.tsx
+  s_f8d6ceb53516cd::t_734a0a5354b28b 114-121,143,151
+  s_f8d6ceb53516cd::t_b33abfa3b4bcf7 113,122-142,144-150,152-156
+CHANGELOG.md
+  s_f8d6ceb53516cd::t_22ebf4152050e5 3-17
+__tests__/account-sheet-sign-out-test.tsx
+  s_f8d6ceb53516cd::t_3c9b6200f52781 75,79
+  s_f8d6ceb53516cd::t_ba8ca2b40aec27 58-62
+  s_f8d6ceb53516cd::t_75413dbca615be 3-57,63-74,76-78,80-105
+  s_f8d6ceb53516cd::t_245d0023cb6840 1-2
+__tests__/account-sheet-identity-test.tsx
+  s_f8d6ceb53516cd::t_311d1343cf4575 34-36
+src/test-utils/sheet-mock.tsx
+  s_f8d6ceb53516cd::t_4ede1c41ebaf51 11,16,23
+__tests__/confirm-sheet-error-test.tsx
+  s_f8d6ceb53516cd::t_26f03a4dfcd0f1 1-33
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "17010147881e654b27476c5bd1f4b492c5abcb0a",
+  "prompts": {},
+  "sessions": {
+    "s_f8d6ceb53516cd": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c84df994-0d2a-4bdf-b97f-83f23f252335",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "naaxtech <naaxtech.official@gmail.com>"
+    }
+  }
+}
