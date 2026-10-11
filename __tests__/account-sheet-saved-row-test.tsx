@@ -18,6 +18,9 @@ jest.mock("../src/hooks/use-credits", () => ({
   useCredits: () => ({ data: null, isPending: false }),
   useCreditBalance: () => 0,
 }));
+jest.mock("../src/hooks/use-sign-out", () => ({
+  useSignOut: () => ({ mutate: jest.fn(), reset: jest.fn(), isPending: false, isError: false }),
+}));
 
 import { router } from "expo-router";
 

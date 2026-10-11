@@ -1,6 +1,7 @@
 import { Text, View } from "react-native";
 
 import { Button } from "./Button";
+import { InlineError } from "./ErrorState";
 import { Sheet } from "./Sheet";
 
 /**
@@ -20,6 +21,7 @@ export function ConfirmSheet({
   onConfirm,
   destructive = false,
   loading = false,
+  error = null,
 }: {
   visible: boolean;
   onClose: () => void;
@@ -30,11 +32,14 @@ export function ConfirmSheet({
   onConfirm: () => void;
   destructive?: boolean;
   loading?: boolean;
+  /** Why the last attempt failed, said where she is looking. */
+  error?: string | null;
 }) {
   return (
     <Sheet visible={visible} onClose={onClose} title={title}>
       <View className="gap-lg">
         <Text className="font-body text-base text-body">{message}</Text>
+        {error ? <InlineError message={error} /> : null}
         <Button
           label={confirmLabel}
           variant={destructive ? "destructive" : "primary"}

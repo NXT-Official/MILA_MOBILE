@@ -110,3 +110,47 @@ describe("Android Back closes the sheet, and only the sheet (MMM-A1)", () => {
     expect(dismiss).not.toHaveBeenCalled();
   });
 });
+
+/** Every string the sheet renders, in document order. */
+function textsIn(node: unknown): string[] {
+  if (node == null) return [];
+  if (typeof node === "string") return [node];
+  if (Array.isArray(node)) return node.flatMap(textsIn);
+  return textsIn((node as { children?: unknown }).children);
+}
+
+describe("headerAction: an action in the title row, on screen the moment the sheet opens", () => {
+  const withProvider = (node: React.ReactNode) => (
+    <SafeAreaProvider
+      initialMetrics={{
+        frame: { x: 0, y: 0, width: 360, height: 800 },
+        insets: { top: 24, left: 0, right: 0, bottom: 16 },
+      }}
+    >
+      {node}
+    </SafeAreaProvider>
+  );
+
+  test("the real Sheet renders the action beside its title, before the body", async () => {
+    const s = await render(
+      withProvider(
+        <Sheet visible onClose={noop} title="Your account" headerAction={<Text>act</Text>}>
+          <Text>body</Text>
+        </Sheet>,
+      ),
+    );
+    expect(s.getByRole("header").props.children).toBe("Your account");
+    const order = textsIn(s.toJSON());
+    expect(order.indexOf("act")).toBeGreaterThan(order.indexOf("Your account"));
+    expect(order.indexOf("act")).toBeLessThan(order.indexOf("body"));
+  });
+
+  test("without one, the title is the lone header and nothing is added", async () => {
+    const s = await render(sheet(true));
+    expect(s.getAllByRole("header")).toHaveLength(1);
+    expect(textsIn(s.toJSON())).toEqual([
+      "Sign out?",
+      "body",
+    ]);
+  });
+});

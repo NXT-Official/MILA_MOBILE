@@ -29,6 +29,11 @@ type SheetProps = {
    * always visible. See the note on `snapPoints` below.
    */
   height?: `${number}%`;
+  /**
+   * An action that belongs to the whole sheet, shown at the end of the title
+   * row so it is on screen the moment the sheet opens, whatever the detent.
+   */
+  headerAction?: ReactNode;
   children: ReactNode;
 };
 
@@ -48,7 +53,14 @@ type SheetProps = {
  */
 const DEFAULT_HEIGHT = "70%";
 
-export function Sheet({ visible, onClose, title, height = DEFAULT_HEIGHT, children }: SheetProps) {
+export function Sheet({
+  visible,
+  onClose,
+  title,
+  height = DEFAULT_HEIGHT,
+  headerAction,
+  children,
+}: SheetProps) {
   const ref = useRef<BottomSheetModal>(null);
   const insets = useSafeAreaInsets();
   const colors = useThemeColors();
@@ -148,9 +160,18 @@ export function Sheet({ visible, onClose, title, height = DEFAULT_HEIGHT, childr
         }}
       >
         <View className="gap-lg">
-          <Text accessibilityRole="header" className="font-display text-h3 text-ink">
-            {title}
-          </Text>
+          {headerAction ? (
+            <View className="flex-row items-center justify-between gap-md">
+              <Text accessibilityRole="header" className="flex-1 font-display text-h3 text-ink">
+                {title}
+              </Text>
+              {headerAction}
+            </View>
+          ) : (
+            <Text accessibilityRole="header" className="font-display text-h3 text-ink">
+              {title}
+            </Text>
+          )}
           {children}
         </View>
       </BottomSheetScrollView>

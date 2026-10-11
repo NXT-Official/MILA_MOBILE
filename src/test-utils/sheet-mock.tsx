@@ -8,16 +8,19 @@ import { Text, View } from "react-native";
 export function Sheet({
   visible,
   title,
+  headerAction,
   children,
 }: {
   visible: boolean;
   title: string;
+  headerAction?: React.ReactNode;
   children: React.ReactNode;
 }) {
   if (!visible) return null;
   return (
     <View>
       <Text>{title}</Text>
+      {headerAction}
       {children}
     </View>
   );
