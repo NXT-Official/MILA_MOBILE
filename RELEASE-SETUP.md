@@ -86,6 +86,18 @@ launch with `Missing EXPO_PUBLIC_SUPABASE_URL` before this was set.
   (`shouldCollect(__DEV__)`) and is a no-op when the native module is absent. Reporting reaches
   Crashlytics from the `services/observability` facade, alongside Sentry — see
   `docs/mobile-architecture.md` §10.
+- **iOS has no Firebase app yet.** Until `GoogleService-Info.plist` sits at the repo root, iOS
+  builds leave Firebase out: `plugins/with-firebase-app-android-only.js` drops the app plugin's iOS mods and
+  `react-native.config.js` keeps the Firebase pods out of autolinking, so iOS reports to Sentry
+  only. To turn it on: register the iOS bundle ids (`com.mila.app`, `.preview`, `.dev`) in the
+  console, commit the plist, and add `expo-build-properties` with `ios.useFrameworks: "static"`
+  (the Firebase pods need static frameworks).
+- iOS `preview` and `development` builds are **simulator** builds (`ios.simulator: true` in
+  `eas.json`): an internal-distribution iPhone build needs the Apple Developer account (§2) plus
+  registered devices (`eas device:create`), which a non-interactive build cannot set up. Remove
+  the flag once those exist.
+- iOS builds also leave out dictation (`expo.autolinking.ios.exclude` in `package.json`): the
+  installed speech library does not compile for iOS on SDK 57 — see `src/platform/ios/README.md`.
 - Analytics is deliberately **not** installed. Adding `@react-native-firebase/analytics` means a
   new adapter entry, a jest mock, and an updated Play data-safety declaration.
 

@@ -28,6 +28,13 @@ Both `expo-camera` and `expo-image-picker` would otherwise add a microphone usag
 `RECORD_AUDIO`. Both are disabled in `app.config.ts`; the microphone has exactly one caller, and it is
 `services/speech.ts`.
 
+**Dictation is not in iOS builds yet.** `@jamsch/expo-speech-recognition` 0.2.15 (last released
+2024-08) does not compile against SDK 57's `expo-modules-core` on iOS (`promise.resolver` changed
+type), so `package.json` → `expo.autolinking.ios.exclude` keeps it out of iOS autolinking. The lazy
+`require` in `services/speech.ts` finds no native module and the mic hides itself. To ship iOS
+dictation, move to the maintained successor `expo-speech-recognition` (SDK-versioned, same author)
+and drop the exclude — that swap changes Android native code too, so retest Android dictation.
+
 **`SFSpeechRecognizer` differences to expect on the first iOS build:** iOS may route recognition
 through Apple's servers unless `requiresOnDeviceRecognition` is set, it enforces a roughly one-minute
 ceiling per request where Android does not, and denial is terminal as everywhere else on the platform

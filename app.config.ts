@@ -1,3 +1,6 @@
+import { existsSync } from "node:fs";
+import { join } from "node:path";
+
 import type { ExpoConfig } from "expo/config";
 
 // Build profile drives the app identity so a preview build can sit beside
@@ -18,6 +21,16 @@ const BUNDLE_ID = {
   preview: "com.mila.app.preview",
   production: "com.mila.app",
 }[VARIANT];
+
+// Firebase on iOS needs the app registered in the Firebase console and its
+// `GoogleService-Info.plist` at the repo root. Until that file exists, iOS
+// builds without Firebase: `plugins/with-firebase-app-android-only.js` drops
+// the app plugin's iOS mods and `react-native.config.js` keeps the Firebase
+// pods out of autolinking; the Crashlytics adapter is already a no-op without
+// the native module. Adding the plist turns iOS Firebase on (it also needs
+// expo-build-properties `ios.useFrameworks: "static"` — RELEASE-SETUP.md §4b).
+const IOS_GOOGLE_SERVICES_FILE = "./GoogleService-Info.plist";
+const HAS_IOS_FIREBASE = existsSync(join(__dirname, IOS_GOOGLE_SERVICES_FILE));
 
 const config: ExpoConfig = {
   name: NAME,
@@ -172,12 +185,13 @@ const config: ExpoConfig = {
       // upload, which is what turns a native crash into a readable frame.
       //
       // Analytics is deliberately not installed — see
-      // `src/services/observability/index.ts`.
-      "@react-native-firebase/app",
+      // `src/services/observability/index.ts`. iOS: see HAS_IOS_FIREBASE.
+      HAS_IOS_FIREBASE ? "@react-native-firebase/app" : "./plugins/with-firebase-app-android-only",
       {
         android: {
           googleServicesFile: process.env.GOOGLE_SERVICES_JSON ?? "./google-services.json",
         },
+        ...(HAS_IOS_FIREBASE && { ios: { googleServicesFile: IOS_GOOGLE_SERVICES_FILE } }),
       },
     ],
     "@react-native-firebase/crashlytics",

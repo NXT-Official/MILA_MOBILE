@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-10-12 — iOS EAS builds (`main`)
+
+### Fixed
+- **iOS `preview` builds from GitHub failed** at "Resolve build configuration": internal distribution on iOS needs Apple ad-hoc credentials and registered devices, and the project has neither. iOS `preview` and `development` builds are now **iOS Simulator** builds (`ios.simulator: true` in `eas.json`). Android builds are unchanged.
+- **iOS prebuild failed** because `@react-native-firebase/app` wants a `GoogleService-Info.plist`, and no iOS app is registered in Firebase yet. Until that file is committed, iOS leaves Firebase out (`plugins/with-firebase-app-android-only.js` + `react-native.config.js`), so crashes on iOS go to Sentry only.
+- **iOS Xcode build failed** in `@jamsch/expo-speech-recognition` 0.2.15, which does not compile against SDK 57. It is excluded from iOS autolinking (`package.json` → `expo.autolinking.ios.exclude`), so dictation's mic hides itself on iOS. Android dictation is unchanged.
+
+### Verified
+- EAS iOS `preview` build `0eb6f485` finished. Android prebuild output is byte-identical to before.
+- jest 123/123 suites, 1390 tests. Typecheck, lint, expo-doctor (21/21) and the secret scan are clean.
+- **Not launched in a simulator**: this Mac has no iOS Simulator runtime installed.
+
 ## 2026-10-11 — Sign out from the avatar (`nicoleDev`, on `main` `6fb13ee`)
 
 ### Changed
