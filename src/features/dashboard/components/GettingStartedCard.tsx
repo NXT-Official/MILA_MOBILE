@@ -25,7 +25,9 @@ import { cn } from "@/utils/cn";
  * sooner. It is not a tour, not a coach mark, and not a streak.
  */
 export function GettingStartedCard(props: GettingStartedInput) {
-  const [dismissed, setDismissed] = useState(false);
+  // null until storage answers: rendering before then flashed the card for a
+  // member who had dismissed it, and the hero below jumped when it vanished.
+  const [dismissed, setDismissed] = useState<boolean | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -47,7 +49,7 @@ export function GettingStartedCard(props: GettingStartedInput) {
   const steps = gettingStartedSteps(props);
   const progress = gettingStartedProgress(steps);
 
-  if (dismissed || progress.allDone) return null;
+  if (dismissed !== false || progress.allDone) return null;
 
   const next = nextGettingStartedStep(steps);
 
