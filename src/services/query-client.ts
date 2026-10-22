@@ -1,5 +1,5 @@
 import { MutationCache, onlineManager, QueryCache, QueryClient } from "@tanstack/react-query";
-import { addNetworkStateListener } from "expo-network";
+import { addNetworkStateListener, getNetworkStateAsync, type NetworkState } from "expo-network";
 
 import { ApiError, NON_RETRYABLE_CODES } from "./api/client";
 import { reportQueryError } from "./observability/query-errors";
@@ -9,10 +9,26 @@ import { reportQueryError } from "./observability/query-errors";
 // that failed offline stayed failed when the connection came back (QA F2).
 // An unknown reachability counts as online, the same rule as useNetworkStatus.
 onlineManager.setEventListener((setOnline) => {
-  const subscription = addNetworkStateListener(({ isConnected, isInternetReachable }) => {
+  const apply = ({ isConnected, isInternetReachable }: NetworkState) =>
     setOnline(isConnected !== false && isInternetReachable !== false);
+  // The listener only reports changes. Launched offline, nothing ever said so,
+  // the reconnect was not a change, and a launch read that had spent its
+  // retries never refetched: the launch gate stayed up. Read the connection
+  // once; a change heard first is newer, so it wins.
+  let heard = false;
+  const subscription = addNetworkStateListener((state) => {
+    heard = true;
+    apply(state);
   });
-  return () => subscription.remove();
+  getNetworkStateAsync()
+    .then((state) => {
+      if (!heard) apply(state);
+    })
+    .catch(() => {});
+  return () => {
+    heard = true;
+    subscription.remove();
+  };
 });
 
 export const queryClient = new QueryClient({

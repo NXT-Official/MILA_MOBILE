@@ -27,6 +27,8 @@ jest.mock("@react-native-firebase/crashlytics", () => ({
 jest.mock("expo-network", () => ({
   ...jest.requireActual("expo-network"),
   addNetworkStateListener: jest.fn(() => ({ remove: jest.fn() })),
+  // It also reads the connection once at import; the double resolves nothing.
+  getNetworkStateAsync: jest.fn(async () => ({ isConnected: true, isInternetReachable: true })),
 }));
 
 jest.mock("@react-native-firebase/app", () => ({

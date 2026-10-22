@@ -16,6 +16,7 @@ type NetworkEvent = { isConnected?: boolean; isInternetReachable?: boolean };
 
 jest.mock("expo-network", () => ({
   addNetworkStateListener: jest.fn(() => ({ remove: jest.fn() })),
+  getNetworkStateAsync: jest.fn(async () => ({ isConnected: true, isInternetReachable: true })),
 }));
 
 // The listener query-client registered when it was imported (the most recent
