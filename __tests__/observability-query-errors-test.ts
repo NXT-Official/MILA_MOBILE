@@ -1,8 +1,8 @@
 import { ApiError } from "@/services/api/errors";
-import { reportQueryError } from "./query-errors";
+import { reportQueryError } from "@/services/observability/query-errors";
 
 const mockCapture = jest.fn();
-jest.mock("./index", () => ({ captureError: (...a: unknown[]) => mockCapture(...a) }));
+jest.mock("@/services/observability", () => ({ captureError: (...a: unknown[]) => mockCapture(...a) }));
 
 beforeEach(() => mockCapture.mockClear());
 

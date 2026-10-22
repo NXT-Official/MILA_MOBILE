@@ -1,4 +1,4 @@
-import { scrubSentryEvent, scrubText } from "./scrub";
+import { scrubSentryEvent, scrubText } from "@/services/observability/scrub";
 
 describe("scrubText", () => {
   it("masks email addresses", () => {

@@ -1,4 +1,4 @@
-import { scrubPath, scrubSentryEvent, scrubText } from "./scrub";
+import { scrubPath, scrubSentryEvent, scrubText } from "@/services/observability/scrub";
 
 describe("scrubText URL handling (shared allowlist sanitizer)", () => {
   it("keeps only allowlisted params, so an unlisted credential param cannot leak", () => {

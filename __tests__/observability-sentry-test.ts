@@ -2,7 +2,7 @@ import * as Sentry from "@sentry/react-native";
 
 import { useAuthStore } from "@/stores/auth-store";
 
-import { bindSentryUserToAuth, isUsableDsn } from "./sentry";
+import { bindSentryUserToAuth, isUsableDsn } from "@/services/observability/sentry";
 
 jest.mock("@sentry/react-native", () => ({
   init: jest.fn(),

@@ -1,8 +1,8 @@
 import * as mockPh from "@/services/posthog";
-import * as mockSentry from "./sentry";
-import { captureError, identify, log, reset, track, trackScreen } from "./index";
+import * as mockSentry from "@/services/observability/sentry";
+import { captureError, identify, log, reset, track, trackScreen } from "@/services/observability";
 
-jest.mock("./sentry", () => ({
+jest.mock("@/services/observability/sentry", () => ({
   captureError: jest.fn(),
   setUser: jest.fn(),
   clearUser: jest.fn(),

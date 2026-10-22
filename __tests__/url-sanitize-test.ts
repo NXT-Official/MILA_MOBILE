@@ -1,4 +1,4 @@
-import { sanitizeScreenPath, sanitizeUrl } from "./url-sanitize";
+import { sanitizeScreenPath, sanitizeUrl } from "@/services/observability/url-sanitize";
 
 describe("emails in URLs", () => {
   it("masks an email in a bare path", () => {

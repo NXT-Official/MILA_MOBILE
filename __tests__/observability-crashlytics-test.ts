@@ -1,6 +1,6 @@
 import * as firebaseCrashlytics from "@react-native-firebase/crashlytics";
 
-import * as adapter from "./crashlytics";
+import * as adapter from "@/services/observability/crashlytics";
 
 /**
  * The Crashlytics adapter's contract: a debug run never reports, a release run
@@ -26,7 +26,7 @@ function releaseModule(): typeof adapter {
   g.__DEV__ = false;
   let mod: typeof adapter | undefined;
   jest.isolateModules(() => {
-    mod = jest.requireActual<typeof adapter>("./crashlytics");
+    mod = jest.requireActual<typeof adapter>("@/services/observability/crashlytics");
   });
   g.__DEV__ = previous;
   expect(mod).toBeDefined();

@@ -1,11 +1,11 @@
-import { queryClient } from "./query-client";
+import { queryClient } from "@/services/query-client";
 
 const mockReport = jest.fn();
 jest.mock("@/services/observability/query-errors", () => ({
   reportQueryError: (...a: unknown[]) => mockReport(...a),
 }));
-jest.mock("./api/client", () => {
-  const { ApiError } = jest.requireActual("./api/errors");
+jest.mock("@/services/api/client", () => {
+  const { ApiError } = jest.requireActual("@/services/api/errors");
   return { ApiError, NON_RETRYABLE_CODES: [] };
 });
 
