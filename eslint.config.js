@@ -168,4 +168,16 @@ module.exports = defineConfig([
     files: VERBATIM_COPIES,
     rules: { "@typescript-eslint/array-type": "off" },
   },
+
+  // ── Tests: jest.mock() sits above the imports it replaces ──────────────────
+  // Babel hoists jest.mock above every import, and its factory can only reach a
+  // module through require(). Both warnings fired on that pattern in nearly
+  // every suite, which buried any real warning in the lint output.
+  {
+    files: ["__tests__/**/*.{ts,tsx}"],
+    rules: {
+      "import/first": "off",
+      "@typescript-eslint/no-require-imports": "off",
+    },
+  },
 ]);

@@ -63,7 +63,7 @@ it("keeps the stored session when the launch refresh lands on a captive portal",
   );
 
   jest.isolateModules(() => {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports -- the client must load after the session is stored
+    // the client must load after the session is stored
     client = (require("@/services/supabase/client") as { supabase: SupabaseClient }).supabase;
   });
   if (!client) throw new Error("client did not load");

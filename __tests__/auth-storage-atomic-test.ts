@@ -510,7 +510,7 @@ describe("what a fresh launch finds on disk after the app is killed at any step"
   function freshAdapter(): typeof adapter {
     let fresh: typeof adapter | null = null;
     jest.isolateModules(() => {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports -- isolateModules needs a synchronous require
+      // isolateModules needs a synchronous require
       fresh = (require("@/services/supabase/auth-storage") as { supabaseStorage: typeof adapter })
         .supabaseStorage;
     });

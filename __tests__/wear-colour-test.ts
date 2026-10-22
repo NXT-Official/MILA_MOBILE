@@ -212,7 +212,7 @@ describe("wear colour", () => {
 
   it("the reason never shows an em or en dash: a comma, or a hyphen between digits", () => {
     // Golden vectors, copied verbatim by mobile (D-M4).
-    const vectors: Array<[string, string]> = [
+    const vectors: [string, string][] = [
       [
         "Added for today's temperature — structural outerwear the look was missing.",
         "Added for today's temperature, structural outerwear the look was missing.",

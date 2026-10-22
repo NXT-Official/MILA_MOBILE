@@ -368,7 +368,6 @@ describe("the PostHog client is constructed with the hook", () => {
       default: Ctor,
     }));
     const mod =
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
       require("@/services/posthog") as typeof import("@/services/posthog");
     return { mod, Ctor, screen };
   }

@@ -366,7 +366,7 @@ describe("rememberDismissed", () => {
 {
 // Golden vectors: sRGB (D65) to CIELAB, rounded to 4 decimals. Mobile copies
 // these verbatim, so both apps agree on "deepest" and "most vivid".
-const GOLDEN: Array<[hex: string, l: number, a: number, b: number, c: number]> = [
+const GOLDEN: [hex: string, l: number, a: number, b: number, c: number][] = [
   ["#000000", 0, 0, 0, 0],
   ["#FFFFFF", 100, 0, 0, 0],
   ["#808080", 53.585, 0, 0, 0],

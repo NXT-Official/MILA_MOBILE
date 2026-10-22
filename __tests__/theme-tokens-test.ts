@@ -81,7 +81,6 @@ describe("design tokens", () => {
   }
 
   it("keeps the spacing scale in step with tailwind.config.js", () => {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const tw = require("../tailwind.config.js");
     const twSpacing = tw.theme.extend.spacing as Record<string, string>;
     for (const [key, value] of Object.entries(spacing)) {
@@ -92,7 +91,6 @@ describe("design tokens", () => {
   it("keeps the touch targets in step with tailwind.config.js", () => {
     // A `min-h-tap` that generates nothing is a 44px rule that silently is not
     // enforced — exactly the failure this pairing exists to catch.
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const tw = require("../tailwind.config.js");
     const twSpacing = tw.theme.extend.spacing as Record<string, string>;
     for (const [key, value] of Object.entries(touchTargets)) {
@@ -103,7 +101,6 @@ describe("design tokens", () => {
   });
 
   it("keeps the radius scale in step with tailwind.config.js", () => {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const tw = require("../tailwind.config.js");
     const twRadii = tw.theme.extend.borderRadius as Record<string, string>;
     for (const [key, value] of Object.entries(radii)) {
