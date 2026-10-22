@@ -67,6 +67,12 @@ const VERBATIM_COPIES = [
 module.exports = defineConfig([
   expoConfig,
   { ignores: ["dist/*", ".expo/*", "node_modules/*"] },
+  // A Node-run config like metro.config.js, which the Expo preset already
+  // grants Node globals; this one it does not know about.
+  {
+    files: ["react-native.config.js"],
+    languageOptions: { globals: { __dirname: "readonly" } },
+  },
 
   // ── Baseline for all source ────────────────────────────────────────────────
   {
