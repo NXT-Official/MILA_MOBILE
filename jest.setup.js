@@ -20,6 +20,15 @@ jest.mock("@react-native-firebase/crashlytics", () => ({
   setCrashlyticsCollectionEnabled: jest.fn(() => Promise.resolve(null)),
 }));
 
+// jest-expo's native double for expo-network returns nothing from addListener,
+// where the device returns a subscription. `services/query-client` registers
+// one at import and removes it when the last client unmounts, so every suite
+// that mounts the root layout would throw on teardown without this.
+jest.mock("expo-network", () => ({
+  ...jest.requireActual("expo-network"),
+  addNetworkStateListener: jest.fn(() => ({ remove: jest.fn() })),
+}));
+
 jest.mock("@react-native-firebase/app", () => ({
   __esModule: true,
   getApp: jest.fn(() => ({ name: "[DEFAULT]" })),

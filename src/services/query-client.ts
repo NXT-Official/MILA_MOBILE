@@ -1,7 +1,19 @@
-import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
+import { MutationCache, onlineManager, QueryCache, QueryClient } from "@tanstack/react-query";
+import { addNetworkStateListener } from "expo-network";
 
 import { ApiError, NON_RETRYABLE_CODES } from "./api/client";
 import { reportQueryError } from "./observability/query-errors";
+
+// React Native has no browser `online` event, so without this the client
+// believes it is always online and `refetchOnReconnect` never fires: a screen
+// that failed offline stayed failed when the connection came back (QA F2).
+// An unknown reachability counts as online, the same rule as useNetworkStatus.
+onlineManager.setEventListener((setOnline) => {
+  const subscription = addNetworkStateListener(({ isConnected, isInternetReachable }) => {
+    setOnline(isConnected !== false && isInternetReachable !== false);
+  });
+  return () => subscription.remove();
+});
 
 export const queryClient = new QueryClient({
   // Every failed query and mutation reaches the observability facade, which
@@ -24,8 +36,16 @@ export const queryClient = new QueryClient({
       },
       // Web semantics do not apply on a phone; use useAppState instead.
       refetchOnWindowFocus: false,
+      // Connectivity only triggers the reconnect refetch. An offline request
+      // still runs and fails, so screens show their error state instead of a
+      // skeleton that waits forever. "always" turns the reconnect refetch off
+      // by default, so it is switched back on explicitly.
+      networkMode: "always",
+      refetchOnReconnect: true,
     },
     // Never auto-retry a credit-charging call — a retry is a double charge.
-    mutations: { retry: false },
+    // "always" for the same reason: a mutation is never parked offline and
+    // replayed on its own when the connection returns.
+    mutations: { retry: false, networkMode: "always" },
   },
 });
